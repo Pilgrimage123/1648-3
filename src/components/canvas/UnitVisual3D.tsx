@@ -183,7 +183,8 @@ export function UnitVisual3D({
       {/* Billowing Baroque Cloak in the Wind (Ranger, Sniper, Sectoid) */}
       {(archetype === "ranger" ||
         archetype === "sniper" ||
-        archetype === "sectoid") && (
+        archetype === "sectoid" ||
+        isPlachy) && (
         <mesh
           ref={cloakRef}
           position={[0, 0.72, -0.2]}
@@ -199,15 +200,17 @@ export function UnitVisual3D({
           />
           <meshStandardMaterial
             color={
-              isHavel
-                ? "#6b3a2a"
-                : isHarrier
-                  ? "#27272a"
-                  : archetype === "ranger"
-                    ? "#991b1b"
-                    : archetype === "sniper"
-                      ? "#15253b"
-                      : "#172554"
+              isPlachy
+                ? "#17171a"
+                : isHavel
+                  ? "#6b3a2a"
+                  : isHarrier
+                    ? "#27272a"
+                    : archetype === "ranger"
+                      ? "#991b1b"
+                      : archetype === "sniper"
+                        ? "#15253b"
+                        : "#172554"
             }
             roughness={0.65}
             transparent={transparent}
@@ -303,12 +306,31 @@ export function UnitVisual3D({
         archetype === "commander" ? (
           isPlachy ? (
             <>
-              <group position={[0, 1.32, 0]}>
+              {/* Jesuit 4-ridged biretta seated low on brow (no censer) */}
+              <group position={[0, 1.28, 0]}>
                 <mesh castShadow>
-                  <boxGeometry args={[0.34, 0.1, 0.34]} />
-                  <meshStandardMaterial color="#1c1917" roughness={0.7} />
+                  <boxGeometry args={[0.35, 0.085, 0.35]} />
+                  <meshStandardMaterial color="#18181b" roughness={0.72} />
+                </mesh>
+                {/* Raised biretta blades / horns */}
+                <mesh position={[0, 0.055, 0.14]} castShadow>
+                  <boxGeometry args={[0.32, 0.055, 0.045]} />
+                  <meshStandardMaterial color="#18181b" roughness={0.7} />
+                </mesh>
+                <mesh position={[0, 0.055, -0.14]} castShadow>
+                  <boxGeometry args={[0.32, 0.055, 0.045]} />
+                  <meshStandardMaterial color="#18181b" roughness={0.7} />
+                </mesh>
+                <mesh position={[0.14, 0.055, 0]} castShadow>
+                  <boxGeometry args={[0.045, 0.055, 0.32]} />
+                  <meshStandardMaterial color="#18181b" roughness={0.7} />
+                </mesh>
+                <mesh position={[0, 0.075, 0]}>
+                  <sphereGeometry args={[0.042, 8, 6]} />
+                  <meshStandardMaterial color="#27272a" roughness={0.65} />
                 </mesh>
               </group>
+              {/* Steel gorget worn over Jesuit cassock & mantle */}
               <mesh position={[0, 1.05, 0.08]} castShadow>
                 <torusGeometry args={[0.13, 0.028, 8, 16, Math.PI]} />
                 <meshStandardMaterial color="#94a3b8" metalness={0.75} roughness={0.3} />

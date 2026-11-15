@@ -114,6 +114,25 @@ export function resolvePreferredFloorCoord(
  * - Patro 2 (y = 2): Maltézská strážní věž a střešní ochoz konventu (x: 4..8, z: 17..19)
  */
 export function getRoofParapetCover(c: GridCoord, dir: CardinalDir): CoverLevel {
+  if (roofMask !== null) {
+    // Mission 2: Charles Bridge outer stone parapets (x: 1..9, z: 11 N & z: 16 S)
+    if (c.y === 0 && c.x >= 1 && c.x <= 9) {
+      if (c.z === 11 && dir === "N") return "half";
+      if (c.z === 16 && dir === "S") return "half";
+    }
+    // Old Town Bridge Tower western machicolation embrasures (y=1|2, x=10, z: 12..16)
+    if (
+      (c.y === 1 || c.y === 2) &&
+      c.x === 10 &&
+      c.z >= 12 &&
+      c.z <= 16 &&
+      dir === "W"
+    ) {
+      return "half";
+    }
+    return "none";
+  }
+
   if (c.y === 1) {
     // 1. Zahradní belveder (x: 9..14, z: 9..12)
     if (c.x >= 9 && c.x <= 14 && c.z >= 9 && c.z <= 12) {

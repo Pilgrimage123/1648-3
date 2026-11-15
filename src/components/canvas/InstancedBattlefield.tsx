@@ -911,6 +911,7 @@ function BaroqueLivingDecor({
   groundTiles: TileData[];
   upperTiles: TileData[];
 }) {
+  const grid = useGameStore((s) => s.grid);
   const blastZones = useGameStore((s) => s.blastZones);
   const scenario = useGameStore((s) => s.scenario);
   const flameRefs = useRef<(THREE.Mesh | null)[]>([]);
@@ -1169,27 +1170,46 @@ function BaroqueLivingDecor({
       {pristineCarpetTiles.map((tile) => {
         const [wx, wy, wz] = gridToWorld(tile.coord);
         const x = tile.coord.x;
-        const isLeftEdge = x === 4 || x === 9 || x === 17;
-        const isRightEdge = x === 6 || x === 14 || x === 19;
+        const y = tile.coord.y;
+        const z = tile.coord.z;
+        const isLeftEdge =
+          grid.getTile({ x: x - 1, y, z })?.surface !== "palace_carpet";
+        const isRightEdge =
+          grid.getTile({ x: x + 1, y, z })?.surface !== "palace_carpet";
         if (!isLeftEdge && !isRightEdge) return null;
-        const borderX = isLeftEdge ? -TILE_SIZE * 0.44 : TILE_SIZE * 0.44;
         return (
           <group
-            key={`carpet-trim-${tile.coord.x}-${tile.coord.y}-${tile.coord.z}`}
+            key={`carpet-trim-${x}-${y}-${z}`}
             position={[wx, wy + 0.008, wz]}
           >
-            <mesh
-              position={[borderX, 0, 0]}
-              rotation={[-Math.PI * 0.5, 0, 0]}
-              raycast={() => null}
-            >
-              <planeGeometry args={[0.06, TILE_SIZE * 0.96]} />
-              <meshStandardMaterial
-                color="#d4a73f"
-                metalness={0.75}
-                roughness={0.28}
-              />
-            </mesh>
+            {isLeftEdge && (
+              <mesh
+                position={[-TILE_SIZE * 0.44, 0, 0]}
+                rotation={[-Math.PI * 0.5, 0, 0]}
+                raycast={() => null}
+              >
+                <planeGeometry args={[0.06, TILE_SIZE * 0.96]} />
+                <meshStandardMaterial
+                  color="#d4a73f"
+                  metalness={0.75}
+                  roughness={0.28}
+                />
+              </mesh>
+            )}
+            {isRightEdge && (
+              <mesh
+                position={[TILE_SIZE * 0.44, 0, 0]}
+                rotation={[-Math.PI * 0.5, 0, 0]}
+                raycast={() => null}
+              >
+                <planeGeometry args={[0.06, TILE_SIZE * 0.96]} />
+                <meshStandardMaterial
+                  color="#d4a73f"
+                  metalness={0.75}
+                  roughness={0.28}
+                />
+              </mesh>
+            )}
           </group>
         );
       })}
@@ -1334,11 +1354,11 @@ function DynamicWaterField({ waterTiles }: { waterTiles: TileData[] }) {
     [],
   );
   const baseCol = useMemo(
-    () => new THREE.Color(isMission2 ? 0x18455b : 0x0a2a38),
+    () => new THREE.Color(isMission2 ? 0x1e5670 : 0x0c3445),
     [isMission2],
   );
   const waveCol = useMemo(
-    () => new THREE.Color(isMission2 ? 0x225c75 : 0x0f3647),
+    () => new THREE.Color(isMission2 ? 0x2b6e8c : 0x144559),
     [isMission2],
   );
   const sunGoldCol = useMemo(
@@ -1393,9 +1413,9 @@ function DynamicWaterField({ waterTiles }: { waterTiles: TileData[] }) {
           Math.sin(flowZ + crossX) * 0.024 +
           Math.cos(flowZ * 1.5 - crossX * 0.7) * 0.016;
 
-        _dummy.position.set(wx, wy - 0.16 + wave, wz);
-        _dummy.rotation.set(wave * 0.25, 0, wave * -0.2);
-        _dummy.scale.set(1, 1, 1);
+        _dummy.position.set(wx, wy - 0.16 + wave * 0.45, wz);
+        _dummy.rotation.set(0, 0, 0);
+        _dummy.scale.set(1.02, 1, 1.02);
         _dummy.updateMatrix();
         mesh.setMatrixAt(i, _dummy.matrix);
 
@@ -1461,10 +1481,10 @@ function DynamicWaterField({ waterTiles }: { waterTiles: TileData[] }) {
     >
       <boxGeometry args={[TILE_SIZE * 0.98, 0.12, TILE_SIZE * 0.98]} />
       <meshStandardMaterial
-        color={isMission2 ? "#18455b" : "#0c2b3a"}
-        roughness={isMission2 ? 0.06 : 0.08}
-        metalness={isMission2 ? 0.42 : 0.38}
-        envMapIntensity={isMission2 ? 2.2 : 1.8}
+        color="#ffffff"
+        roughness={isMission2 ? 0.12 : 0.1}
+        metalness={isMission2 ? 0.32 : 0.35}
+        envMapIntensity={isMission2 ? 2.0 : 1.6}
       />
     </instancedMesh>
   );
@@ -1569,6 +1589,7 @@ export function InstancedBattlefield() {
     const high1: TileData[] = [];
     const pillar1: TileData[] = [];
     const low2: TileData[] = [];
+    const high2: TileData[] = [];
     const pillar2: TileData[] = [];
     const stairs: StairSpan[] = [];
 
@@ -1611,8 +1632,8 @@ export function InstancedBattlefield() {
         else if (t.obstacle === "pillar") pillar1.push(t);
       } else if (t.coord.y === 2) {
         if (t.obstacle === "low_wall") low2.push(t);
-        else if (t.obstacle === "pillar" || t.obstacle === "high_wall")
-          pillar2.push(t);
+        else if (t.obstacle === "high_wall") high2.push(t);
+        else if (t.obstacle === "pillar") pillar2.push(t);
       }
     }
     const doors = grid.getAllDoors();
@@ -1625,6 +1646,7 @@ export function InstancedBattlefield() {
       high1,
       pillar1,
       low2,
+      high2,
       pillar2,
       stairs,
       doors,
@@ -1701,6 +1723,7 @@ export function InstancedBattlefield() {
   const pillar1MeshRef = useRef<THREE.InstancedMesh>(null);
   const pillar1CapMeshRef = useRef<THREE.InstancedMesh>(null);
   const low2MeshRef = useRef<THREE.InstancedMesh>(null);
+  const high2MeshRef = useRef<THREE.InstancedMesh>(null);
   const pillar2MeshRef = useRef<THREE.InstancedMesh>(null);
   const zoneMeshRef = useRef<THREE.InstancedMesh>(null);
   const fogVeilMeshRef = useRef<THREE.InstancedMesh>(null);
@@ -1806,7 +1829,7 @@ export function InstancedBattlefield() {
     groundFloorTiles.forEach((tile, i) => {
       const [wx, wy, wz] = gridToWorld(tile.coord);
       const isWater = tile.surface === "water";
-      _dummy.position.set(wx, wy + (isWater ? -0.22 : -0.08), wz);
+      _dummy.position.set(wx, wy + (isWater ? -0.36 : -0.08), wz);
       _dummy.rotation.set(0, 0, 0);
       _dummy.scale.set(1, 1, 1);
       _dummy.updateMatrix();
@@ -1979,17 +2002,30 @@ export function InstancedBattlefield() {
       }
 
       if (c.y !== effectiveViewFloor) return false;
-      // Vnitřní příčky Velkopřevorského paláce (x = 8, x = 15, z = 21, z = 16) na aktivním patře
-      // vždy snížíme na elegantní barokní sokl (Wall Stub), aby neclonily výhledu do komnat a na lustry!
+      // Never stub a wall jamb directly adjacent to a doorway on the same floor,
+      // so 3D doors and portals remain anchored into full-height wall jambs on both sides.
       if (
-        scenario !== "mission2" &&
-        c.z >= 15 &&
-        c.z <= 26 &&
-        c.x >= 3 &&
-        c.x <= 20 &&
-        (c.x === 8 || c.x === 15 || c.z === 21 || c.z === 16)
+        grid.getDoor({ x: c.x - 1, y: c.y, z: c.z }) ||
+        grid.getDoor({ x: c.x + 1, y: c.y, z: c.z }) ||
+        grid.getDoor({ x: c.x, y: c.y, z: c.z - 1 }) ||
+        grid.getDoor({ x: c.x, y: c.y, z: c.z + 1 })
       ) {
-        return true;
+        return false;
+      }
+      if (scenario === "mission2") {
+        // Bridge Tower perimeter walls on the camera-facing side stub cleanly so interiors stay open.
+        // (camDirX, camDirZ) points FROM target TOWARD the camera.
+        if (c.x >= 10 && c.x <= 18 && c.z >= 10 && c.z <= 18) {
+          const onSouthFront = c.z >= 17 && camDirZ > 0.25;
+          const onNorthFront = c.z <= 11 && camDirZ < -0.25;
+          const onEastFront = c.x >= 17 && camDirX > 0.25;
+          const onWestFront = c.x <= 11 && camDirX < -0.25;
+          if (onSouthFront || onNorthFront || onEastFront || onWestFront) {
+            return true;
+          }
+        }
+      } else if (c.y === 1) {
+        return c.z === 26 || c.x === 8 || c.x === 15;
       }
       const dx = c.x - focusCoord.x;
       const dz = c.z - focusCoord.z;
@@ -2023,8 +2059,15 @@ export function InstancedBattlefield() {
         mesh.setMatrixAt(i, _dummy.matrix);
 
         const dmg = hasNeighborBlast(tile.coord);
+        const isM2 = scenario === "mission2";
         if (front) {
-          _color.setHex(dmg >= 2 ? 0x2b231f : 0x9c8b7a);
+          _color.setHex(
+            dmg >= 2 ? 0x2b231f : isM2 ? 0x857865 : 0x9c8b7a,
+          );
+        } else if (isM2) {
+          _color.setHex(
+            dmg >= 2 ? 0x2b231f : dmg === 1 ? 0x5d5347 : 0x766a59,
+          );
         } else {
           if (dmg >= 2) _color.setHex(0x2b231f);
           else if (tile.coord.z >= 15) _color.setHex(dmg === 1 ? 0x6b6057 : 0x8f8274);
@@ -2055,15 +2098,16 @@ export function InstancedBattlefield() {
       if (list.length > 0) mesh.computeBoundingSphere();
     };
 
+    const isM2 = scenario === "mission2";
     populateWithColor(low0MeshRef.current, obstacles.low0, 0.42, (t, dmg) => {
       if (dmg >= 2) return 0x29211d;
-      if (t.coord.z >= 15) return dmg === 1 ? 0x4a3525 : 0x5c3a21;
-      return dmg === 1 ? 0x4d463f : 0x61584f;
+      if (!isM2 && t.coord.z >= 15) return dmg === 1 ? 0x4a3525 : 0x5c3a21;
+      return dmg === 1 ? 0x4d463f : isM2 ? 0x6b6052 : 0x61584f;
     });
     populateWithColor(low0CapMeshRef.current, obstacles.low0, 0.85, (t, dmg) => {
       if (dmg >= 2) return 0x382e29;
-      if (t.coord.z >= 15) return dmg === 1 ? 0x8c734b : 0xc89d3c;
-      return dmg === 1 ? 0x6b6259 : 0x857b70;
+      if (!isM2 && t.coord.z >= 15) return dmg === 1 ? 0x8c734b : 0xc89d3c;
+      return dmg === 1 ? 0x6b6259 : isM2 ? 0x857867 : 0x857b70;
     });
 
     populateHighWalls(high0MeshRef.current, obstacles.high0);
@@ -2074,8 +2118,8 @@ export function InstancedBattlefield() {
       FLOOR_HEIGHT * 0.5,
       (t, dmg) => {
         if (dmg >= 2) return 0x2e2622;
-        if (t.coord.z >= 15) return dmg === 1 ? 0x695e54 : 0x8c7b6b;
-        return dmg === 1 ? 0x4f4943 : 0x696158;
+        if (!isM2 && t.coord.z >= 15) return dmg === 1 ? 0x695e54 : 0x8c7b6b;
+        return dmg === 1 ? 0x4f4943 : isM2 ? 0x766a59 : 0x696158;
       },
     );
     populateWithColor(
@@ -2084,30 +2128,55 @@ export function InstancedBattlefield() {
       FLOOR_HEIGHT - 0.14,
       (t, dmg) => {
         if (dmg >= 2) return 0x3d332c;
-        if (t.coord.z >= 15) return dmg === 1 ? 0x94793b : 0xd4a73f;
-        return dmg === 1 ? 0x6e655c : 0x91867a;
+        if (!isM2 && t.coord.z >= 15) return dmg === 1 ? 0x94793b : 0xd4a73f;
+        return dmg === 1 ? 0x6e655c : isM2 ? 0x8d7f6c : 0x91867a;
       },
     );
 
     populateWithColor(kegs0MeshRef.current, obstacles.kegs0, 0.36, () => 0x991b1b);
     populateWithColor(low1MeshRef.current, obstacles.low1, 0.42, (t, dmg) =>
-      dmg >= 2 ? 0x2e2520 : t.coord.z >= 15 ? 0x5c3a21 : 0x787067,
+      dmg >= 2
+        ? 0x2e2520
+        : !isM2 && t.coord.z >= 15
+          ? 0x5c3a21
+          : isM2
+            ? 0x6d6152
+            : 0x787067,
     );
     populateWithColor(low1CapMeshRef.current, obstacles.low1, 0.85, (t, dmg) =>
-      dmg >= 2 ? 0x382e29 : t.coord.z >= 15 ? 0xd4a73f : 0x91867a,
+      dmg >= 2
+        ? 0x382e29
+        : !isM2 && t.coord.z >= 15
+          ? 0xd4a73f
+          : isM2
+            ? 0x857867
+            : 0x91867a,
     );
     populateHighWalls(high1MeshRef.current, obstacles.high1);
     populateWithColor(pillar1MeshRef.current, obstacles.pillar1, 1.0, (t, dmg) =>
-      dmg >= 2 ? 0x362c26 : t.coord.z >= 15 ? 0x948473 : 0x8c8277,
+      dmg >= 2
+        ? 0x362c26
+        : !isM2 && t.coord.z >= 15
+          ? 0x948473
+          : isM2
+            ? 0x796d5c
+            : 0x8c8277,
     );
     populateWithColor(pillar1CapMeshRef.current, obstacles.pillar1, 1.94, (t, dmg) =>
-      dmg >= 2 ? 0x3d332c : t.coord.z >= 15 ? 0xd4a73f : 0x9c8b7a,
+      dmg >= 2
+        ? 0x3d332c
+        : !isM2 && t.coord.z >= 15
+          ? 0xd4a73f
+          : isM2
+            ? 0x948570
+            : 0x9c8b7a,
     );
     populateWithColor(low2MeshRef.current, obstacles.low2, 0.42, (_, dmg) =>
-      dmg >= 2 ? 0x2e2520 : 0x787067,
+      dmg >= 2 ? 0x2e2520 : isM2 ? 0x756958 : 0x787067,
     );
+    populateHighWalls(high2MeshRef.current, obstacles.high2);
     populateWithColor(pillar2MeshRef.current, obstacles.pillar2, 1.0, (_, dmg) =>
-      dmg >= 2 ? 0x362c26 : 0x8c7b6b,
+      dmg >= 2 ? 0x362c26 : isM2 ? 0x7b6f5e : 0x8c7b6b,
     );
   }, [
     obstacles,
@@ -2122,6 +2191,7 @@ export function InstancedBattlefield() {
     selectedTargetUnit?.pos,
     hoveredTile,
     effectiveViewFloor,
+    scenario,
   ]);
 
   // Populate Nocturnal Fog of War Shroud Veil & Chiaroscuro Torchlight Frontier Rim
@@ -2755,6 +2825,24 @@ export function InstancedBattlefield() {
         <boxGeometry args={[TILE_SIZE * 0.85, 0.84, TILE_SIZE * 0.85]} />
         <meshStandardMaterial
           roughness={0.75}
+          transparent={watchtowerCutaway}
+          opacity={watchtowerCutaway ? 0.04 : 1}
+          depthWrite={!watchtowerCutaway}
+        />
+      </instancedMesh>
+
+      <instancedMesh
+        ref={high2MeshRef}
+        args={[undefined, undefined, 64]}
+        count={obstacles.high2.length}
+        castShadow={!watchtowerCutaway}
+        receiveShadow
+        raycast={() => null}
+      >
+        <boxGeometry args={[TILE_SIZE * 0.96, FLOOR_HEIGHT, TILE_SIZE * 0.96]} />
+        <meshStandardMaterial
+          roughness={0.72}
+          metalness={0.14}
           transparent={watchtowerCutaway}
           opacity={watchtowerCutaway ? 0.04 : 1}
           depthWrite={!watchtowerCutaway}

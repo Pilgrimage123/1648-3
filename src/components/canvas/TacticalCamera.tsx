@@ -234,20 +234,21 @@ export function TacticalCamera() {
   const cameraDirector = useGameStore((s) => s.cameraDirector);
   const scenario = useGameStore((s) => s.scenario);
 
-  const orbitCenterRef = useRef(new THREE.Vector3(-1.8, 0, 8.2));
-  const currentLookAtRef = useRef(new THREE.Vector3(-1.8, 0, 8.2));
+  const orbitCenterRef = useRef(new THREE.Vector3(-5.6, FLOOR_HEIGHT, 11.6));
+  const currentLookAtRef = useRef(new THREE.Vector3(-5.6, FLOOR_HEIGHT, 11.6));
   const currentAngleRef = useRef(Math.PI * 0.25);
   const distanceRef = useRef(24);
   const keysPressedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (scenario === "mission2") {
-      // Frame the West Gate (x=10, z=14) and Charles Bridge (x=1..9, z=11..16)
-      orbitCenterRef.current.set(-2.4, 0, 0.8);
-      currentLookAtRef.current.set(-2.4, 0, 0.8);
+      // Frame the Old Town Bridge Tower, Charles Bridge, and Krizovnicke namesti on P2
+      const initialY = 2 * FLOOR_HEIGHT * 0.65;
+      orbitCenterRef.current.set(1.6, initialY, 0.8);
+      currentLookAtRef.current.set(1.6, initialY, 0.8);
     } else {
-      orbitCenterRef.current.set(-1.8, 0, 8.2);
-      currentLookAtRef.current.set(-1.8, 0, 8.2);
+      orbitCenterRef.current.set(-5.6, FLOOR_HEIGHT, 11.6);
+      currentLookAtRef.current.set(-5.6, FLOOR_HEIGHT, 11.6);
     }
   }, [scenario, grid]);
   const isRightDraggingRef = useRef(false);

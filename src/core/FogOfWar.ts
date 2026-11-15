@@ -217,7 +217,9 @@ export function computeFogOfWar(
     for (const tile of allFloorTiles) {
       if (
         tile.coord.y === 0 &&
-        (tile.coord.x <= 10 || tile.coord.x >= 19) &&
+        (tile.coord.x <= 10 ||
+          tile.coord.x >= 19 ||
+          tile.surface === "water") &&
         tile.smokeTurns === 0
       ) {
         const k = coordKey(tile.coord);

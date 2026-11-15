@@ -160,8 +160,13 @@ export function createMission2Grid(): GridSystem {
       paint(grid, x, 0, z, "cobble", true);
     }
   }
-  for (let x = BRIDGE_X0; x <= BRIDGE_X1; x++) {
-    for (const z of [8, 9, 10, 17, 18, 19]) {
+  for (let x = 0; x <= 14; x++) {
+    for (let z = 1; z <= 10; z++) {
+      if (x >= TOWER_X0 && z >= TOWER_Z0) continue;
+      paint(grid, x, 0, z, "water", false);
+    }
+    for (let z = 17; z <= 26; z++) {
+      if (x >= TOWER_X0 && z <= TOWER_Z1) continue;
       paint(grid, x, 0, z, "water", false);
     }
   }
@@ -255,9 +260,12 @@ export function createMission2Explored(grid: GridSystem): Set<string> {
     if (!tile.hasFloor) continue;
     const { x, y, z } = tile.coord;
     const onBridge = y === 0 && x >= BRIDGE_X0 && x <= BRIDGE_X1 && z >= 8 && z <= 19;
+    const onWater = y === 0 && tile.surface === "water";
     const inTower = x >= TOWER_X0 && x <= TOWER_X1 && z >= TOWER_Z0 && z <= TOWER_Z1;
     const onSquare = y === 0 && x >= 19 && x <= 22 && z >= 11 && z <= 17;
-    if (onBridge || inTower || onSquare) explored.add(coordKey(tile.coord));
+    if (onBridge || onWater || inTower || onSquare) {
+      explored.add(coordKey(tile.coord));
+    }
   }
   return explored;
 }

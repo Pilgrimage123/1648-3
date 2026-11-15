@@ -141,8 +141,8 @@ export const CANDELABRA: readonly FixtureDef[] = [
   {
     id: "candelabrum-bedroom-west",
     kind: "candelabrum",
-    coord: { x: 4, y: 1, z: 24 },
-    offset: [-0.35, 1.15, 0],
+    coord: { x: 3, y: 1, z: 23 },
+    offset: [-0.35, 1.59, -0.2],
     color: CANDELABRUM_COLOR,
     radius: 5.5,
     intensity: 3.0,
@@ -150,8 +150,8 @@ export const CANDELABRA: readonly FixtureDef[] = [
   {
     id: "candelabrum-bedroom-south",
     kind: "candelabrum",
-    coord: { x: 6, y: 1, z: 25 },
-    offset: [0, 1.15, 0.35],
+    coord: { x: 5, y: 1, z: 25 },
+    offset: [0.24, 1.69, 0.38],
     color: "#fbbf24",
     radius: 5.5,
     intensity: 2.8,
