@@ -710,6 +710,30 @@ function OldTownSurroundings() {
             <meshStandardMaterial color={PALETTE.sandstoneLight} roughness={0.78} />
           </mesh>
         ))}
+        {/* Recessed arched portal bays between Corinthian pilasters */}
+        {[-2.5, 0, 2.5].map((bz) => (
+          <mesh key={`salv-bay-${bz}`} position={[-0.42, 0.72, bz]} raycast={NO_RAYCAST}>
+            <boxGeometry args={[0.08, 1.18, 0.92]} />
+            <meshStandardMaterial color="#3a322a" roughness={0.92} />
+          </mesh>
+        ))}
+        {/* Twin Baroque Sandstone Obelisk Pedestals with Gilded Flame Finials */}
+        {[-4.2, 4.2].map((oz) => (
+          <group key={`salv-ob-${oz}`} position={[-0.42, 0, oz]}>
+            <mesh position={[0, 0.45, 0]} castShadow raycast={NO_RAYCAST}>
+              <boxGeometry args={[0.42, 0.9, 0.42]} />
+              <meshStandardMaterial color={PALETTE.sandstone} roughness={0.82} />
+            </mesh>
+            <mesh position={[0, 1.24, 0]} castShadow raycast={NO_RAYCAST}>
+              <coneGeometry args={[0.14, 0.72, 4]} />
+              <meshStandardMaterial color={PALETTE.sandstoneLight} roughness={0.75} />
+            </mesh>
+            <mesh position={[0, 1.66, 0]} raycast={NO_RAYCAST}>
+              <sphereGeometry args={[0.06, 8, 6]} />
+              <meshStandardMaterial color={PALETTE.heraldicGold} metalness={0.6} roughness={0.35} />
+            </mesh>
+          </group>
+        ))}
         {/* Carved Jesuit IHS Portal Plaque */}
         <mesh position={[-0.42, 1.15, 0]} raycast={NO_RAYCAST}>
           <cylinderGeometry args={[0.28, 0.28, 0.08, 12]} />
@@ -717,7 +741,7 @@ function OldTownSurroundings() {
         </mesh>
       </group>
 
-      {/* North: Knights of the Cross (Krizovnici) Monastery Cutaway Wing (z=6.8, x=19.8) */}
+      {/* North: Knights of the Cross (Krizovnici s cervenou hvezdou) Monastery Cutaway Wing (z=6.8, x=19.8) */}
       <group position={at(19.8, 0, 6.8)}>
         <mesh position={[0, 0.72, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
           <boxGeometry args={[7.4, 1.44, 3.2]} />
@@ -727,6 +751,38 @@ function OldTownSurroundings() {
           <boxGeometry args={[7.7, 0.16, 3.4]} />
           <meshStandardMaterial color={PALETTE.sandstoneTrim} roughness={0.82} />
         </mesh>
+        {/* Cloister arched window reveals facing Krizovnicke namesti */}
+        {[-2.4, -1.2, 1.2, 2.4].map((wx) => (
+          <group key={`kriz-win-${wx}`} position={[wx, 0.78, 1.62]}>
+            <mesh raycast={NO_RAYCAST}>
+              <boxGeometry args={[0.62, 0.88, 0.08]} />
+              <meshStandardMaterial color={PALETTE.sandstoneTrim} roughness={0.8} />
+            </mesh>
+            <mesh position={[0, 0, 0.03]} raycast={NO_RAYCAST}>
+              <planeGeometry args={[0.42, 0.68]} />
+              <meshStandardMaterial color="#2a241e" roughness={0.92} />
+            </mesh>
+          </group>
+        ))}
+        {/* Knights of the Cross Red Star & Cross Heraldic Cartouche */}
+        <group position={[0, 1.05, 1.64]}>
+          <mesh raycast={NO_RAYCAST}>
+            <boxGeometry args={[0.72, 0.68, 0.08]} />
+            <meshStandardMaterial color={PALETTE.heraldicGold} roughness={0.5} metalness={0.4} />
+          </mesh>
+          <mesh position={[0, 0.06, 0.04]} raycast={NO_RAYCAST}>
+            <boxGeometry args={[0.16, 0.38, 0.04]} />
+            <meshStandardMaterial color={PALETTE.heraldicCrimson} roughness={0.65} />
+          </mesh>
+          <mesh position={[0, 0.1, 0.04]} raycast={NO_RAYCAST}>
+            <boxGeometry args={[0.32, 0.12, 0.04]} />
+            <meshStandardMaterial color={PALETTE.heraldicCrimson} roughness={0.65} />
+          </mesh>
+          <mesh position={[0, -0.18, 0.04]} rotation={[0, 0, Math.PI * 0.25]} raycast={NO_RAYCAST}>
+            <boxGeometry args={[0.15, 0.15, 0.04]} />
+            <meshStandardMaterial color={PALETTE.heraldicCrimson} roughness={0.65} />
+          </mesh>
+        </group>
       </group>
 
       {/* South: Old Town Corner Burgher House Cutaway Plinth (z=20.2, x=20.4) */}
@@ -740,18 +796,89 @@ function OldTownSurroundings() {
           <meshStandardMaterial color={PALETTE.sandstoneDark} roughness={0.86} />
         </mesh>
       </group>
+    </group>
+  );
+}
 
-      {/* Distant Dark Chiaroscuro Mala Strana Embankment Silhouette (far West off-board x=-3.6) */}
-      <group position={at(-3.6, 0, 13.5)}>
-        <mesh position={[0, 0.45, -7.2]} receiveShadow raycast={NO_RAYCAST}>
-          <boxGeometry args={[4.4, 2.2, 6.2]} />
-          <meshStandardMaterial color="#1f2429" roughness={0.95} />
-        </mesh>
-        <mesh position={[0, 0.45, 7.4]} receiveShadow raycast={NO_RAYCAST}>
-          <boxGeometry args={[4.4, 2.4, 6.6]} />
-          <meshStandardMaterial color="#1d2226" roughness={0.95} />
-        </mesh>
-      </group>
+/** Petr Parler alternating sandstone corner quoins for a tower storey (keeps foreground SE/SW stubbed). */
+function TowerCornerQuoins({ floorY }: { floorY: 0 | 1 | 2 }) {
+  const corners: { x: number; z: number; full: boolean }[] = [
+    { x: 9.46, z: 9.96, full: true },
+    { x: 18.54, z: 9.96, full: true },
+    { x: 9.46, z: 18.04, full: false },
+    { x: 18.54, z: 18.04, full: false },
+  ];
+  const tiers = [0.22, 0.72, 1.22, 1.72, 2.16];
+  return (
+    <group>
+      {corners.map(({ x, z, full }, ci) => (
+        <group key={`quoin-${floorY}-${ci}`} position={at(x, floorY, z)}>
+          {(full ? tiers : [0.2]).map((qy, qi) => (
+            <mesh key={qi} position={[0, qy, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
+              <boxGeometry
+                args={qi % 2 === 0 ? [0.46, 0.24, 0.34] : [0.34, 0.24, 0.46]}
+              />
+              <meshStandardMaterial
+                color={qi % 2 === 0 ? PALETTE.sandstoneLight : PALETTE.sandstoneTrim}
+                roughness={0.8}
+              />
+            </mesh>
+          ))}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+/** Gothic sandstone vaulting shafts & net-vault springer ribs along the P0 inner North gateway wall (z=11.52). */
+function GatewayVaultRibs() {
+  return (
+    <group>
+      {[11, 13, 15, 17].map((gx) => (
+        <group key={`vrib-${gx}`} position={at(gx, 0, 11.52)}>
+          {/* Engaged half-column vault shaft */}
+          <mesh position={[0, 0.88, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
+            <cylinderGeometry args={[0.11, 0.13, 1.76, 8]} />
+            <meshStandardMaterial color={PALETTE.sandstoneTrim} roughness={0.82} />
+          </mesh>
+          {/* Bell capital at springline */}
+          <mesh position={[0, 1.8, 0]} raycast={NO_RAYCAST}>
+            <boxGeometry args={[0.3, 0.14, 0.3]} />
+            <meshStandardMaterial color={PALETTE.sandstoneLight} roughness={0.78} />
+          </mesh>
+          {/* Transverse & diagonal net-vault springer ribs curving high (y=2.04..2.28m) */}
+          <mesh
+            position={[0, 2.06, 0.32]}
+            rotation={[-0.65, 0, 0]}
+            castShadow
+            raycast={NO_RAYCAST}
+          >
+            <boxGeometry args={[0.12, 0.12, 0.82]} />
+            <meshStandardMaterial color={PALETTE.sandstoneLight} roughness={0.78} />
+          </mesh>
+          <mesh
+            position={[-0.22, 2.04, 0.26]}
+            rotation={[-0.55, -0.5, 0]}
+            raycast={NO_RAYCAST}
+          >
+            <boxGeometry args={[0.09, 0.1, 0.72]} />
+            <meshStandardMaterial color={PALETTE.sandstoneTrim} roughness={0.8} />
+          </mesh>
+          <mesh
+            position={[0.22, 2.04, 0.26]}
+            rotation={[-0.55, 0.5, 0]}
+            raycast={NO_RAYCAST}
+          >
+            <boxGeometry args={[0.09, 0.1, 0.72]} />
+            <meshStandardMaterial color={PALETTE.sandstoneTrim} roughness={0.8} />
+          </mesh>
+          {/* Gilded Luxembourg vault boss */}
+          <mesh position={[0, 2.24, 0.58]} raycast={NO_RAYCAST}>
+            <cylinderGeometry args={[0.1, 0.1, 0.08, 8]} />
+            <meshStandardMaterial color={PALETTE.heraldicGold} metalness={0.5} roughness={0.4} />
+          </mesh>
+        </group>
+      ))}
     </group>
   );
 }
@@ -833,6 +960,10 @@ export function BridgeTowerDressing() {
       {/* Iron-Shod Oak Portcullis at West Gateway Threshold */}
       <PortcullisMesh seated={seated} />
 
+      {/* P0 Petr Parler Corner Quoins & North Gateway Net-Vault Springer Ribs */}
+      <TowerCornerQuoins floorY={0} />
+      <GatewayVaultRibs />
+
       {/* Horizontal Petr Parler Sandstone Cornice Stringcourses dividing P0 / P1 / P2 */}
       {activeFloor >= 1 && (
         <group position={at(14, 1, 14)}>
@@ -896,6 +1027,7 @@ export function BridgeTowerDressing() {
           <ParlerNicheStatue zGrid={13} floorY={1} variant="charles" />
           <ParlerNicheStatue zGrid={14} floorY={1} variant="vitus" />
           <ParlerNicheStatue zGrid={15} floorY={1} variant="wenceslas" />
+          <TowerCornerQuoins floorY={1} />
         </group>
       )}
 
@@ -931,6 +1063,7 @@ export function BridgeTowerDressing() {
             </mesh>
           </group>
           <ParlerNicheStatue zGrid={15} floorY={2} variant="sigismund" />
+          <TowerCornerQuoins floorY={2} />
 
           {/* Ghosted 1370s Wedge Roof above wy=7.2 (never occludes P2 playable floor) */}
           <GhostedTowerRoof />

@@ -33,8 +33,6 @@ import { useGameStore } from "../../store/useGameStore";
 import {
   continuousGridToWorld,
   FLOOR_HEIGHT,
-  gridToWorld,
-  TILE_SIZE,
 } from "./worldCoords";
 
 const noRaycast = () => null;
@@ -273,6 +271,108 @@ function MalteseHeraldicTapestry({
           opacity={opacity}
         />
       </mesh>
+    </group>
+  );
+}
+
+/**
+ * Suspended Tiered Gilded Brass & Bohemian Crystal Chandelier (Barokní křišťálový lustr).
+ * Anchored high above head clearance (wy + 2.02..2.36m) so tiles stay unobstructed.
+ */
+function BaroqueCrystalChandelier({
+  x,
+  y,
+  z,
+  opacity = 1,
+}: {
+  x: number;
+  y: 0 | 1;
+  z: number;
+  opacity?: number;
+}) {
+  if (opacity <= 0.02) return null;
+  const [wx, wy, wz] = continuousGridToWorld(x, y, z);
+  const isTransparent = opacity < 0.99;
+
+  return (
+    <group position={[wx, wy + 2.06, wz]}>
+      {/* Ceiling suspension rod */}
+      <mesh position={[0, 0.2, 0]} raycast={noRaycast}>
+        <cylinderGeometry args={[0.02, 0.02, 0.28, 6]} />
+        <meshStandardMaterial
+          color={BRASS_GOLD}
+          metalness={0.85}
+          roughness={0.25}
+          transparent={isTransparent}
+          opacity={opacity}
+        />
+      </mesh>
+      {/* Main gilded corona hoop */}
+      <mesh rotation={[Math.PI * 0.5, 0, 0]} raycast={noRaycast}>
+        <torusGeometry args={[0.34, 0.024, 6, 18]} />
+        <meshStandardMaterial
+          color={BRASS_GOLD}
+          metalness={0.86}
+          roughness={0.24}
+          transparent={isTransparent}
+          opacity={opacity}
+        />
+      </mesh>
+      {/* Inner crystal prism crown */}
+      <mesh position={[0, 0.06, 0]} rotation={[Math.PI * 0.5, 0, 0]} raycast={noRaycast}>
+        <torusGeometry args={[0.18, 0.018, 6, 14]} />
+        <meshStandardMaterial
+          color="#e2e8f0"
+          emissive="#fef3c7"
+          emissiveIntensity={0.22}
+          metalness={0.4}
+          roughness={0.18}
+          transparent={isTransparent}
+          opacity={opacity}
+        />
+      </mesh>
+      {/* Lower crystal pear finial */}
+      <mesh position={[0, -0.1, 0]} rotation={[Math.PI, 0, 0]} raycast={noRaycast}>
+        <coneGeometry args={[0.06, 0.14, 6]} />
+        <meshStandardMaterial
+          color="#e2e8f0"
+          emissive="#fef3c7"
+          emissiveIntensity={0.25}
+          roughness={0.15}
+          metalness={0.5}
+          transparent={isTransparent}
+          opacity={opacity}
+        />
+      </mesh>
+      {/* 6 perimeter beeswax candles & warm amber flames */}
+      {[0, 1, 2, 3, 4, 5].map((ci) => {
+        const ang = (ci / 6) * Math.PI * 2;
+        const cx = Math.cos(ang) * 0.34;
+        const cz = Math.sin(ang) * 0.34;
+        return (
+          <group key={`ch-candle-${ci}`} position={[cx, 0.05, cz]}>
+            <mesh raycast={noRaycast}>
+              <cylinderGeometry args={[0.016, 0.018, 0.08, 6]} />
+              <meshStandardMaterial
+                color="#f8fafc"
+                roughness={0.6}
+                transparent={isTransparent}
+                opacity={opacity}
+              />
+            </mesh>
+            <mesh position={[0, 0.065, 0]} raycast={noRaycast}>
+              <coneGeometry args={[0.018, 0.05, 5]} />
+              <meshStandardMaterial
+                color="#fef08a"
+                emissive="#f97316"
+                emissiveIntensity={1.6}
+                transparent={isTransparent}
+                opacity={opacity}
+              />
+            </mesh>
+          </group>
+        );
+      })}
     </group>
   );
 }
@@ -589,7 +689,7 @@ export function GrandPrioryPalaceDressing() {
             );
           })()}
 
-          {/* Chiaroscuro Oil Painting & Maltese Heraldic Tapestry on the solid [3, 1, 21] wall */}
+          {/* Chiaroscuro Oil Paintings & Maltese Heraldic Tapestries on verified P1 full-height walls */}
           <BaroqueMasterpiecePainting
             x={3.0}
             y={1}
@@ -601,6 +701,28 @@ export function GrandPrioryPalaceDressing() {
             subjectTone="#d97706"
             opacity={p1Opacity}
           />
+          <BaroqueMasterpiecePainting
+            x={4.0}
+            y={1}
+            z={21.54}
+            rotY={0}
+            width={1.1}
+            height={0.76}
+            canvasTone="#1f1822"
+            subjectTone="#b45309"
+            opacity={p1Opacity}
+          />
+          <BaroqueMasterpiecePainting
+            x={7.0}
+            y={1}
+            z={21.54}
+            rotY={0}
+            width={1.15}
+            height={0.78}
+            canvasTone="#291912"
+            subjectTone="#ca8a04"
+            opacity={p1Opacity}
+          />
           <MalteseHeraldicTapestry
             x={3.0}
             y={1}
@@ -608,6 +730,55 @@ export function GrandPrioryPalaceDressing() {
             rotY={Math.PI}
             opacity={p1Opacity}
           />
+          <BaroqueMasterpiecePainting
+            x={4.0}
+            y={1}
+            z={20.46}
+            rotY={Math.PI}
+            width={1.12}
+            height={0.76}
+            canvasTone="#1e1510"
+            subjectTone="#c27838"
+            opacity={p1Opacity}
+          />
+          <MalteseHeraldicTapestry
+            x={7.0}
+            y={1}
+            z={20.46}
+            rotY={Math.PI}
+            opacity={p1Opacity}
+          />
+
+          {/* Three Suspended P1 Bohemian Crystal Chandeliers */}
+          <BaroqueCrystalChandelier x={11.5} y={1} z={22.0} opacity={p1Opacity} />
+          <BaroqueCrystalChandelier x={5.0} y={1} z={23.5} opacity={p1Opacity} />
+          <BaroqueCrystalChandelier x={17.5} y={1} z={22.0} opacity={p1Opacity} />
+
+          {/* Four Baroque Sandstone Balustrade Urns on P1 Belvedere Corners */}
+          {[
+            [8.62, 8.62],
+            [14.38, 8.62],
+            [8.62, 12.38],
+            [14.38, 12.38],
+          ].map(([ux, uz], ui) => {
+            const [uwx, uwy, uwz] = continuousGridToWorld(ux!, 1, uz!);
+            return (
+              <group key={`belv-urn-${ui}`} position={[uwx, uwy, uwz]}>
+                <mesh position={[0, 0.14, 0]} castShadow raycast={noRaycast}>
+                  <boxGeometry args={[0.24, 0.28, 0.24]} />
+                  <meshStandardMaterial color={LIMESTONE_TRIM} roughness={0.72} />
+                </mesh>
+                <mesh position={[0, 0.36, 0]} castShadow raycast={noRaycast}>
+                  <cylinderGeometry args={[0.11, 0.06, 0.2, 8]} />
+                  <meshStandardMaterial color={STUCCO_WARM} roughness={0.68} />
+                </mesh>
+                <mesh position={[0, 0.48, 0]} raycast={noRaycast}>
+                  <sphereGeometry args={[0.055, 8, 6]} />
+                  <meshStandardMaterial color={BRASS_GOLD} metalness={0.72} roughness={0.32} />
+                </mesh>
+              </group>
+            );
+          })}
         </group>
       )}
 
@@ -692,7 +863,7 @@ export function GrandPrioryPalaceDressing() {
           );
         })}
 
-        {/* 5C. Sala Terrena Garden Façade Broken Pediment & Maltese Portal Crest (z = 15.55, x = 11.5) */}
+        {/* 5C. Sala Terrena Garden Façade Broken Pediment & Maltese Portal Crest (z = 15.52, x = 11.5) */}
         {(() => {
           const [fx, fy, fz] = continuousGridToWorld(11.5, 0, 15.52);
           return (
@@ -710,9 +881,137 @@ export function GrandPrioryPalaceDressing() {
                   </mesh>
                 </group>
               ))}
+              {/* Broken Baroque Scrolled Pediment flanking central Maltese Crest (bounded <= 2.38m) */}
+              <mesh position={[-0.86, FLOOR_HEIGHT - 0.12, -0.04]} rotation={[0, 0, 0.26]} castShadow raycast={noRaycast}>
+                <boxGeometry args={[1.1, 0.18, 0.28]} />
+                <meshStandardMaterial color={STUCCO_WARM} roughness={0.68} />
+              </mesh>
+              <mesh position={[0.86, FLOOR_HEIGHT - 0.12, -0.04]} rotation={[0, 0, -0.26]} castShadow raycast={noRaycast}>
+                <boxGeometry args={[1.1, 0.18, 0.28]} />
+                <meshStandardMaterial color={STUCCO_WARM} roughness={0.68} />
+              </mesh>
+              {/* Colloredo-Maltese Heraldic Cartouche Shield at apex */}
+              <group position={[0, FLOOR_HEIGHT - 0.2, -0.08]}>
+                <mesh raycast={noRaycast}>
+                  <cylinderGeometry args={[0.32, 0.32, 0.12, 12]} />
+                  <meshStandardMaterial color={BRASS_GOLD} metalness={0.82} roughness={0.25} />
+                </mesh>
+                <mesh position={[0, 0, -0.05]} rotation={[Math.PI * 0.5, 0, 0]} raycast={noRaycast}>
+                  <cylinderGeometry args={[0.25, 0.25, 0.06, 12]} />
+                  <meshStandardMaterial color={CARDINAL_VELVET} roughness={0.7} />
+                </mesh>
+                <mesh position={[0, 0, -0.09]} raycast={noRaycast}>
+                  <boxGeometry args={[0.28, 0.08, 0.03]} />
+                  <meshStandardMaterial color="#f8fafc" roughness={0.45} />
+                </mesh>
+                <mesh position={[0, 0, -0.09]} raycast={noRaycast}>
+                  <boxGeometry args={[0.08, 0.28, 0.03]} />
+                  <meshStandardMaterial color="#f8fafc" roughness={0.45} />
+                </mesh>
+              </group>
             </group>
           );
         })()}
+
+        {/* 5D. Cour d'honneur Lion-Mascaron Wall Fountains anchored onto arcade piers (9, 19) & (14, 19) */}
+        {[
+          { x: 9.38, rotY: Math.PI * 0.5 },
+          { x: 13.62, rotY: -Math.PI * 0.5 },
+        ].map(({ x: fx, rotY }, fi) => {
+          const [wx, wy, wz] = continuousGridToWorld(fx, 0, 19.0);
+          return (
+            <group key={`courtyard-fountain-${fi}`} position={[wx, wy, wz]} rotation={[0, rotY, 0]}>
+              <mesh position={[0, 0.45, 0.08]} castShadow raycast={noRaycast}>
+                <cylinderGeometry args={[0.26, 0.18, 0.18, 12]} />
+                <meshStandardMaterial color={LIMESTONE_TRIM} roughness={0.72} />
+              </mesh>
+              <mesh position={[0, 0.55, 0.08]} rotation={[-Math.PI * 0.5, 0, 0]} raycast={noRaycast}>
+                <circleGeometry args={[0.22, 12]} />
+                <meshStandardMaterial color="#164459" roughness={0.12} metalness={0.35} />
+              </mesh>
+              <mesh position={[0, 0.92, 0.04]} raycast={noRaycast}>
+                <sphereGeometry args={[0.11, 8, 8]} />
+                <meshStandardMaterial color={BRASS_GOLD} metalness={0.82} roughness={0.28} />
+              </mesh>
+            </group>
+          );
+        })}
+
+        {/* 5E. P0 Suspended Chandeliers & Ground-Floor Palace Wall Paintings/Tapestries (visible on P0) */}
+        {activeFloor === 0 && (
+          <group>
+            <BaroqueCrystalChandelier x={11.5} y={0} z={21.0} opacity={1} />
+            <BaroqueCrystalChandelier x={5.5} y={0} z={21.5} opacity={1} />
+            <MalteseHeraldicTapestry x={3.8} y={0} z={17.54} rotY={0} opacity={1} />
+            <MalteseHeraldicTapestry x={6.8} y={0} z={17.54} rotY={0} opacity={1} />
+            <BaroqueMasterpiecePainting
+              x={7.2}
+              y={0}
+              z={16.54}
+              rotY={0}
+              canvasTone="#231510"
+              subjectTone="#d97706"
+              opacity={1}
+            />
+            <BaroqueMasterpiecePainting
+              x={16.5}
+              y={0}
+              z={16.54}
+              rotY={0}
+              canvasTone="#1b1824"
+              subjectTone="#b45309"
+              opacity={1}
+            />
+            <BaroqueMasterpiecePainting
+              x={19.0}
+              y={0}
+              z={16.54}
+              rotY={0}
+              canvasTone="#291812"
+              subjectTone="#ca8a04"
+              opacity={1}
+            />
+          </group>
+        )}
+
+        {/* 5F. Garden Belvedere P0 Tuscan Corner Pilasters (just outside 9..14, 9..12 footprint) */}
+        {[
+          [8.52, 8.52],
+          [14.48, 8.52],
+          [8.52, 12.48],
+          [14.48, 12.48],
+        ].map(([bx, bz], bi) => {
+          const [pwx, pwy, pwz] = continuousGridToWorld(bx!, 0, bz!);
+          return (
+            <group key={`belv-pilaster-${bi}`} position={[pwx, pwy, pwz]}>
+              <mesh position={[0, FLOOR_HEIGHT * 0.5, 0]} castShadow receiveShadow raycast={noRaycast}>
+                <boxGeometry args={[0.26, FLOOR_HEIGHT, 0.26]} />
+                <meshStandardMaterial color={LIMESTONE_TRIM} roughness={0.78} />
+              </mesh>
+              <mesh position={[0, FLOOR_HEIGHT - 0.1, 0]} raycast={noRaycast}>
+                <boxGeometry args={[0.34, 0.16, 0.34]} />
+                <meshStandardMaterial color={STUCCO_WARM} roughness={0.72} />
+              </mesh>
+            </group>
+          );
+        })}
+
+        {/* 5G. Certovka Canal Sandstone Mooring Bollards along bank edge (z = 4.46) */}
+        {[5.5, 9.5, 14.5, 18.5].map((mx, mi) => {
+          const [bwx, bwy, bwz] = continuousGridToWorld(mx, 0, 4.46);
+          return (
+            <group key={`bollard-${mi}`} position={[bwx, bwy, bwz]}>
+              <mesh position={[0, 0.18, 0]} castShadow receiveShadow raycast={noRaycast}>
+                <cylinderGeometry args={[0.1, 0.13, 0.36, 8]} />
+                <meshStandardMaterial color={LIMESTONE_TRIM} roughness={0.88} />
+              </mesh>
+              <mesh position={[0, 0.28, 0.1]} rotation={[0, Math.PI * 0.5, 0]} raycast={noRaycast}>
+                <torusGeometry args={[0.055, 0.015, 6, 12]} />
+                <meshStandardMaterial color="#27272a" metalness={0.75} roughness={0.45} />
+              </mesh>
+            </group>
+          );
+        })}
       </group>
 
       {/* =====================================================================

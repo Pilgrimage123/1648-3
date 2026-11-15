@@ -29,6 +29,7 @@ import {
   type PracticalSample,
 } from "./diegeticLights";
 import { BridgeTowerDressing } from "./BridgeTowerDressing";
+import { PragueSurroundings } from "./PragueSurroundings";
 import { GrandPrioryPalaceDressing } from "./GrandPrioryPalaceDressing";
 import { InstancedBattlefield } from "./InstancedBattlefield";
 import { RainParticles } from "./RainParticles";
@@ -282,16 +283,15 @@ function DiegeticLightingRig({ weather }: { weather: WeatherType }) {
       </mesh>
 
       <mesh
-        position={[0, -0.28, 0]}
+        position={[0, -0.5, 0]}
         rotation={[-Math.PI * 0.5, 0, 0]}
+        receiveShadow
         raycast={() => null}
       >
-        <ringGeometry args={[21.5, 56, 36]} />
-        <meshBasicMaterial
-          color="#05080f"
-          transparent
-          opacity={0.92}
-          side={THREE.DoubleSide}
+        <planeGeometry args={[200, 200]} />
+        <meshStandardMaterial
+          color={isMorningBridge ? "#2e2c28" : "#0b0d11"}
+          roughness={1}
         />
       </mesh>
     </group>
@@ -382,28 +382,32 @@ export function TacticalScene() {
 
   const fogColor = isMorningBridge
     ? weather === "fog"
-      ? "#1e293b"
-      : "#111927"
+      ? "#5a636d"
+      : weather === "rain"
+        ? "#4a545f"
+        : "#6f7378"
     : weather === "fog"
       ? "#161e2b"
-      : "#070b12";
+      : "#0a0f1a";
   const fogFar = isMorningBridge
     ? weather === "fog"
-      ? 52
-      : 78
+      ? 60
+      : 96
     : weather === "fog"
-      ? 44
-      : 68;
+      ? 52
+      : 90;
 
   return (
     <div className="relative w-full h-full bg-slate-950 select-none overflow-hidden">
       <Canvas
         shadows="percentage"
-        camera={{ fov: 38, near: 0.5, far: 120, position: [14, 18, 14] }}
+        camera={{ fov: 38, near: 0.5, far: 160, position: [14, 18, 14] }}
         gl={{ antialias: true }}
       >
         <color attach="background" args={[fogColor]} />
-        <fog attach="fog" args={[fogColor, 18, fogFar]} />
+        <fog attach="fog" args={[fogColor, 26, fogFar]} />
+
+        <PragueSurroundings />
 
         <DiegeticLightingRig weather={weather} />
         <DynamicLightFlashPool />
