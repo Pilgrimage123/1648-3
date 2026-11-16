@@ -418,6 +418,14 @@ export const csUiMessages = {
   "ui.epilogue.m3.defeat.plachy": () =>
     "Jiří Plachý padl. Bez něj se zpráva o doutnáku nevrátí.",
   "ui.epilogue.m3.defeat.wiped": () => "Celý výsadek padl.",
+  "ui.epilogue.m2.defeatMeta": (p) =>
+    `Katastrofa v ${p.count}. kole · Anno Salutis 1648, 26. července`,
+  "ui.epilogue.m3.defeatMeta": (p) =>
+    `Nezdar v ${p.count}. kole · Anno Salutis 1648, noc z 27. na 28. července`,
+  "ui.floor.m3.1.title": () => "Krytá lodžie",
+  "ui.floor.m3.1.sub": () => "Ochoz nad dvorem, schody a lano",
+  "ui.floor.m3.0.title": () => "Prachový dvůr a sklad",
+  "ui.floor.m3.0.sub": () => "Čertovka, doutnáková stopa a brána baterie",
 } satisfies Record<string, MessageFn>;
 
 export type UiMessageId = keyof typeof csUiMessages;

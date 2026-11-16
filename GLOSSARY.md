@@ -240,6 +240,14 @@ _Avoid_: Avenger, ship, strategic-layer HQ
 The twin emphasis of the work: Catholic faith, together with Jesuit learning and the other science of the age. The two support each other.
 _Avoid_: Faith versus science, reason against the Church, secular research
 
+**Mise** (*Mission*):
+One playable night or morning of the 1648 siege, numbered in campaign order (Mise 1, Mise 2, Mise 3).
+_Avoid_: Stage, level, scenario (in player-facing speech)
+
+**Kronika tažení** (*Campaign chronicle*):
+What carries forward from one Mise to the next in a single sitting: the outcome of the oath and the Mission 1 survivor. It survives a page refresh in the same browser tab and ends when the tab closes.
+_Avoid_: Save game, profile, account
+
 ### Mission 1: Escape of the Grand Prior (Mise 1: Útěk polního maršála)
 
 **Švédské zajetí a výkupné** (*Ransom & High-Value Capture Directive*):

@@ -924,11 +924,11 @@ Do not add `scripts/test-mission3.ts` in the design task. The first implementati
 
 ## Open Questions
 
-1. **Should `campaign` survive a refresh?** This spec keeps it on the Zustand store only. A sitting that beats Mission 2, refreshes, and clicks Doutnák gets the title preset (both swore), not the refusal they just chose. `sessionStorage` under one key would fix that and is deliberately not in the first PRs. Needs a product call, not a rules call.
+1. **Should `campaign` survive a refresh?** Resolved 2026-11-16: yes, within the tab. `campaign` is mirrored to `sessionStorage` under one key (`praha1648.campaign`), read once on store creation, written on `chooseOath` and when Mission 1 sets the survivor. A malformed value is ignored (title preset). No `localStorage`.
 
-2. **Falconet mesh.** Gameplay tiles are fixed. The dressing mesh in `PowderYardDressing.tsx` can change shape as long as it does not add a floor, a light slot, or a collider. No art pass is blocking the clock.
+2. **Falconet mesh.** Resolved 2026-11-16: upgraded `PowderYardDressing.tsx` with a 1648 split-trail oak carriage, spoked wheels, banded barrel with cascabel, planted linstock, and live two-wheeled cart token (`m3.cart`), all with `raycast={NO_RAYCAST}` and no floor, collider, or point light.
 
-3. **Czech copyedit.** The strings in this document are the ones to ship. A writer may tighten them without changing the predicates (who speaks, which loss, mute versus scar). Mechanical meaning stays.
+3. **Czech copyedit.** Resolved 2026-11-16: ship the strings as written. A copy pass happens after playtest has settled the flow.
 
 No open question on lane length, cord length, party size, or who may light. Those are locked, and the numbers above implement them.
 

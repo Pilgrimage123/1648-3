@@ -744,29 +744,35 @@ function Mission1Surroundings() {
 }
 
 function Mission3Surroundings() {
+  const water = "#092533";
   return (
     <group>
-      <mesh position={[-32, 7, 2]} raycast={NO_RAYCAST}>
-        <boxGeometry args={[10, 16, 22]} />
+      {/* Čertovka canal extensions north and south of x = 4..5 (world x = -12.8..-9.6) */}
+      <WaterRect x0={-12.8} x1={-9.6} z0={-48} z1={-9.6} color={water} y={-0.36} />
+      <WaterRect x0={-12.8} x1={-9.6} z0={1.6} z1={48} color={water} y={-0.36} />
+
+      {/* Malá Strana bridgehead towers & shut arch east of the battery gate (world x = +15..+22) */}
+      <mesh position={[19, 7, -3]} raycast={NO_RAYCAST}>
+        <boxGeometry args={[6, 15, 16]} />
         <meshStandardMaterial color="#14181f" roughness={1} />
       </mesh>
-      <mesh position={[-30, 16, -4]} raycast={NO_RAYCAST}>
+      <mesh position={[18, 15, -7]} raycast={NO_RAYCAST}>
         <boxGeometry args={[3.2, 8, 3.2]} />
         <meshStandardMaterial color="#10141a" roughness={1} />
       </mesh>
-      <mesh position={[-30, 16, 8]} raycast={NO_RAYCAST}>
+      <mesh position={[18, 14, 2]} raycast={NO_RAYCAST}>
         <boxGeometry args={[3.2, 7, 3.2]} />
         <meshStandardMaterial color="#10141a" roughness={1} />
       </mesh>
-      <mesh position={[-27, 2.2, 2]} raycast={NO_RAYCAST}>
+      <mesh position={[15, 2.2, -5.6]} raycast={NO_RAYCAST}>
         <boxGeometry args={[1.1, 4.4, 1.1]} />
         <meshStandardMaterial color="#1c1917" roughness={0.95} />
       </mesh>
-      <mesh position={[-27, 2.2, 6.4]} raycast={NO_RAYCAST}>
+      <mesh position={[15, 2.2, -1.2]} raycast={NO_RAYCAST}>
         <boxGeometry args={[1.1, 4.4, 1.1]} />
         <meshStandardMaterial color="#1c1917" roughness={0.95} />
       </mesh>
-      <mesh position={[-27, 4.5, 4.2]} raycast={NO_RAYCAST}>
+      <mesh position={[15, 4.5, -3.4]} raycast={NO_RAYCAST}>
         <boxGeometry args={[1.2, 0.7, 4.6]} />
         <meshStandardMaterial color="#1c1917" roughness={0.95} />
       </mesh>

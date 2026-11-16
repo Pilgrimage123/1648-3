@@ -26,7 +26,12 @@ import {
 import { GRID_DEPTH, GRID_WIDTH, type GridSystem } from "../../core/GridSystem";
 import type { CardinalDir, FloorLevel } from "../../core/types";
 import { useGameStore } from "../../store/useGameStore";
-import { FLOOR_HEIGHT, gridToWorld, TILE_SIZE } from "./worldCoords";
+import {
+  continuousGridToWorld,
+  FLOOR_HEIGHT,
+  gridToWorld,
+  TILE_SIZE,
+} from "./worldCoords";
 
 function worldToGridXZ(wx: number, wz: number): { x: number; z: number } {
   return {
@@ -252,9 +257,16 @@ export function TacticalCamera() {
       const initialY = 2 * FLOOR_HEIGHT * 0.65;
       orbitCenterRef.current.set(1.6, initialY, 0.8);
       currentLookAtRef.current.set(1.6, initialY, 0.8);
+      distanceRef.current = 24;
+    } else if (scenario === "mission3") {
+      const [yardX, yardY, yardZ] = continuousGridToWorld(11.5, 0, 11.2);
+      orbitCenterRef.current.set(yardX, yardY, yardZ);
+      currentLookAtRef.current.set(yardX, yardY, yardZ);
+      distanceRef.current = 19.5;
     } else {
       orbitCenterRef.current.set(-5.6, FLOOR_HEIGHT, 11.6);
       currentLookAtRef.current.set(-5.6, FLOOR_HEIGHT, 11.6);
+      distanceRef.current = 24;
     }
   }, [scenario, grid]);
   const isRightDraggingRef = useRef(false);

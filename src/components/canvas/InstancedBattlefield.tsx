@@ -920,19 +920,24 @@ function BaroqueLivingDecor({
   const bannerRefs = useRef<(THREE.Mesh | null)[]>([]);
   const mistRefs = useRef<(THREE.Mesh | null)[]>([]);
 
-  const decoratedPillars = useMemo(() => pillars.slice(0, 6), [pillars]);
+  const decoratedPillars = useMemo(
+    () => (scenario === "mission1" ? pillars.slice(0, 6) : []),
+    [pillars, scenario],
+  );
 
   const palacePictureWalls = useMemo(
     () =>
-      highWalls.filter(
-        (t) =>
-          t.coord.z === 15 &&
-          (t.coord.x === 3 ||
-            t.coord.x === 5 ||
-            t.coord.x === 15 ||
-            t.coord.x === 16),
-      ),
-    [highWalls],
+      scenario === "mission1"
+        ? highWalls.filter(
+            (t) =>
+              t.coord.z === 15 &&
+              (t.coord.x === 3 ||
+                t.coord.x === 5 ||
+                t.coord.x === 15 ||
+                t.coord.x === 16),
+          )
+        : [],
+    [highWalls, scenario],
   );
 
   const pristineCarpetTiles = useMemo(
@@ -982,28 +987,51 @@ function BaroqueLivingDecor({
               opacity: 0.11,
             },
           ]
-        : [
-            {
-              x: 3.2,
-              y: 0,
-              z: 1.8,
-              phase: 0.7,
-              baseScale: 1.45,
-              maxScale: 1.45,
-              createdAt: 0,
-              opacity: 0.11,
-            },
-            {
-              x: 9.5,
-              y: 0,
-              z: 1.5,
-              phase: 2.4,
-              baseScale: 1.55,
-              maxScale: 1.55,
-              createdAt: 0,
-              opacity: 0.11,
-            },
-          ];
+        : scenario === "mission3"
+          ? [
+              {
+                x: 4.5,
+                y: 0,
+                z: 9.5,
+                phase: 0.7,
+                baseScale: 1.45,
+                maxScale: 1.45,
+                createdAt: 0,
+                opacity: 0.11,
+              },
+              {
+                x: 4.5,
+                y: 0,
+                z: 12.5,
+                phase: 2.4,
+                baseScale: 1.55,
+                maxScale: 1.55,
+                createdAt: 0,
+                opacity: 0.11,
+              },
+            ]
+          : [
+              {
+                x: 3.2,
+                y: 0,
+                z: 1.8,
+                phase: 0.7,
+                baseScale: 1.45,
+                maxScale: 1.45,
+                createdAt: 0,
+                opacity: 0.11,
+              },
+              {
+                x: 9.5,
+                y: 0,
+                z: 1.5,
+                phase: 2.4,
+                baseScale: 1.55,
+                maxScale: 1.55,
+                createdAt: 0,
+                opacity: 0.11,
+              },
+            ];
 
     const patches: {
       x: number;
@@ -1797,10 +1825,12 @@ export function InstancedBattlefield() {
   ) => {
     const checker = (tile.coord.x + tile.coord.z) % 2 === 0;
     const dmg = tile.damageLevel ?? 0;
+    const isMission1 = scenario === "mission1";
     const isMission2 = scenario === "mission2";
+    const isMission3 = scenario === "mission3";
     const inPalace = isMission2
       ? tile.coord.x >= 10 && tile.coord.x <= 18 && tile.coord.z >= 10 && tile.coord.z <= 18
-      : tile.coord.z >= 15 && tile.coord.x >= 2 && tile.coord.x <= 21;
+      : isMission1 && tile.coord.z >= 15 && tile.coord.x >= 2 && tile.coord.x <= 21;
 
     if (tile.isLadder || (tile.stairType && tHasStair(tile))) {
       _color.setHex(inPalace ? 0x6e563f : 0x78563c);
@@ -1823,8 +1853,8 @@ export function InstancedBattlefield() {
     } else if (tile.surface === "palace_carpet") {
       _color.setHex(checker ? 0x6b2028 : 0x5b1a21);
     } else if (tile.surface === "stone_floor") {
-      if (isMission2) {
-        // Staroměstská mostecká věž: pískovcová dlažba průjezdu, rumpálové komory a ochozu
+      if (isMission2 || isMission3) {
+        // Staroměstská mostecká věž & Prachový dvůr: pískovcová dlažba
         _color.setHex(checker ? 0x594d42 : 0x4f443a);
       } else {
         // Velkopřevorský palác: teplá leštěná vápencová parketová dlažba
@@ -1832,6 +1862,14 @@ export function InstancedBattlefield() {
       }
     } else if (tile.surface === "wood_roof") {
       _color.setHex(checker ? 0x4f3928 : 0x453122);
+    } else if (isMission3) {
+      const isCordOrLane =
+        tile.coord.z === 10 || (tile.coord.x >= 16 && tile.coord.x <= 17);
+      if (isCordOrLane) {
+        _color.setHex(checker ? 0x2e3540 : 0x272d37);
+      } else {
+        _color.setHex(checker ? 0x262d38 : 0x202630);
+      }
     } else if (isMission2) {
       // Karlův most (x <= 9): teplá pískovcová dlažba z roku 1648 se středovým vozovým pásem
       // Křižovnické náměstí (x >= 19): světlejší staroměstská dlažba před Klementinem
@@ -2085,6 +2123,30 @@ export function InstancedBattlefield() {
             return true;
           }
         }
+      } else if (scenario === "mission3") {
+        if (c.y === 0) {
+          if (
+            camDirZ > 0.25 &&
+            ((c.z === 11 && c.x >= 10 && c.x <= 12) ||
+              (c.x === 13 && c.z === 10) ||
+              c.z === 15)
+          ) {
+            return true;
+          }
+          if (
+            camDirZ < -0.25 &&
+            ((c.z === 9 && c.x >= 8 && c.x <= 12) ||
+              (c.z === 7 && c.x >= 13 && c.x <= 16))
+          ) {
+            return true;
+          }
+          if (
+            camDirX < -0.25 &&
+            ((c.x === 8 && c.z === 9) || (c.x === 12 && c.z === 8))
+          ) {
+            return true;
+          }
+        }
       } else if (c.y === 1) {
         return c.z === 26 || c.x === 8 || c.x === 15;
       }
@@ -2122,18 +2184,24 @@ export function InstancedBattlefield() {
         mesh.setMatrixAt(i, _dummy.matrix);
 
         const dmg = hasNeighborBlast(tile.coord);
+        const isM1 = scenario === "mission1";
         const isM2 = scenario === "mission2";
+        const isM3 = scenario === "mission3";
         if (front) {
           _color.setHex(
-            dmg >= 2 ? 0x2b231f : isM2 ? 0x857865 : 0x9c8b7a,
+            dmg >= 2 ? 0x2b231f : isM2 || isM3 ? 0x857865 : 0x9c8b7a,
           );
         } else if (isM2) {
           _color.setHex(
             dmg >= 2 ? 0x2b231f : dmg === 1 ? 0x5d5347 : 0x766a59,
           );
+        } else if (isM3) {
+          _color.setHex(
+            dmg >= 2 ? 0x2b231f : dmg === 1 ? 0x584e43 : 0x6e6254,
+          );
         } else {
           if (dmg >= 2) _color.setHex(0x2b231f);
-          else if (tile.coord.z >= 15) _color.setHex(dmg === 1 ? 0x6b6057 : 0x8f8274);
+          else if (isM1 && tile.coord.z >= 15) _color.setHex(dmg === 1 ? 0x6b6057 : 0x8f8274);
           else _color.setHex(dmg === 1 ? 0x3d3833 : 0x4e4841);
         }
 
@@ -2187,15 +2255,16 @@ export function InstancedBattlefield() {
       }
     };
 
+    const isM1 = scenario === "mission1";
     const isM2 = scenario === "mission2";
     populateWithColor(low0MeshRef.current, obstacles.low0, 0.42, (t, dmg) => {
       if (dmg >= 2) return 0x29211d;
-      if (!isM2 && t.coord.z >= 15) return dmg === 1 ? 0x4a3525 : 0x5c3a21;
+      if (isM1 && t.coord.z >= 15) return dmg === 1 ? 0x4a3525 : 0x5c3a21;
       return dmg === 1 ? 0x4d463f : isM2 ? 0x6b6052 : 0x61584f;
     });
     populateWithColor(low0CapMeshRef.current, obstacles.low0, 0.85, (t, dmg) => {
       if (dmg >= 2) return 0x382e29;
-      if (!isM2 && t.coord.z >= 15) return dmg === 1 ? 0x8c734b : 0xc89d3c;
+      if (isM1 && t.coord.z >= 15) return dmg === 1 ? 0x8c734b : 0xc89d3c;
       return dmg === 1 ? 0x6b6259 : isM2 ? 0x857867 : 0x857b70;
     });
 
@@ -2207,7 +2276,7 @@ export function InstancedBattlefield() {
       FLOOR_HEIGHT * 0.5,
       (t, dmg) => {
         if (dmg >= 2) return 0x2e2622;
-        if (!isM2 && t.coord.z >= 15) return dmg === 1 ? 0x695e54 : 0x8c7b6b;
+        if (isM1 && t.coord.z >= 15) return dmg === 1 ? 0x695e54 : 0x8c7b6b;
         return dmg === 1 ? 0x4f4943 : isM2 ? 0x766a59 : 0x696158;
       },
     );
@@ -2217,7 +2286,7 @@ export function InstancedBattlefield() {
       FLOOR_HEIGHT - 0.14,
       (t, dmg) => {
         if (dmg >= 2) return 0x3d332c;
-        if (!isM2 && t.coord.z >= 15) return dmg === 1 ? 0x94793b : 0xd4a73f;
+        if (isM1 && t.coord.z >= 15) return dmg === 1 ? 0x94793b : 0xd4a73f;
         return dmg === 1 ? 0x6e655c : isM2 ? 0x8d7f6c : 0x91867a;
       },
     );
@@ -2226,7 +2295,7 @@ export function InstancedBattlefield() {
     populateWithColor(low1MeshRef.current, obstacles.low1, 0.42, (t, dmg) =>
       dmg >= 2
         ? 0x2e2520
-        : !isM2 && t.coord.z >= 15
+        : isM1 && t.coord.z >= 15
           ? 0x5c3a21
           : isM2
             ? 0x6d6152
@@ -2235,7 +2304,7 @@ export function InstancedBattlefield() {
     populateWithColor(low1CapMeshRef.current, obstacles.low1, 0.85, (t, dmg) =>
       dmg >= 2
         ? 0x382e29
-        : !isM2 && t.coord.z >= 15
+        : isM1 && t.coord.z >= 15
           ? 0xd4a73f
           : isM2
             ? 0x857867
@@ -2245,7 +2314,7 @@ export function InstancedBattlefield() {
     populateWithColor(pillar1MeshRef.current, obstacles.pillar1, 1.0, (t, dmg) =>
       dmg >= 2
         ? 0x362c26
-        : !isM2 && t.coord.z >= 15
+        : isM1 && t.coord.z >= 15
           ? 0x948473
           : isM2
             ? 0x796d5c
@@ -2254,7 +2323,7 @@ export function InstancedBattlefield() {
     populateWithColor(pillar1CapMeshRef.current, obstacles.pillar1, 1.94, (t, dmg) =>
       dmg >= 2
         ? 0x3d332c
-        : !isM2 && t.coord.z >= 15
+        : isM1 && t.coord.z >= 15
           ? 0xd4a73f
           : isM2
             ? 0x948570

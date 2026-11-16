@@ -76,10 +76,30 @@ const TOWER_FLOORS: typeof PALACE_FLOORS = [
   },
 ];
 
+const YARD_FLOORS: typeof PALACE_FLOORS = [
+  {
+    floor: 1,
+    code: "P1",
+    title: "ui.floor.m3.1.title",
+    subtitle: "ui.floor.m3.1.sub",
+  },
+  {
+    floor: 0,
+    code: "P0",
+    title: "ui.floor.m3.0.title",
+    subtitle: "ui.floor.m3.0.sub",
+  },
+];
+
 export function TacticalUtilitiesCapsule() {
   const activeFloor = useGameStore((s) => s.activeFloor);
   const scenario = useGameStore((s) => s.scenario);
-  const floorMeta = scenario === "mission2" ? TOWER_FLOORS : PALACE_FLOORS;
+  const floorMeta =
+    scenario === "mission3"
+      ? YARD_FLOORS
+      : scenario === "mission2"
+        ? TOWER_FLOORS
+        : PALACE_FLOORS;
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
   const units = useGameStore((s) => s.units);
   const reachableTiles = useGameStore((s) => s.reachableTiles);
@@ -175,7 +195,7 @@ export function TacticalUtilitiesCapsule() {
           aria-label={text("ui.floors.aria", undefined, locale)}
           className="flex items-center bg-slate-900/90 rounded-lg p-0.5 border border-amber-900/70"
         >
-          {([0, 1, 2] as const).map((floor) => {
+          {(scenario === "mission3" ? ([0, 1] as const) : ([0, 1, 2] as const)).map((floor) => {
             const isActive = activeFloor === floor;
             return (
               <button

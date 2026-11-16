@@ -732,8 +732,13 @@ function yard() {
   void bridge;
 }
 
-function settle(): Promise<void> {
-  return new Promise((resolve) => setImmediate(resolve));
+async function settle(): Promise<void> {
+  for (let i = 0; i < 400; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    const s = useGameStore.getState();
+    if (!s.isBusy && (s.turn === "player" || s.outcome !== "ongoing")) return;
+  }
+  throw new Error("Timed out waiting for turn to settle");
 }
 
 async function storeRoundTrip(): Promise<void> {
@@ -781,6 +786,8 @@ async function storeRoundTrip(): Promise<void> {
   assert.ok(havel);
   assert.equal(havel.movePerAp, 6);
   assert.equal(second.m3?.cookedOff, false);
+  assert.equal(second.combatLog.some((entry) => entry.message.id === "log.m3.round.player"), true);
+  assert.equal(second.combatLog.some((entry) => entry.message.id === "log.round.player"), false);
 
   const keg = { x: 9, y: 0 as const, z: 10 };
   second.grid.setObstacle(keg, "powder_keg");
@@ -818,6 +825,148 @@ async function storeRoundTrip(): Promise<void> {
   assert.equal(readMission3Clock(), null);
   assert.equal(isEnclosedRoofedCoord(10, 1, 22), true);
   assert.equal(isEnclosedRoofedCoord(5, 0, 10), false);
+
+  const storeStep1Ap = (unitId: string, to: { x: number; y: 0 | 1 | 2; z: number }) => {
+    const s = useGameStore.getState();
+    const u = s.units.find((c) => c.id === unitId)!;
+    const reach = computeReachableTiles(s.grid, u, s.units);
+    const entry = reach.get(`${to.x},${to.y},${to.z}`);
+    assert.ok(entry && entry.apCost === 1, `${unitId} can reach (${to.x},${to.y},${to.z}) in 1 AP`);
+    useGameStore.setState({
+      units: s.units.map((c) =>
+        c.id === unitId ? { ...c, pos: { ...to }, ap: c.ap - 1 } : c,
+      ),
+      selectedUnitId: unitId,
+    });
+  };
+
+  // Canonical Line 1: No-Ondřej Turn-1 Victory
+  useGameStore.setState({
+    campaign: { oath: { havel: "accept", ondrej: "refuse" }, mission1SurvivorId: null },
+  });
+  useGameStore.getState().beginScenario("mission3");
+  storeStep1Ap(ZAK2_ID, { x: 8, y: 0, z: 10 });
+  useGameStore.getState().setActionMode("lay");
+  useGameStore.getState().layCordAt({ x: 9, y: 0, z: 10 });
+  storeStep1Ap(HAVEL_ID, { x: 9, y: 0, z: 10 });
+  useGameStore.getState().setActionMode("lay");
+  useGameStore.getState().layCordAt({ x: 10, y: 0, z: 10 });
+  storeStep1Ap(PLACHY_ID, { x: 9, y: 0, z: 11 });
+  useGameStore.getState().lightMission3Cord();
+  useGameStore.getState().endTurn();
+  await settle();
+  {
+    const st1 = useGameStore.getState();
+    assert.equal(st1.m3?.deliveries, 1);
+    assert.equal(st1.m3?.sparkIndex, 1);
+    assert.equal(st1.m3?.coneWarned, true);
+    assert.equal(st1.m3?.coneFired, false);
+  }
+  storeStep1Ap(HAVEL_ID, { x: 10, y: 0, z: 10 });
+  useGameStore.getState().setActionMode("lay");
+  useGameStore.getState().layCordAt({ x: 11, y: 0, z: 10 });
+  useGameStore.getState().endTurn();
+  await settle();
+  {
+    const st2 = useGameStore.getState();
+    assert.equal(st2.m3?.deliveries, 2);
+    assert.equal(st2.m3?.sparkIndex, 2);
+    assert.equal(st2.m3?.coneFired, true);
+  }
+  storeStep1Ap(HAVEL_ID, { x: 11, y: 0, z: 10 });
+  useGameStore.getState().setActionMode("lay");
+  useGameStore.getState().layCordAt({ x: 12, y: 0, z: 10 });
+  useGameStore.getState().endTurn();
+  await settle();
+  {
+    const st3 = useGameStore.getState();
+    assert.equal(st3.m3?.cookedOff, true);
+    assert.equal(st3.m3?.deliveries, 2);
+  }
+  useGameStore.setState((s) => ({
+    units: s.units.map((c) =>
+      c.id === PLACHY_ID ? { ...c, pos: { x: 6, y: 0, z: 9 }, alive: true, hp: 12 } : c,
+    ),
+  }));
+  {
+    const win = checkMissionOutcome(useGameStore.getState().grid, useGameStore.getState().units);
+    assert.equal(win.outcome, "victory");
+    assert.equal(win.victoryReason, "skiff");
+  }
+
+  // Canonical Line 2: Skiff-Wait Loss (no Ondřej)
+  useGameStore.setState({
+    campaign: { oath: { havel: "accept", ondrej: "refuse" }, mission1SurvivorId: null },
+  });
+  useGameStore.getState().beginScenario("mission3");
+  useGameStore.getState().endTurn();
+  await settle();
+  assert.equal(useGameStore.getState().m3?.deliveries, 1);
+  assert.equal(useGameStore.getState().m3?.cord.length, 0);
+  storeStep1Ap(ZAK2_ID, { x: 8, y: 0, z: 10 });
+  useGameStore.getState().setActionMode("lay");
+  useGameStore.getState().layCordAt({ x: 9, y: 0, z: 10 });
+  storeStep1Ap(HAVEL_ID, { x: 9, y: 0, z: 10 });
+  useGameStore.getState().setActionMode("lay");
+  useGameStore.getState().layCordAt({ x: 10, y: 0, z: 10 });
+  storeStep1Ap(PLACHY_ID, { x: 9, y: 0, z: 11 });
+  useGameStore.getState().lightMission3Cord();
+  useGameStore.getState().endTurn();
+  await settle();
+  assert.equal(useGameStore.getState().m3?.deliveries, 2);
+  assert.equal(useGameStore.getState().m3?.cord.length, 2);
+  storeStep1Ap(HAVEL_ID, { x: 10, y: 0, z: 10 });
+  useGameStore.getState().setActionMode("lay");
+  useGameStore.getState().layCordAt({ x: 11, y: 0, z: 10 });
+  useGameStore.getState().endTurn();
+  await settle();
+  {
+    const lost = useGameStore.getState();
+    assert.equal(lost.m3?.deliveries, 3);
+    assert.equal(lost.m3?.cookedOff, false);
+    assert.equal(lost.outcome, "defeat");
+    assert.equal(lost.m3?.loss, "delivery");
+  }
+
+  // Canonical Line 3: Ondřej Buy-Back Victory
+  useGameStore.setState({
+    campaign: { oath: { havel: "accept", ondrej: "accept" }, mission1SurvivorId: null },
+  });
+  useGameStore.getState().beginScenario("mission3");
+  useGameStore.getState().endTurn();
+  await settle();
+  assert.equal(useGameStore.getState().m3?.deliveries, 1);
+  assert.equal(useGameStore.getState().m3?.cord.length, 0);
+  storeStep1Ap(ONDREJ_ID, { x: 8, y: 0, z: 10 });
+  useGameStore.getState().setActionMode("lay");
+  useGameStore.getState().layCordAt({ x: 10, y: 0, z: 10 });
+  storeStep1Ap(PLACHY_ID, { x: 9, y: 0, z: 11 });
+  useGameStore.getState().lightMission3Cord();
+  useGameStore.getState().endTurn();
+  await settle();
+  assert.equal(useGameStore.getState().m3?.deliveries, 2);
+  assert.equal(useGameStore.getState().m3?.cord.length, 2);
+  assert.equal(useGameStore.getState().m3?.sparkIndex, 1);
+  storeStep1Ap(ONDREJ_ID, { x: 10, y: 0, z: 10 });
+  useGameStore.getState().setActionMode("lay");
+  useGameStore.getState().layCordAt({ x: 12, y: 0, z: 10 });
+  useGameStore.getState().endTurn();
+  await settle();
+  {
+    const st3 = useGameStore.getState();
+    assert.equal(st3.m3?.cookedOff, true);
+    assert.equal(st3.m3?.deliveries, 2);
+  }
+  useGameStore.setState((s) => ({
+    units: s.units.map((c) =>
+      c.id === PLACHY_ID ? { ...c, pos: { x: 6, y: 0, z: 9 }, alive: true, hp: 12 } : c,
+    ),
+  }));
+  {
+    const win = checkMissionOutcome(useGameStore.getState().grid, useGameStore.getState().units);
+    assert.equal(win.outcome, "victory");
+    assert.equal(win.victoryReason, "skiff");
+  }
 }
 
 void storeRoundTrip().then(

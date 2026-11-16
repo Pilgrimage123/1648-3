@@ -234,6 +234,8 @@ export const csMessages = {
   "log.reinforcement.arrive": () =>
     "POPLACH: Švédské posily z Mostecké ulice prorazily severní bránu! 2 těžcí jezdci (Královský dragoun a Švédský kyrysník) vpadli do zahrady!",
   "log.round.player": (p) => `--- Kolo ${p.count}: Útěk velkopřevora Colloreda ---`,
+  "log.m2.round.player": (p) => `--- Kolo ${p.count}: Obrana Staroměstské mostecké věže ---`,
+  "log.m3.round.player": (p) => `--- Kolo ${p.count}: Výsadek v prachovém dvoře ---`,
 
   "banner.alarm": () => "POPLACH! DO KRYTU!",
   "banner.captured": () => "ZAJAT ŠVÉDY! (2/2)",

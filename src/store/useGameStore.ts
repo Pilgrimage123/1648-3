@@ -150,6 +150,13 @@ import {
   getGuidedRejectFeedback,
 } from "../core/GuidedTutorialSystem";
 
+import { browserCampaignStorage, loadCampaign, saveCampaign } from "../core/campaignStorage";
+import type { CampaignState as PersistedCampaign } from "../core/mission3";
+function persistCampaign(c: PersistedCampaign): PersistedCampaign {
+  saveCampaign(browserCampaignStorage(), c);
+  return c;
+}
+
 export type ActionMode = "move" | "shoot" | "grenade" | "melee" | "reload" | "lay";
 
 export type ImpactObstacleKind =
@@ -2110,7 +2117,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     briefingOpen: true,
     m2: null,
     m3: null,
-    campaign: { oath: null, mission1SurvivorId: null },
+    campaign: loadCampaign(browserCampaignStorage()),
     oath: null,
     isCapturingAnim: false,
 
@@ -2292,7 +2299,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         sacrificeDilemmaOpen: false,
         sacrificedHeroId: heroId,
         ironVigilPerk: { perkId, heroId },
-        campaign: { ...s.campaign, mission1SurvivorId: heroId },
+        campaign: persistCampaign({ ...s.campaign, mission1SurvivorId: heroId }),
         outcome: "victory",
         victoryReason: "boat_escape",
         defeatReason: null,
@@ -7395,7 +7402,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               makeLog(
                 nextRound,
                 "player",
-                phrase("log.round.player", { count: nextRound }),
+                phrase(
+                  s.scenario === "mission3"
+                    ? "log.m3.round.player"
+                    : s.scenario === "mission2"
+                      ? "log.m2.round.player"
+                      : "log.round.player",
+                  { count: nextRound },
+                ),
                 "info",
               ),
               ...extraRoundLogs,
@@ -7969,7 +7983,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         );
       set({
         oath: { havel, ondrej },
-        campaign: { ...state.campaign, oath: { havel, ondrej } },
+        campaign: persistCampaign({ ...state.campaign, oath: { havel, ondrej } }),
         combatLog: [
           ...state.combatLog,
           line(HAVEL_ID, havel),

@@ -78,5 +78,9 @@ assert(
   colloredo.buffTitle?.includes("kulhání"),
   "Colloredo limp title is projected from buffId",
 );
+assert(
+  !formatPhrase(phrase("ui.epilogue.m3.defeatMeta", { count: 3 })).includes("Colloredo"),
+  "Mission 3 defeat meta must not mention Colloredo",
+);
 
 console.log("✓ Czech pack declines names, pluralizes, and projects unit copy.");

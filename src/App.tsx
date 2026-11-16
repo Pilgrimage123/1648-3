@@ -546,7 +546,11 @@ export default function App() {
               <div className="font-cinzel text-xs uppercase tracking-widest text-amber-400 mt-1">
                 {outcome === "victory"
                   ? text("ui.epilogue.victoryMeta", { count: round }, locale)
-                  : text("ui.epilogue.defeatMeta", { count: round }, locale)}
+                  : scenario === "mission3"
+                    ? text("ui.epilogue.m3.defeatMeta", { count: round }, locale)
+                    : scenario === "mission2"
+                      ? text("ui.epilogue.m2.defeatMeta", { count: round }, locale)
+                      : text("ui.epilogue.defeatMeta", { count: round }, locale)}
               </div>
             </div>
 
