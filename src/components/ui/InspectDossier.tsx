@@ -127,7 +127,7 @@ export function InspectDossier() {
     fog: fogSnapshot,
     fogOfWarEnabled,
     pin: inspectPin,
-    actionMode,
+    actionMode: actionMode === "lay" ? "move" : actionMode,
     selectedUnitId,
     selectedTargetId,
     activeCombat,

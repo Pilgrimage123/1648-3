@@ -92,6 +92,8 @@ export interface FixtureDef {
   color: string;
   radius: number;
   intensity: number;
+  /** Open to weather. A soffit torch stays lit in the rain. Defaults from `kind`. */
+  exposed?: boolean;
 }
 
 export interface FixtureState {
@@ -330,10 +332,36 @@ export const BRIDGE_TORCHES: readonly FixtureDef[] = [
   },
 ];
 
+/** Two yard torches. The skiff lantern is `evaluateLantern`, not a third torch slot. */
+export const POWDER_YARD_FIXTURES: readonly FixtureDef[] = [
+  {
+    id: "torch-lane",
+    kind: "torch",
+    coord: { x: 16, y: 0, z: 10 },
+    offset: [0, 1.55, 0],
+    color: TORCH_COLOR,
+    radius: 8,
+    intensity: 5.5,
+    exposed: true,
+  },
+  {
+    id: "torch-gallery",
+    kind: "torch",
+    coord: { x: 11, y: 0, z: 14 },
+    offset: [0, 1.55, 0],
+    color: TORCH_COLOR,
+    radius: 8,
+    intensity: 5.5,
+    exposed: false,
+  },
+];
+
 export function fixturesForScenario(
-  scenario: "mission1" | "mission2",
+  scenario: "mission1" | "mission2" | "mission3",
 ): readonly FixtureDef[] {
-  return scenario === "mission2" ? BRIDGE_TORCHES : FIXTURES;
+  if (scenario === "mission2") return BRIDGE_TORCHES;
+  if (scenario === "mission3") return POWDER_YARD_FIXTURES;
+  return FIXTURES;
 }
 
 /** Bow lantern on the Čertovka skiff. Same yaw as the boat mesh. */
@@ -452,7 +480,7 @@ export function evaluateFixture(
   ducked: boolean,
 ): FixtureState {
   const snuffed = damageLevel >= 2;
-  const exposed = fixture.kind === "torch";
+  const exposed = fixture.exposed ?? fixture.kind === "torch";
   const roofed = !exposed;
   const lit = applyWeather(
     fixture.intensity,
@@ -572,6 +600,57 @@ export function selectSteadySlots(
     });
   }
   return samples;
+}
+
+export interface SparkClock {
+  lit: boolean;
+  cookedOff: boolean;
+  cord: readonly GridCoord[];
+  sparkIndex: number;
+}
+
+/** Gold coal on the live cord tile. Matchcord slot 0 while the train is burning. */
+export function sparkSample(clock: SparkClock | null): PracticalSample | null {
+  if (!clock?.lit || clock.cookedOff) return null;
+  const tile = clock.cord[clock.sparkIndex];
+  if (!tile) return null;
+  const origin = tileWorld(tile.x, tile.y, tile.z);
+  return {
+    id: "m3-spark",
+    kind: "matchcord",
+    position: { x: origin.x, y: origin.y + 0.15, z: origin.z },
+    color: "#facc15",
+    radius: MATCHCORD_RADIUS,
+    intensity: MATCHCORD_INTENSITY,
+    exposed: true,
+  };
+}
+
+/** Slow match on the falconet. Always matchcord slot 1, and the rain guts it. */
+export function portfireSample(weather: WeatherType): PracticalSample {
+  const origin = tileWorld(17, 0, 10);
+  const lit = applyWeather(MATCHCORD_INTENSITY, MATCHCORD_RADIUS, true, weather, false, false);
+  return {
+    id: "m3-portfire",
+    kind: "matchcord",
+    position: { x: origin.x, y: origin.y + 0.9, z: origin.z },
+    color: "#f97316",
+    radius: lit.radius,
+    intensity: lit.intensity,
+    exposed: true,
+  };
+}
+
+/**
+ * Slot 0 is the spark while it burns, otherwise the nearest enemy matchlock.
+ * Slot 1 is the portfire, so a coal never steals the falconet's match.
+ */
+export function mission3CordLights(
+  clock: SparkClock | null,
+  weather: WeatherType,
+  enemies: readonly PracticalSample[],
+): [PracticalSample | null, PracticalSample] {
+  return [sparkSample(clock) ?? enemies[0] ?? null, portfireSample(weather)];
 }
 
 export function matchcordCandidates(

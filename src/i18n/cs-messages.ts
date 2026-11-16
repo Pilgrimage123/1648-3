@@ -759,6 +759,59 @@ export const csMessages = {
     "Oheň na dřevěném rumpálu byl uhašen pískem a vodou!",
   "log.m2.pitch.thrown": () =>
     "Harcovník mrštil smolnou láhev! Dřevěný rumpál vzplanul (3 poškození za kolo).",
+
+  "log.m3.briefing": () =>
+    "Noc z 27. na 28. července 1648. Mříž na Staroměstské věži je dole. Pramice výsadku přiráží k Čertovce za malostranskými mosteckými věžemi.",
+  "log.m3.watergate": () =>
+    "Přeživší od Čertovky jmenoval vodní branku. Na dvůr s vámi nevstupuje.",
+  "log.m3.cord.lay": () => "Na dlažbu přibyl článek doutnáku.",
+  "log.m3.spark.light": () => "Doutnák hoří.",
+  "log.m3.spark.advance": () => "Jiskra postoupila po doutnáku.",
+  "log.m3.spark.stamp": () => "Jiskra je zašlápnutá.",
+  "log.m3.stamp.warn": () =>
+    "Stojí u jiskry. Zašlápne ji na začátku příštího švédského tahu.",
+  "log.m3.spark.relight": () => "Doutnák znovu hoří.",
+  "log.m3.cart.roll": () => "Kára se hnula k bráně.",
+  "log.m3.cart.delivery": (p) => `Kára projela branou. Káry ${p.count ?? 0}/3.`,
+  "log.m3.cart.drop": () => "Kára zůstala stát. Sud leží na dlažbě.",
+  "log.m3.tackle": () => "Postraňky jsou přeříznuté. Kára stojí.",
+  "log.m3.silent.break": (p) => {
+    const word =
+      p.reason === "shot"
+        ? "výstřel"
+        : p.reason === "blast"
+          ? "výbuch"
+          : p.reason === "melee"
+            ? "čepel"
+            : p.reason === "cord"
+              ? "doutnák"
+              : p.reason === "tackle"
+                ? "postraňky"
+                : "oheň pochodně";
+    return `Ticho padlo. Příčina: ${word}.`;
+  },
+  "log.m3.cone.show": () => "Dělmistr odkryl kartáčový kužel. Tento tah ještě nestřílí.",
+  "log.m3.cone.fire": () => "Kartáč vyšel z hlavně.",
+  "log.m3.cookoff": () => "Sklad vzplanul. Dvůr je spálený. Čertovka hoří není.",
+  "log.m3.victory.mute": () =>
+    "Prachový dvůr vzplanul a brána baterie nedostala ani jednu káru. Za úsvitu baterie mlčela. Věž držela.",
+  "log.m3.victory.scar": () =>
+    "Prachový dvůr vzplanul. Baterie za úsvitu promluvila jednou a věž držela.",
+  "log.m3.loss.delivery": () =>
+    "Třetí kára projela branou baterie dřív, než jiskra vešla do dveří skladu.",
+  "log.m3.loss.plachy": () => "Jiří Plachý padl. Bez něj se zpráva o doutnáku nevrátí.",
+  "log.m3.loss.wiped": () => "Celý výsadek padl.",
+  "log.m3.relief": (p) =>
+    p.dir === "west"
+      ? "Západní vrata se otevřela. Švédská posila vstupuje na dvůr."
+      : "Jižní vrata se otevřela. Švédská posila vstupuje na dvůr.",
+  "log.m3.climb": (p) => {
+    if (p.climb === "down") return "Sestup skončil.";
+    if (p.unitId === "player-ondrej") return "Ondřej je na lodžii.";
+    return "Výsadek je na lodžii.";
+  },
+  "log.m3.epilogue.victory": () => "Doutnák dohořel",
+  "log.m3.epilogue.defeat": () => "Noc se nepodařila",
 } satisfies Record<string, MessageFn>;
 
 export type MessageId = keyof typeof csMessages;

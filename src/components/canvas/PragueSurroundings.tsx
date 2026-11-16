@@ -8,14 +8,15 @@
  * - Historically grounded 1648 landmarks on the horizon only:
  *   Prague Castle + St. Vitus (Gothic choir, 1560s Renaissance helmet on the great tower),
  *   Týn Church twin spires, Old Town Hall tower, Lesser Town Bridge Towers,
- *   Church of Our Lady beneath the Chain (Maltese commandery), Grand Priory mill wheel.
+ *   Church of Our Lady beneath the Chain (Maltese commandery).
+ *   The Grand Priory mill wheel itself stays on the board (palace dressing);
+ *   only its mill house continues west off the Čertovka.
  *   No 18th-century landmarks (no St. Nicholas dome, no bridge statues).
  * - Ground beyond the board stays dark (chiaroscuro border), river/canal water continues.
  */
 
 import * as THREE from "three";
 import { useLayoutEffect, useMemo, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
 import { useGameStore } from "../../store/useGameStore";
 import { MISSION1_MOON_POSITION, MISSION2_SUN_POSITION } from "./diegeticLights";
 
@@ -25,7 +26,7 @@ const NO_RAYCAST = () => null;
 const BX = 19.2;
 const BZ = 22.4;
 
-type Mission = "mission1" | "mission2";
+type Mission = "mission1" | "mission2" | "mission3";
 
 function mulberry32(seed: number) {
   let a = seed >>> 0;
@@ -560,43 +561,6 @@ function OurLadyBeneathTheChain({ pos, rotY, night }: { pos: [number, number, nu
   );
 }
 
-/** Grand Priory mill wheel on Čertovka – slow living secondary motion (ADR-0007 Pillar 4). */
-function MillWheel({ pos }: { pos: [number, number, number] }) {
-  const ref = useRef<THREE.Group>(null);
-  useFrame((_, dt) => {
-    if (ref.current) ref.current.rotation.z -= Math.min(dt, 0.1) * 0.35;
-  });
-  return (
-    <group position={pos}>
-      <group ref={ref}>
-        <mesh raycast={NO_RAYCAST}>
-          <torusGeometry args={[2.0, 0.09, 6, 28]} />
-          <meshStandardMaterial color="#3a2a1c" roughness={0.9} />
-        </mesh>
-        {Array.from({ length: 12 }, (_, i) => {
-          const a = (i / 12) * Math.PI * 2;
-          return (
-            <group key={i} rotation={[0, 0, a]}>
-              <mesh position={[1.0, 0, 0]} raycast={NO_RAYCAST}>
-                <boxGeometry args={[2.0, 0.08, 0.08]} />
-                <meshStandardMaterial color="#33251a" roughness={0.9} />
-              </mesh>
-              <mesh position={[2.05, 0, 0]} raycast={NO_RAYCAST}>
-                <boxGeometry args={[0.42, 0.06, 0.7]} />
-                <meshStandardMaterial color="#3d2c1e" roughness={0.9} />
-              </mesh>
-            </group>
-          );
-        })}
-      </group>
-      <mesh rotation={[Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
-        <cylinderGeometry args={[0.16, 0.16, 1.2, 8]} />
-        <meshStandardMaterial color="#1f2124" metalness={0.6} roughness={0.5} />
-      </mesh>
-    </group>
-  );
-}
-
 function WaterRect({
   x0,
   x1,
@@ -751,17 +715,17 @@ function Mission1Surroundings() {
         </mesh>
       ))}
 
-      {/* Grand Priory mill wheel turning in the canal, with its small mill house */}
-      <MillWheel pos={[25.5, 0.7, -18.4]} />
-      <mesh position={[29.5, 1.6, -18.4]} raycast={NO_RAYCAST}>
-        <boxGeometry args={[4.2, 3.4, 5.8]} />
+      {/* Mill house continuing the on-board Čertovka wheel off the west edge.
+          The wheel itself is the palace dressing at grid (1.15, 0, 2.2). */}
+      <mesh position={[-23.2, 1.6, -18.1]} raycast={NO_RAYCAST}>
+        <boxGeometry args={[4.2, 3.4, 5.2]} />
         <meshStandardMaterial color="#3d372f" roughness={0.95} />
       </mesh>
-      <mesh position={[29.5, 3.3, -18.4]} rotation={[Math.PI / 4, 0, 0]} scale={[4.4, 4.1, 4.1]} raycast={NO_RAYCAST}>
+      <mesh position={[-23.2, 3.3, -18.1]} rotation={[0, 0, Math.PI / 4]} scale={[3.6, 3.6, 5.4]} raycast={NO_RAYCAST}>
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial color="#33211d" roughness={0.85} />
       </mesh>
-      <mesh position={[27.35, 1.8, -18.4]} rotation={[0, -Math.PI / 2, 0]} raycast={NO_RAYCAST}>
+      <mesh position={[-21.05, 1.8, -18.1]} rotation={[0, Math.PI / 2, 0]} raycast={NO_RAYCAST}>
         <planeGeometry args={[0.5, 0.7]} />
         <meshBasicMaterial color="#f0a64a" toneMapped={false} />
       </mesh>
@@ -779,16 +743,54 @@ function Mission1Surroundings() {
   );
 }
 
+function Mission3Surroundings() {
+  return (
+    <group>
+      <mesh position={[-32, 7, 2]} raycast={NO_RAYCAST}>
+        <boxGeometry args={[10, 16, 22]} />
+        <meshStandardMaterial color="#14181f" roughness={1} />
+      </mesh>
+      <mesh position={[-30, 16, -4]} raycast={NO_RAYCAST}>
+        <boxGeometry args={[3.2, 8, 3.2]} />
+        <meshStandardMaterial color="#10141a" roughness={1} />
+      </mesh>
+      <mesh position={[-30, 16, 8]} raycast={NO_RAYCAST}>
+        <boxGeometry args={[3.2, 7, 3.2]} />
+        <meshStandardMaterial color="#10141a" roughness={1} />
+      </mesh>
+      <mesh position={[-27, 2.2, 2]} raycast={NO_RAYCAST}>
+        <boxGeometry args={[1.1, 4.4, 1.1]} />
+        <meshStandardMaterial color="#1c1917" roughness={0.95} />
+      </mesh>
+      <mesh position={[-27, 2.2, 6.4]} raycast={NO_RAYCAST}>
+        <boxGeometry args={[1.1, 4.4, 1.1]} />
+        <meshStandardMaterial color="#1c1917" roughness={0.95} />
+      </mesh>
+      <mesh position={[-27, 4.5, 4.2]} raycast={NO_RAYCAST}>
+        <boxGeometry args={[1.2, 0.7, 4.6]} />
+        <meshStandardMaterial color="#1c1917" roughness={0.95} />
+      </mesh>
+    </group>
+  );
+}
+
 export function PragueSurroundings() {
   const scenario = useGameStore((s) => s.scenario);
   const weather = useGameStore((s) => s.weather);
-  const mission: Mission = scenario === "mission2" ? "mission2" : "mission1";
+  const mission: Mission =
+    scenario === "mission2" ? "mission2" : scenario === "mission3" ? "mission3" : "mission1";
 
   return (
     <group>
       <SkyDome mission={mission} weather={weather} />
-      <StarField visible={mission === "mission1" && weather === "clear"} />
-      {mission === "mission2" ? <Mission2Surroundings /> : <Mission1Surroundings />}
+      <StarField visible={mission !== "mission2" && weather === "clear"} />
+      {mission === "mission2" ? (
+        <Mission2Surroundings />
+      ) : mission === "mission3" ? (
+        <Mission3Surroundings />
+      ) : (
+        <Mission1Surroundings />
+      )}
     </group>
   );
 }

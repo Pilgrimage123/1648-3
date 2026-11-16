@@ -816,9 +816,10 @@ export class CombatCalculator {
     // 3. ŠANCE NA SELHÁNÍ VÝSTŘELU (Misfire % — v dešti mají doutnákové zámky 20 % šanci)
     // =========================================================================
     let weatherMisfireAdd = 0;
-    if (weather === "rain") {
+    const shooterRoofed = isEnclosedRoofedCoord(fromPos.x, fromPos.y, fromPos.z);
+    if (!shooterRoofed && weather === "rain") {
       weatherMisfireAdd = weapon.lockType === "matchlock" ? 14 : 4;
-    } else if (weather === "fog") {
+    } else if (!shooterRoofed && weather === "fog") {
       weatherMisfireAdd = weapon.lockType === "matchlock" ? 5 : 2;
     }
     const smokeMisfireAdd = shooterInSmoke ? 3 : 0;
@@ -1832,7 +1833,7 @@ export function computeEnemyAiDecision(
       y: enemy.pos.y,
       z: enemy.pos.z + off.dz,
     };
-    if (grid.isDoorClosedAt(dc)) {
+    if (grid.isDoorClosedAt(dc) && !grid.isDoorSealedAt(dc)) {
       doorToOpen = dc;
       break;
     }
@@ -1875,7 +1876,9 @@ export function applyBlackPowderChoking(
     const basePace =
       u.id === "player-colloredo"
         ? 3
-        : soldierMovePerAp(u.weapon);
+        : u.id === "player-havel"
+          ? 6
+          : soldierMovePerAp(u.weapon);
 
     const nextMovePerAp = isChoking ? Math.max(1, basePace - 1) : basePace;
 

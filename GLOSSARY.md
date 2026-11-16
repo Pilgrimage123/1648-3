@@ -1,6 +1,6 @@
 # Praha 1648
 
-Turn-based tactical strategy in the spirit of XCOM 2, set in Prague in 1648 during the Swedish assault. The player plays the Jesuit Father Jiří Plachý and through him commands the Železná vigilie, an elite company drawn from different parts of society, with the Clementinum as its base. The work is told from a Catholic perspective and holds faith together with Jesuit learning and the other science of the age (ADR-0014, ADR-0016). The game features two authentic scenarios: Mission 1 (the night assault of July 25/26 on Malá Strana and the palace rescue of Field Marshal Colloredo) and Mission 2 (the morning defense of the Old Town Bridge Tower, the lowering of the portcullis, and the Latin Marian inscription ward on Charles Bridge), both played on a multi-floor 3D grid with hot-swappable 2D billboard sprites and 3D models, and a 17th-century XCOM-2 Aiming HUD and Shot Breakdown.
+Turn-based tactical strategy in the spirit of XCOM 2, set in Prague in 1648 during the Swedish assault. The player plays the Jesuit Father Jiří Plachý and through him commands the Železná vigilie, an elite company drawn from different parts of society, with the Clementinum as its base. The work is told from a Catholic perspective and holds faith together with Jesuit learning and the other science of the age (ADR-0014, ADR-0016, ADR-0019). The game features three authentic scenarios: Mission 1 (the night assault of July 25/26 on Malá Strana and the palace rescue of Field Marshal Colloredo), Mission 2 (the morning defense of the Old Town Bridge Tower, the lowering of the portcullis, and the Latin Marian inscription ward on Charles Bridge), and Mission 3 (the night sortie of July 27/28 that fires the powder yard behind the Malá Strana bridgehead), all played on a multi-floor 3D grid with hot-swappable 2D billboard sprites and 3D models, and a 17th-century XCOM-2 Aiming HUD and Shot Breakdown.
 
 ## Language
 
@@ -330,6 +330,88 @@ _Avoid_: Second phase, interior mop-up
 
 **Přísaha po Mříži** (*Oath after the Tower*):
 In the Clementinum afterwards, Plachý offers the blood-and-iron oath to Havel Řezáč and Ondřej Štěrba if they live. The player accepts both, either, or neither. Refusal leaves the man named. Death enters the chronicle. Plachý receives oaths. He does not swear as a novice.
+
+### Mission 3: The Matchcord (Mise 3: Doutnák) (ADR-0019)
+
+**Mise 3: Doutnák** (*The Matchcord*):
+The night sortie of 27/28 July 1648. Father Plachý crosses back to Malá Strana and fires the powder the Swedes are carting from the castle armory to a battery aimed at the Old Town Bridge Tower. The portcullis is already down, so the bridge is not a path. The Swedes on this field are men.
+_Avoid_: Petřín magazine of 1849, second palace rescue, infernal harriers
+
+**Výsadek** (*Sortie party*):
+Father Plachý and exactly two others. Living men who swore after the tower take the places, Havel Řezáč first, then Ondřej Štěrba. Each empty place is a Žák Klementina. No one from Mission 1 stands here. If that mission's survivor lives, the chronicle may say he named the water gate.
+_Avoid_: Fourth hero, Mission 1 companion, full company
+
+**Žák Klementina** (*Clementinum student*):
+A student borrowed for this night when a sworn man cannot come. He lays one tile of cord per AP and climbs to the lodge by the stair. He is not offered the oath on this field.
+_Avoid_: Novice, replacement Plachý, Ondřej's understudy with a rope
+
+**Prachový dvůr** (*Powder yard*):
+The requisitioned coach house and its court behind the Malá Strana bridge towers, where castle powder is broken into kegs for the river battery. Plundered limestone, not the unplundered Grand Priory. Open court is rain and slate cobble. The store itself is roofed. Across the black water, outside the field, one torch burns on the Old Town tower.
+_Avoid_: Vrtbovská zahrada, Prašná brána, Grand Priory garden
+
+**Pramice výsadku** (*Sortie skiff*):
+The boat on the Čertovka at this mooring. It is how the party arrives and how Plachý leaves. Canal water is not walkable.
+_Avoid_: Mission 1 escape skiff, bridge extraction
+
+**Lodžie dvora** (*Yard lodge*):
+The roofed gallery at `y = 1` over the court. Ondřej Štěrba reaches it by rope in one turn. Everyone else uses the stair and needs two. The stair is always there, so the night is playable without him. The lodge is dry, gives High Ground down into the court, and holds smoke the way any roofed room does.
+_Avoid_: Sniper perch that can be reached only by Ondřej, open balcony in the rain
+
+**Tichý příchod** (*Silent approach*):
+The opening in which the yard is already at work and has not yet seen the party. It breaks on a shot, a blast, a blade, the lighting of the cord, a cut tackle, or a step into a torch ring. Laying cord in the dark, and walking outside those rings, keeps it. The carts do not wait for the break. The falconet does.
+_Avoid_: Stealth campaign, concealment as a soldier statistic, a clock that starts only when silence breaks
+
+**Doutnáková stopa** (*Matchcord train*):
+Waxed cord laid on empty cobble, six tiles at most. Ondřej Štěrba lays two tiles for 1 AP. Anyone else lays one. A shot on a single keg does not fire the store. Only this cord, reaching the store door, does. Rain does not drown it once it has been lit.
+_Avoid_: UI fuse minigame, a second powder-keg rule, a random weather extinguish
+
+**Zapálení stopy** (*Lighting the train*):
+Father Plachý, and only he, spends 1 AP on a tile beside the tail to light it. He dresses the cord as he lights it. That is the measure, and it is a tile, not a ribbon ability. There is no second kneeling.
+_Avoid_: Inscription rite, anyone-may-light, a blessing that changes the burn rate
+
+**Jiskra** (*Spark*):
+The live end of a lit train. It advances two tiles at the end of the player turn, before the Swedish turn, and is visible. When it enters the store door the yard cooks off. A same-round race with a cart favors the spark.
+_Avoid_: Hidden burn, a spark that moves on the Swedish turn, a random fuse
+
+**Zašlápnutí** (*Stamping the spark*):
+A Swede who ends the Swedish turn beside the live spark stamps it at the start of the next Swedish turn. The player has the whole turn between to kill him, move him, or blow him off the tile. A stamp kills the spark and leaves the unburned cord. Plachý may relight that cord for 1 AP from a neighboring tile. Laid tiles behind the spark are not undone.
+_Avoid_: Windlass-style stall, erasing the train, a stamp the player cannot see coming
+
+**Kára** (*Powder cart*):
+One keg on one lit lane. It rolls one tile on each Swedish turn. The mouth of the store starts a new loaded cart on the Swedish turn after the lane's first tile is empty. Entering the battery gate counts one delivery and removes the cart. Kegs and carts still in the yard chain when the store cooks off. A delivery already through the gate does not.
+_Avoid_: Two lanes, a cart that waits out the silence, an inventory of loose kegs in the store
+
+**Nosič** (*Powder bearer*):
+The man pushing the cart. Without him the cart does not roll. His death drops the keg on that tile as a prachový sud. Ondřej Štěrba, from the lodge and with a line to the cart, may cut the tackle for 1 AP and drop the same way.
+_Avoid_: A new explosive type, a bearer who is the objective
+
+**Brána baterie** (*Battery gate*):
+The far arch where a cart leaves the field and the river guns gain one charge. Three deliveries before the spark enters the store door lose the night. The count is checked when the cart enters, which is the Swedish turn, after the spark has already moved.
+_Avoid_: A turn-counter banner, destroying the falconet as the win
+
+**Dělmistr** (*Master gunner*):
+The man on the falconet behind the gabions. He does not hunt with a musket. He traverses the piece. He begins only once the silent approach breaks.
+_Avoid_: Occultist, harrier, a second boss with a rite
+
+**Kartáčový kužel** (*Canister cone*):
+The lit fan of tiles the falconet will rake. The end of the first Swedish turn after silence breaks shows the cone and does not fire. Each later Swedish turn fires at its end. Half cover does not stop it. A stone pillar does. The lodge does. Tile centers stay walkable after the shot.
+_Avoid_: Overwatch lane, a cone that fires on the warning turn, rubble that seals a tile
+
+**Vzplanutí dvora** (*Cook-off*):
+What the spark does to the store. The yard becomes scorched ruin: char, ember cracks, and debris on tile edges only. Centers stay open. Smoke rings the court and can cover the walk back to the skiff. The cook-off does not reach the Čertovka.
+_Avoid_: Impassable crater, a blast that destroys the skiff, kill-all
+
+**Výhra Doutnáku** (*Win of the Matchcord*):
+The store has cooked off, fewer than three kegs have passed the battery gate, and Father Plachý stands on a skiff tile. Men left alive in the yard are not cleared. He is the one who brings the news. No other witness is required.
+_Avoid_: Squad extraction of everyone, a win on the blast alone
+
+**Prohra Doutnáku** (*Loss of the Matchcord*):
+The third keg passes the gate before the spark enters the door, or Father Plachý falls, or the whole party falls. The third delivery ends the night at once.
+_Avoid_: A doomed extract after the battery is supplied, a second phase
+
+**Jizva kroniky** (*Chronicle scar*):
+A won night in which one or two kegs still reached the gate. The chronicle records that the battery spoke once at dawn and the tower held. A night in which none passed is the same victory, and the battery is mute.
+_Avoid_: A partial-failure loss, a separate mission grade on the score screen
 
 ### Baroque Art Direction, Environmental Biomes & Ballistics (ADR-0007)
 

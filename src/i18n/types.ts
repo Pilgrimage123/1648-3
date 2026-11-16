@@ -70,6 +70,8 @@ export interface MessageParams {
   fromFloor?: number;
   toFloor?: number;
   dir?: string;
+  /** Why the powder-yard silence broke. The Czech pack names it. */
+  reason?: "shot" | "blast" | "melee" | "cord" | "tackle" | "torch";
   facing?: string;
   zone?: "blue" | "yellow";
   climb?: "up" | "down" | "ground";

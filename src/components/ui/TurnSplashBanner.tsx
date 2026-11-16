@@ -74,13 +74,17 @@ export function TurnSplashBanner() {
           }`}
         >
           {text(
-            scenario === "mission2"
+            scenario === "mission3"
               ? isPlayer
-                ? "ui.splash.m2.player"
-                : "ui.splash.m2.enemy"
-              : isPlayer
-                ? "ui.splash.player"
-                : "ui.splash.enemy",
+                ? "ui.splash.m3.player"
+                : "ui.splash.m3.enemy"
+              : scenario === "mission2"
+                ? isPlayer
+                  ? "ui.splash.m2.player"
+                  : "ui.splash.m2.enemy"
+                : isPlayer
+                  ? "ui.splash.player"
+                  : "ui.splash.enemy",
             undefined,
             locale,
           )}
@@ -90,11 +94,15 @@ export function TurnSplashBanner() {
 
         <p className="font-literata italic text-xs text-amber-200/90 tracking-wide text-center px-4">
           {text(
-            scenario === "mission2"
+            scenario === "mission3"
               ? isPlayer
-                ? "ui.splash.m2.player.body"
-                : "ui.splash.m2.enemy.body"
-              : isPlayer
+                ? "ui.splash.m3.player.body"
+                : "ui.splash.m3.enemy.body"
+              : scenario === "mission2"
+                ? isPlayer
+                  ? "ui.splash.m2.player.body"
+                  : "ui.splash.m2.enemy.body"
+                : isPlayer
                 ? round === 3
                   ? "ui.splash.player.r3"
                   : round === 4

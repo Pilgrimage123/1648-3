@@ -154,7 +154,7 @@ function chooseSmartSprintCamRig(
   tanZ: number,
   currentCamPos: THREE.Vector3,
   preferredSide: 1 | -1,
-): { sideSign: 1 | -1; backDist: number; sideDist: number } {
+): { sideSign: 1 | -1; backDist: number; sideDist: number } | null {
   const rightX = -tanZ;
   const rightZ = tanX;
 
@@ -173,6 +173,7 @@ function chooseSmartSprintCamRig(
 
   let best = candidates[0]!;
   let bestScore = -Infinity;
+  let bestPenalty = Infinity;
 
   for (const cand of candidates) {
     const camX =
@@ -198,13 +199,18 @@ function chooseSmartSprintCamRig(
       currentCamPos.x - camX,
       currentCamPos.z - camZ,
     );
-    const score = sameSideBonus - penalty - distToCam * 0.25;
-    if (score > bestScore) {
+    const score = sameSideBonus - distToCam * 0.25;
+    // A clear tile beats any rig whose lens or sightline sits in a wall,
+    // even if that blocked rig is closer to the previous camera.
+    if (penalty < bestPenalty || (penalty === bestPenalty && score > bestScore)) {
+      bestPenalty = penalty;
       bestScore = score;
       best = cand;
     }
   }
 
+  // Every shoulder is inside masonry. Stay on the isometric camera.
+  if (bestPenalty > 0) return null;
   return best;
 }
 
@@ -986,9 +992,9 @@ export function TacticalCamera() {
       const hasLiveTelemetry =
         liveMovementTelemetry.unitId === activeMovement.unitId;
 
-      // Aktuální interpolovaná 3D pozice běžícího hrdiny v reálném čase
-      const fallbackCoord =
-        activeMovement.path[0] ?? activeMovement.from;
+      // Until live telemetry exists, stay on the tile the soldier still occupies.
+      // path[0] is the next step (often a door) and pulls the lens into that slab.
+      const fallbackCoord = activeMovement.from;
       const [fx, fy, fz] = gridToWorld(fallbackCoord);
       const ux = hasLiveTelemetry ? liveMovementTelemetry.worldPos[0] : fx;
       const uy = hasLiveTelemetry ? liveMovementTelemetry.worldPos[1] : fy;
@@ -1049,7 +1055,8 @@ export function TacticalCamera() {
         camera.position,
         preferredShoulderRef.current,
       );
-      preferredShoulderRef.current = sprintRig.sideSign;
+      if (sprintRig) {
+        preferredShoulderRef.current = sprintRig.sideSign;
 
       // Jemný krokový třes kamery (Sprint Camera Shake) + ráz při vyražení dveří či přeskoku
       const stridePhase =
@@ -1153,8 +1160,9 @@ export function TacticalCamera() {
         dt,
       );
 
-      camera.lookAt(currentLookAtRef.current);
-      return;
+        camera.lookAt(currentLookAtRef.current);
+        return;
+      }
     }
 
     lastTrackedMoveUnitRef.current = null;

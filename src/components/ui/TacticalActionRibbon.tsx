@@ -33,6 +33,14 @@ import {
 import { useState } from "react";
 import { bestTileCover, sameCoord } from "../../core/GridSystem";
 import { INSCRIPTION, ROPE, WINDLASS } from "../../core/mission2";
+import {
+  armClimb,
+  canCutTackle,
+  canLightCord,
+  canOfferCordLay,
+  MAX_CORD,
+  ONDREJ_ID as M3_ONDREJ_ID,
+} from "../../core/mission3";
 import type { StatModifier } from "../../core/types";
 import {
   formatMeasure,
@@ -45,6 +53,15 @@ import { useGameStore } from "../../store/useGameStore";
 import { BaroqueCoverBadge } from "./BaroqueCoverBadge";
 import { UnitPortrait } from "./UnitPortrait";
 import { useDraggableHud } from "./useDraggableHud";
+
+function mission3ClimbCopy(kind: "rope" | "stair" | "down"): {
+  label: "ui.ribbon.m3.rope" | "ui.ribbon.m3.stair" | "ui.ribbon.m3.down";
+  aria: "ui.ribbon.m3.rope.aria" | "ui.ribbon.m3.stair.aria" | "ui.ribbon.m3.down.aria";
+} {
+  if (kind === "rope") return { label: "ui.ribbon.m3.rope", aria: "ui.ribbon.m3.rope.aria" };
+  if (kind === "stair") return { label: "ui.ribbon.m3.stair", aria: "ui.ribbon.m3.stair.aria" };
+  return { label: "ui.ribbon.m3.down", aria: "ui.ribbon.m3.down.aria" };
+}
 
 interface AbilityTooltipData {
   id: string;
@@ -126,7 +143,11 @@ export function TacticalActionRibbon() {
   const guidedTutorial = useGameStore((s) => s.guidedTutorial);
   const scenario = useGameStore((s) => s.scenario);
   const m2 = useGameStore((s) => s.m2);
+  const m3 = useGameStore((s) => s.m3);
   const kneelAtInscription = useGameStore((s) => s.kneelAtInscription);
+  const lightMission3Cord = useGameStore((s) => s.lightMission3Cord);
+  const cutMission3Tackle = useGameStore((s) => s.cutMission3Tackle);
+  const armMission3Climb = useGameStore((s) => s.armMission3Climb);
   const unpinWindlassPawl = useGameStore((s) => s.unpinWindlassPawl);
   const severPortcullisRope = useGameStore((s) => s.severPortcullisRope);
   const douseWindlassFire = useGameStore((s) => s.douseWindlassFire);
@@ -995,6 +1016,14 @@ export function TacticalActionRibbon() {
             style={dockDrag.dragStyle}
             className="pointer-events-auto relative flex flex-col items-center"
           >
+            {scenario === "mission3" && m3 && m3.stamperIds.length > 0 && (
+              <div className="pointer-events-none mb-2 flex items-start gap-1.5 max-w-sm px-2.5 py-1.5 rounded-lg bg-rose-950/90 border border-rose-500/70 text-rose-100 shadow-[0_6px_20px_rgba(0,0,0,0.65)]">
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 text-rose-400 shrink-0" />
+                <span className="font-literata text-[12px] leading-snug">
+                  {text("log.m3.stamp.warn", undefined, locale)}
+                </span>
+              </div>
+            )}
             {/* Kontextový barokní tooltip schopnosti (Progressive Disclosure při hoveru i pro nepoužitelné akce, text zvětšen o 20% pro špičkovou čitelnost) */}
             {hoveredAbility && (
               <div className="pointer-events-none absolute bottom-full mb-2 w-80 max-w-[90vw] baroque-cartouche baroque-border rounded-xl px-3.5 py-2.5 bg-slate-950/98 border-amber-400/90 shadow-[0_10px_32px_rgba(0,0,0,0.98)] text-amber-50 animate-in fade-in zoom-in-95 duration-150">
@@ -1358,6 +1387,89 @@ export function TacticalActionRibbon() {
                     {text("ui.ribbon.douse", undefined, locale)}
                   </button>
                 )}
+
+              {scenario === "mission3" && m3 && selectedUnit && canOfferCordLay(m3, selectedUnit, grid, units) && (
+                <button
+                  type="button"
+                  disabled={!canCommand || !hasAp}
+                  onClick={() => setActionMode(actionMode === "lay" ? "move" : "lay")}
+                  aria-label={text(
+                    selectedUnit.id === M3_ONDREJ_ID && m3.cord.length + 2 <= MAX_CORD
+                      ? "ui.ribbon.m3.lay.two.aria"
+                      : "ui.ribbon.m3.lay.aria",
+                    undefined,
+                    locale,
+                  )}
+                  className={`h-10 px-3 rounded-lg border font-cinzel text-xs font-bold cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed ${
+                    actionMode === "lay"
+                      ? "border-amber-100 bg-amber-400 text-stone-950 shadow-[0_0_12px_rgba(250,204,21,0.55)]"
+                      : "border-amber-300 bg-amber-500 text-stone-950"
+                  }`}
+                >
+                  {text(
+                    selectedUnit.id === M3_ONDREJ_ID && m3.cord.length + 2 <= MAX_CORD
+                      ? "ui.ribbon.m3.lay.two"
+                      : "ui.ribbon.m3.lay",
+                    undefined,
+                    locale,
+                  )}
+                </button>
+              )}
+
+              {scenario === "mission3" && m3 && selectedUnit && canLightCord(m3, selectedUnit) && (
+                <button
+                  type="button"
+                  disabled={!canCommand || !hasAp}
+                  onClick={lightMission3Cord}
+                  aria-label={text(
+                    m3.sparkIndex > 0 ? "ui.ribbon.m3.relight.aria" : "ui.ribbon.m3.light.aria",
+                    undefined,
+                    locale,
+                  )}
+                  className="h-10 px-3 rounded-lg border border-amber-300 bg-amber-500 text-stone-950 font-cinzel text-xs font-bold cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                >
+                  {text(
+                    m3.sparkIndex > 0 ? "ui.ribbon.m3.relight" : "ui.ribbon.m3.light",
+                    undefined,
+                    locale,
+                  )}
+                </button>
+              )}
+
+              {scenario === "mission3" && m3 && selectedUnit && canCutTackle(m3, grid, selectedUnit, units) && (
+                <button
+                  type="button"
+                  disabled={!canCommand || !hasAp}
+                  onClick={cutMission3Tackle}
+                  aria-label={text("ui.ribbon.m3.tackle.aria", undefined, locale)}
+                  className="h-10 px-3 rounded-lg border border-amber-300 bg-amber-500 text-stone-950 font-cinzel text-xs font-bold cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                >
+                  {text("ui.ribbon.m3.tackle", undefined, locale)}
+                </button>
+              )}
+
+              {scenario === "mission3" &&
+                m3 &&
+                selectedUnit &&
+                (() => {
+                  const offer = armClimb(
+                    m3,
+                    selectedUnit.ap > 0 ? selectedUnit : { ...selectedUnit, ap: 1 },
+                  );
+                  if (!offer?.climbKind) return null;
+                  const copy = mission3ClimbCopy(offer.climbKind);
+                  return (
+                    <button
+                      type="button"
+                      disabled={!canCommand || !hasAp}
+                      onClick={armMission3Climb}
+                      aria-label={text(copy.aria, undefined, locale)}
+                      className="h-10 px-3 rounded-lg border border-amber-300 bg-amber-500 text-stone-950 font-cinzel text-xs font-bold cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                    >
+                      {text(copy.label, undefined, locale)}
+                    </button>
+                  );
+                })()}
 
               <div className="w-px h-6 bg-amber-900/70 mx-0.5" />
 

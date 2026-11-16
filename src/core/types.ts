@@ -253,6 +253,11 @@ export interface UnitData {
   ability?: SpecialAbilityDef;
   /** Zda má postava v tomto kole aktivní posílení ze své zvláštní schopnosti */
   abilityBuffActive?: boolean;
+  /**
+   * Mission 3 nosič still pushing the cart. Absent on Mission 1 and Mission 2.
+   * A cut sets it false and leaves him on the shoulder as a musketeer.
+   */
+  attachedToCart?: boolean;
   /** Zda je jednotka v Posledním vzepětí (agónie po smrtelném zranění hp <= 0, ADR-0012) */
   inDeathThroes?: boolean;
   /** Zbývající počet tahů v Posledním vzepětí před definitivním pádem k zemi (obvykle 1) */

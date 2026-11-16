@@ -144,7 +144,7 @@ function paint(
 }
 
 export function createMission2Grid(): GridSystem {
-  setRoofMask(isBridgeTowerRoofed);
+  setRoofMask(isBridgeTowerRoofed, "bridge");
   const grid = new GridSystem();
 
   for (let y = 0; y < 3; y++) {

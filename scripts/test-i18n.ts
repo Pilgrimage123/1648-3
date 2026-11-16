@@ -47,6 +47,22 @@ const shot = formatPhrase(
 assert(shot.includes("Jana Matěje"), `Shot chronicle must use the accusative, got: ${shot}`);
 assert(!shot.includes("zasáhl Jan Matěj "), "Shot chronicle must not leave the name in the nominative");
 
+const zakShot = formatPhrase(
+  phrase("log.shot", {
+    attackerId: "player-plachy",
+    targetId: "player-zak-1",
+    weaponId: "plachy_pistol",
+    chance: 70,
+    damage: 3,
+    hit: true,
+  }),
+);
+assert(zakShot.includes("Žáka Klementina"), `Student shot must use the accusative, got: ${zakShot}`);
+assert(!zakShot.includes("zasáhl Žák Klementina"), "Student shot must not leave the name in the nominative");
+assert(formatPhrase(phrase("log.m3.victory.mute")).includes("Věž držela"));
+assert(formatPhrase(phrase("log.m3.victory.scar")).toLowerCase().includes("věž držela"));
+assert(formatPhrase(phrase("log.m3.loss.delivery")).includes("Třetí kára"));
+
 assert.strictEqual(unitName("player-jan-matej", "acc"), "Jana Matěje");
 assert.strictEqual(unitName("player-jan-matej", "nom"), "Jan Matěj");
 

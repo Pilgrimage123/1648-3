@@ -20,6 +20,16 @@ import { useState } from "react";
 import { text, useLocale } from "../../i18n";
 import { useGameStore } from "../../store/useGameStore";
 import { useDraggableHud } from "./useDraggableHud";
+import type { Mission3Clock } from "../../core/mission3";
+
+function mission3SparkPhrase(
+  clock: Mission3Clock,
+): "ui.mission.m3.burning" | "ui.mission.m3.spark" | "ui.mission.m3.stamped" | "ui.mission.m3.silent" {
+  if (clock.cookedOff) return "ui.mission.m3.burning";
+  if (clock.lit) return "ui.mission.m3.spark";
+  if (clock.cord.length > 0 && clock.sparkIndex > 0) return "ui.mission.m3.stamped";
+  return "ui.mission.m3.silent";
+}
 
 export function MissionStatusChip() {
   const locale = useLocale();
@@ -38,6 +48,7 @@ export function MissionStatusChip() {
   const reinforcementRound = useGameStore((s) => s.reinforcementRound);
   const scenario = useGameStore((s) => s.scenario);
   const m2 = useGameStore((s) => s.m2);
+  const m3 = useGameStore((s) => s.m3);
 
   const [collapsed, setCollapsed] = useState(false);
   const { dragStyle, onPointerDown, hasMoved, resetOffset } = useDraggableHud();
@@ -116,7 +127,23 @@ export function MissionStatusChip() {
 
       {!collapsed && (
         <div className="flex items-center gap-2 text-[11px] text-amber-100/90 whitespace-nowrap tabular-nums pl-2 border-l border-amber-900/70">
-          {scenario === "mission2" && m2 ? (
+          {scenario === "mission3" && m3 ? (
+            <>
+              <span className="font-cinzel font-black text-amber-200">
+                {text("ui.mission.m3.carts", { count: m3.deliveries }, locale)}
+              </span>
+              <span className="text-amber-500/60" aria-hidden="true">
+                ·
+              </span>
+              <span
+                className={`font-literata ${
+                  m3.cookedOff ? "text-amber-400 font-bold" : m3.lit ? "text-amber-300" : ""
+                }`}
+              >
+                {text(mission3SparkPhrase(m3), undefined, locale)}
+              </span>
+            </>
+          ) : scenario === "mission2" && m2 ? (
             <>
               <span className="font-literata">
                 {text(

@@ -335,6 +335,13 @@ export const csUiMessages = {
   "ui.briefing.mission2.title": () => "Mříž",
   "ui.briefing.mission2.body": () =>
     "Páter Plachý, řezník a zloděj lan. Harcovníci na prahu, jeden okultista u svorníku.",
+  "ui.briefing.mission3.index": () => "Mise III",
+  "ui.briefing.mission3.when": () => "Noc",
+  "ui.briefing.mission3.place": () => "Prachový dvůr u mosteckých věží",
+  "ui.briefing.mission3.chip": () => "Tři káry",
+  "ui.briefing.mission3.title": () => "Doutnák",
+  "ui.briefing.mission3.body": () =>
+    "Páter a dva muži. Doutnák do skladu dřív, než třetí kára projede branou.",
   "ui.splash.m2.player": () => "Spusťte mříž",
   "ui.splash.m2.enemy": () => "Harcovníci na prahu",
   "ui.splash.m2.player.body": () =>
@@ -373,6 +380,44 @@ export const csUiMessages = {
   "ui.oath.ondrej": () => "Jen Ondřeje",
   "ui.oath.neither": () => "Nepřijmout nikoho",
   "ui.oath.done": () => "Přísaha je zapsaná.",
+  "ui.ribbon.m3.lay": () => "Položit doutnák, 1 AP",
+  "ui.ribbon.m3.lay.aria": () => "Položit doutnák za 1 AP",
+  "ui.ribbon.m3.lay.two": () => "Položit dva články, 1 AP",
+  "ui.ribbon.m3.lay.two.aria": () => "Položit dva články doutnáku za 1 AP",
+  "ui.ribbon.m3.lay.reject": () => "Sem se doutnák neklade",
+  "ui.ribbon.m3.light": () => "Zapálit stopu, 1 AP",
+  "ui.ribbon.m3.light.aria": () => "Zapálit doutnákovou stopu za 1 AP",
+  "ui.ribbon.m3.relight": () => "Znovu zapálit, 1 AP",
+  "ui.ribbon.m3.relight.aria": () => "Znovu zapálit doutnák za 1 AP",
+  "ui.ribbon.m3.tackle": () => "Přeříznout postraňky, 1 AP",
+  "ui.ribbon.m3.tackle.aria": () => "Přeříznout postraňky káry za 1 AP",
+  "ui.ribbon.m3.rope": () => "Po laně na lodžii, 1 AP",
+  "ui.ribbon.m3.rope.aria": () => "Vylézt po laně na lodžii za 1 AP",
+  "ui.ribbon.m3.stair": () => "Vystoupat po schodech, 1 AP",
+  "ui.ribbon.m3.stair.aria": () => "Vystoupat po schodech na lodžii za 1 AP",
+  "ui.ribbon.m3.down": () => "Sestoupit, 1 AP",
+  "ui.ribbon.m3.down.aria": () => "Sestoupit z lodžie za 1 AP",
+  "ui.mission.m3.carts": (p) => `Káry ${p.count ?? 0}/3`,
+  "ui.mission.m3.silent": () => "Ticho",
+  "ui.mission.m3.spark": () => "Jiskra",
+  "ui.mission.m3.stamped": () => "Zašlápnuto",
+  "ui.mission.m3.burning": () => "Sklad hoří",
+  "ui.splash.m3.player": () => "Tah výsadku",
+  "ui.splash.m3.enemy": () => "Tah švédské hlídky",
+  "ui.splash.m3.player.body": () =>
+    "Doutnák do skladu dřív, než třetí kára projede branou.",
+  "ui.splash.m3.enemy.body": () => "Káry jedou k bráně baterie.",
+  "ui.epilogue.m3.title": () => "Doutnák dohořel",
+  "ui.epilogue.m3.defeat": () => "Noc se nepodařila",
+  "ui.epilogue.m3.mute": () =>
+    "Prachový dvůr vzplanul a brána baterie nedostala ani jednu káru. Za úsvitu baterie mlčela. Věž držela.",
+  "ui.epilogue.m3.scar": () =>
+    "Prachový dvůr vzplanul. Baterie za úsvitu promluvila jednou a věž držela.",
+  "ui.epilogue.m3.defeat.delivery": () =>
+    "Třetí kára projela branou baterie dřív, než jiskra vešla do dveří skladu.",
+  "ui.epilogue.m3.defeat.plachy": () =>
+    "Jiří Plachý padl. Bez něj se zpráva o doutnáku nevrátí.",
+  "ui.epilogue.m3.defeat.wiped": () => "Celý výsadek padl.",
 } satisfies Record<string, MessageFn>;
 
 export type UiMessageId = keyof typeof csUiMessages;

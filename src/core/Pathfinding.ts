@@ -59,7 +59,8 @@ function isTilePassableForUnit(
   if (
     allowClosedDoors &&
     tile.obstacle === "none" &&
-    grid.isDoorClosedAt(tile.coord)
+    grid.isDoorClosedAt(tile.coord) &&
+    !grid.isDoorSealedAt(tile.coord)
   ) {
     return true;
   }

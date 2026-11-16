@@ -114,7 +114,14 @@ export function resolvePreferredFloorCoord(
  * - Patro 2 (y = 2): Maltézská strážní věž a střešní ochoz konventu (x: 4..8, z: 17..19)
  */
 export function getRoofParapetCover(c: GridCoord, dir: CardinalDir): CoverLevel {
-  if (roofMask !== null) {
+  if (roofKind === "powder-yard") {
+    if (c.y === 1 && c.z === 12 && c.x >= 8 && c.x <= 15 && dir === "S") return "half";
+    if (c.y === 1 && c.x === 8 && c.z >= 12 && c.z <= 14 && dir === "W") return "half";
+    if (c.y === 1 && c.x === 15 && c.z >= 12 && c.z <= 14 && dir === "E") return "half";
+    return "none";
+  }
+
+  if (roofKind === "bridge") {
     // Mission 2: Charles Bridge outer stone parapets (x: 1..9, z: 11 N & z: 16 S)
     if (c.y === 0 && c.x >= 1 && c.x <= 9) {
       if (c.z === 11 && dir === "N") return "half";
@@ -177,6 +184,8 @@ export class GridSystem {
   public readonly floors: number;
   private readonly tiles: Map<string, TileData> = new Map();
   private readonly doors: Map<string, DoorData> = new Map();
+  /** Closed doors a mover may not breach. Mission 3 seals both relief doors until the roll. */
+  public readonly sealedDoorIds: Set<string> = new Set();
 
   constructor(width = GRID_WIDTH, depth = GRID_DEPTH, floors = GRID_FLOORS) {
     this.width = width;
@@ -188,6 +197,7 @@ export class GridSystem {
   private initializeEmpty(): void {
     this.tiles.clear();
     this.doors.clear();
+    this.sealedDoorIds.clear();
     for (let y = 0; y < this.floors; y++) {
       const floor = y as FloorLevel;
       for (let z = 0; z < this.depth; z++) {
@@ -287,6 +297,11 @@ export class GridSystem {
   public isDoorClosedAt(c: GridCoord): boolean {
     const door = this.getDoor(c);
     return door ? door.state === "closed" : false;
+  }
+
+  public isDoorSealedAt(c: GridCoord): boolean {
+    const door = this.getDoor(c);
+    return !!door && this.sealedDoorIds.has(door.id);
   }
 
   public setDoorState(c: GridCoord, state: DoorState, syncPaired = true): boolean {
@@ -918,10 +933,17 @@ export function createInitialGrid(): GridSystem {
  */
 let roofMask: ((x: number, y: number, z: number) => boolean) | null = null;
 
+export type RoofKind = "bridge" | "powder-yard";
+
+/** Which parapet formula `getRoofParapetCover` uses while a mask is installed. */
+let roofKind: RoofKind | null = null;
+
 export function setRoofMask(
   fn: ((x: number, y: number, z: number) => boolean) | null,
+  kind?: RoofKind,
 ): void {
   roofMask = fn;
+  roofKind = fn ? (kind ?? "bridge") : null;
 }
 
 /**

@@ -15,6 +15,7 @@ import type {
   UnitArchetype,
   WeatherType,
 } from "../../core/types";
+import { useGameStore } from "../../store/useGameStore";
 import { FACING_YAW, LOCK_FORWARD_M, LOCK_HEIGHT_M, LOCK_RIGHT_M } from "./diegeticLights";
 
 interface UnitVisual3DProps {
@@ -102,6 +103,7 @@ export function UnitVisual3D({
   const plumeRef = useRef<THREE.Group>(null);
   const bannerRef = useRef<THREE.Group>(null);
 
+  const scenario = useGameStore((s) => s.scenario);
   const isPlayer = faction === "player";
   const isPlachy = unitId === "player-plachy";
   const isHavel = unitId === "player-havel";
@@ -135,11 +137,13 @@ export function UnitVisual3D({
                 : "#2563eb"; // Vivid Swedish royal blue
 
   const accentColor =
-    archetype === "commander"
-      ? "#dc2626" // Order of Malta crimson sash
-      : isPlayer
-        ? "#eab308" // Imperial Royal Gold
-        : "#facc15"; // Swedish Carolean Gold
+    scenario === "mission3" && !isPlayer
+      ? "#dc2626"
+      : archetype === "commander"
+        ? "#dc2626"
+        : isPlayer
+          ? "#eab308"
+          : "#facc15";
   const steelColor = hitFlashIntensity > 0.05 ? "#fca5a5" : "#cbd5e1";
   const transparent = opacity < 0.99;
 

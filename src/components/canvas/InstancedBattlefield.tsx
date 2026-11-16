@@ -33,6 +33,7 @@ import {
   sameCoord,
 } from "../../core/GridSystem";
 import { getGuidedTutorialBeacon } from "../../core/GuidedTutorialSystem";
+import { proposeCordLay, tilesHitByCanister } from "../../core/mission3";
 import {
   doorMeshForwardsClick,
   stairClickChangesFloor,
@@ -1491,6 +1492,56 @@ function DynamicWaterField({ waterTiles }: { waterTiles: TileData[] }) {
   );
 }
 
+function Mission3Marks() {
+  const scenario = useGameStore((s) => s.scenario);
+  const m3 = useGameStore((s) => s.m3);
+  const grid = useGameStore((s) => s.grid);
+  const gridVersion = useGameStore((s) => s.gridVersion);
+  if (scenario !== "mission3" || !m3) return null;
+  const spark = m3.lit && !m3.cookedOff ? m3.cord[m3.sparkIndex] : undefined;
+  const coneTiles =
+    m3.cone && m3.coneWarned && !m3.cookedOff ? tilesHitByCanister(grid, m3.cone) : [];
+  void gridVersion;
+  return (
+    <group>
+      {m3.cord.map((coord) => {
+        const [x, y, z] = gridToWorld(coord);
+        return (
+          <mesh
+            key={`cord-${coord.x}-${coord.y}-${coord.z}`}
+            position={[x, y + 0.1, z]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            raycast={() => null}
+          >
+            <ringGeometry args={[TILE_SIZE * 0.28, TILE_SIZE * 0.38, 4]} />
+            <meshBasicMaterial color="#facc15" transparent opacity={0.9} side={THREE.DoubleSide} depthWrite={false} />
+          </mesh>
+        );
+      })}
+      {spark && (
+        <mesh position={gridToWorld(spark).map((value, index) => (index === 1 ? value + 0.18 : value)) as [number, number, number]} raycast={() => null}>
+          <sphereGeometry args={[0.07, 8, 6]} />
+          <meshBasicMaterial color="#facc15" />
+        </mesh>
+      )}
+      {coneTiles.map((coord) => {
+        const [x, y, z] = gridToWorld(coord);
+        return (
+          <mesh
+            key={`cone-${coord.x}-${coord.z}`}
+            position={[x, y + 0.09, z]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            raycast={() => null}
+          >
+            <planeGeometry args={[TILE_SIZE * 0.72, TILE_SIZE * 0.72]} />
+            <meshBasicMaterial color="#dc2626" transparent opacity={0.2} side={THREE.DoubleSide} depthWrite={false} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
 export function InstancedBattlefield() {
   const grid = useGameStore((s) => s.grid);
   const gridVersion = useGameStore((s) => s.gridVersion);
@@ -1515,6 +1566,7 @@ export function InstancedBattlefield() {
   const toggleDoor = useGameStore((s) => s.toggleDoor);
   const weather = useGameStore((s) => s.weather);
   const scenario = useGameStore((s) => s.scenario);
+  const m3 = useGameStore((s) => s.m3);
   const locale = useLocale();
 
   const selectedUnit = units.find((u) => u.id === selectedUnitId);
@@ -1529,6 +1581,11 @@ export function InstancedBattlefield() {
       ) ?? null
     );
   }, [hoveredTile, reachableTiles]);
+
+  const cordLayPreview = useMemo(() => {
+    if (actionMode !== "lay" || !m3 || !hoveredTile || !selectedUnit?.alive) return null;
+    return proposeCordLay(m3, selectedUnit, hoveredTile, grid, units);
+  }, [actionMode, m3, hoveredTile, selectedUnit, grid, units, gridVersion]);
 
   // Pevně držíme vybrané patro (P0 / P1 / P2): přejetí myší nad dvůr či zahradu nikdy neshodí řez aktivního patra
   const effectiveViewFloor: FloorLevel = activeFloor;
@@ -2351,6 +2408,33 @@ export function InstancedBattlefield() {
     const mesh = zoneMeshRef.current;
     if (!mesh) return;
 
+    if (actionMode === "lay") {
+      const tiles = (cordLayPreview ?? []).filter((coord) => {
+        if (coord.y === effectiveViewFloor) return true;
+        const activeTileAtXZ = grid.getTile({
+          x: coord.x,
+          y: effectiveViewFloor,
+          z: coord.z,
+        });
+        return (!activeTileAtXZ || !activeTileAtXZ.hasFloor) && coord.y < effectiveViewFloor;
+      });
+      mesh.count = tiles.length;
+      tiles.forEach((coord, i) => {
+        const [wx, wy, wz] = gridToWorld(coord);
+        _dummy.position.set(wx, wy + 0.028, wz);
+        _dummy.rotation.set(-Math.PI * 0.5, 0, 0);
+        _dummy.scale.set(0.92, 0.92, 1);
+        _dummy.updateMatrix();
+        mesh.setMatrixAt(i, _dummy.matrix);
+        _color.setHex(0xfacc15);
+        mesh.setColorAt(i, _color);
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      if (tiles.length > 0) mesh.computeBoundingSphere();
+      return;
+    }
+
     if (actionMode !== "move") {
       mesh.count = 0;
       return;
@@ -2405,7 +2489,7 @@ export function InstancedBattlefield() {
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     if (filtered.length > 0) mesh.computeBoundingSphere();
-  }, [reachableList, actionMode, effectiveViewFloor, grid]);
+  }, [reachableList, actionMode, effectiveViewFloor, grid, cordLayPreview]);
 
   // Pointer handlers for Instanced Floor Meshes — s vysokou preferencí aktivního patra (activeFloor)
   const onFloorPointerMove = (
@@ -2619,6 +2703,7 @@ export function InstancedBattlefield() {
 
   return (
     <group onPointerOut={() => setHoveredTile(null)}>
+      <Mission3Marks />
       {/* 1. Ground Floor (y = 0) Calm Desaturated Tiles (60% Palette) */}
       <instancedMesh
         key={`ground-floor-${groundFloorTiles.length}-${scenario}`}
@@ -2992,7 +3077,7 @@ export function InstancedBattlefield() {
         <planeGeometry args={[TILE_SIZE * 0.9, TILE_SIZE * 0.9]} />
         <meshBasicMaterial
           transparent
-          opacity={0.42}
+          opacity={actionMode === "lay" ? 0.35 : 0.42}
           side={THREE.DoubleSide}
           depthWrite={false}
         />
@@ -3309,13 +3394,17 @@ export function InstancedBattlefield() {
             <ringGeometry args={[TILE_SIZE * 0.38, TILE_SIZE * 0.48, 4]} />
             <meshBasicMaterial
               color={
-                actionMode === "grenade"
-                  ? canThrowGrenadeHere
-                    ? "#f97316"
-                    : "#ef4444"
-                  : hoveredReachable?.zone === "yellow"
+                actionMode === "lay"
+                  ? cordLayPreview
                     ? "#facc15"
-                    : "#38bdf8"
+                    : "#ef4444"
+                  : actionMode === "grenade"
+                    ? canThrowGrenadeHere
+                      ? "#f97316"
+                      : "#ef4444"
+                    : hoveredReachable?.zone === "yellow"
+                      ? "#facc15"
+                      : "#38bdf8"
               }
               side={THREE.DoubleSide}
             />
@@ -3377,6 +3466,23 @@ export function InstancedBattlefield() {
                       <span>+{hoveredReconPreview.newlyRevealedCount}</span>
                     </span>
                   )}
+              </div>
+            </WorldHtml>
+          )}
+
+          {actionMode === "lay" && !cordLayPreview && (
+            <WorldHtml
+              anchor="bottom"
+              position={[0, 0.38, 0]}
+              distanceFactor={16}
+              minScale={0.68}
+              maxScale={1.1}
+              zIndexRange={[10, 0]}
+              style={{ pointerEvents: "none" }}
+              className="pointer-events-none select-none"
+            >
+              <div className="pointer-events-none select-none flex items-center gap-1 px-1.5 py-0.5 rounded-md border backdrop-blur-md shadow-xl text-[9px] font-cinzel font-black whitespace-nowrap bg-red-950/90 border-red-400 text-rose-200">
+                <span>{text("ui.ribbon.m3.lay.reject", undefined, locale)}</span>
               </div>
             </WorldHtml>
           )}

@@ -55,6 +55,7 @@ export default function App() {
   const resetGame = useGameStore((s) => s.resetGame);
   const scenario = useGameStore((s) => s.scenario);
   const m2 = useGameStore((s) => s.m2);
+  const m3 = useGameStore((s) => s.m3);
   const oath = useGameStore((s) => s.oath);
   const briefingOpen = useGameStore((s) => s.briefingOpen);
   const openBriefing = useGameStore((s) => s.openBriefing);
@@ -94,8 +95,9 @@ export default function App() {
     const missionParam = params.get("mission");
     const floorParam = params.get("floor");
     const noTutorial = params.get("notutorial") === "1";
-    if (autostart === "1" || missionParam === "1" || missionParam === "2") {
-      const targetScenario = missionParam === "2" ? "mission2" : "mission1";
+    if (autostart === "1" || missionParam === "1" || missionParam === "2" || missionParam === "3") {
+      const targetScenario =
+        missionParam === "3" ? "mission3" : missionParam === "2" ? "mission2" : "mission1";
       useGameStore.getState().beginScenario(targetScenario);
       if (noTutorial) {
         useGameStore.getState().skipGuidedTutorial();
@@ -530,12 +532,16 @@ export default function App() {
             <div>
               <h2 className="font-cinzel text-2xl font-black uppercase tracking-wider text-amber-200">
                 {outcome === "victory"
-                  ? scenario === "mission2"
-                    ? text("ui.epilogue.m2.title", undefined, locale)
-                    : victoryReason === "boat_escape"
-                      ? text("ui.epilogue.boatTitle", undefined, locale)
-                      : text("ui.epilogue.wipeTitle", undefined, locale)
-                  : text("ui.epilogue.defeatTitle", undefined, locale)}
+                  ? scenario === "mission3"
+                    ? text("ui.epilogue.m3.title", undefined, locale)
+                    : scenario === "mission2"
+                      ? text("ui.epilogue.m2.title", undefined, locale)
+                      : victoryReason === "boat_escape"
+                        ? text("ui.epilogue.boatTitle", undefined, locale)
+                        : text("ui.epilogue.wipeTitle", undefined, locale)
+                  : scenario === "mission3"
+                    ? text("ui.epilogue.m3.defeat", undefined, locale)
+                    : text("ui.epilogue.defeatTitle", undefined, locale)}
               </h2>
               <div className="font-cinzel text-xs uppercase tracking-widest text-amber-400 mt-1">
                 {outcome === "victory"
@@ -545,7 +551,29 @@ export default function App() {
             </div>
 
             <div className="font-literata text-sm text-amber-100/90 leading-relaxed text-left bg-black/60 p-4 rounded-xl border border-amber-900/60 space-y-3">
-              {scenario === "mission2" ? (
+              {scenario === "mission3" ? (
+                outcome === "victory" ? (
+                  <p>
+                    {text(
+                      m3?.deliveries === 0 ? "ui.epilogue.m3.mute" : "ui.epilogue.m3.scar",
+                      undefined,
+                      locale,
+                    )}
+                  </p>
+                ) : (
+                  <strong className="font-cinzel text-rose-300 block">
+                    {text(
+                      m3?.loss === "delivery"
+                        ? "ui.epilogue.m3.defeat.delivery"
+                        : m3?.loss === "wiped"
+                          ? "ui.epilogue.m3.defeat.wiped"
+                          : "ui.epilogue.m3.defeat.plachy",
+                      undefined,
+                      locale,
+                    )}
+                  </strong>
+                )
+              ) : scenario === "mission2" ? (
                 outcome === "victory" ? (
                   <>
                     <p>{text("ui.epilogue.m2.body", undefined, locale)}</p>

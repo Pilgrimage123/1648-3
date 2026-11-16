@@ -18,6 +18,7 @@ import {
   evaluateFixture,
   evaluateLantern,
   fixturesForScenario,
+  mission3CordLights,
   isFixtureDucked,
   matchcordCandidates,
   MAX_CANDELABRA_SLOTS,
@@ -31,6 +32,7 @@ import {
 import { BridgeTowerDressing } from "./BridgeTowerDressing";
 import { PragueSurroundings } from "./PragueSurroundings";
 import { GrandPrioryPalaceDressing } from "./GrandPrioryPalaceDressing";
+import { PowderYardDressing } from "./PowderYardDressing";
 import { InstancedBattlefield } from "./InstancedBattlefield";
 import { RainParticles } from "./RainParticles";
 import { TacticalCamera } from "./TacticalCamera";
@@ -77,6 +79,7 @@ function DiegeticLightingRig({ weather }: { weather: WeatherType }) {
   const grid = useGameStore((s) => s.grid);
   const units = useGameStore((s) => s.units);
   const scenario = useGameStore((s) => s.scenario);
+  const m3 = useGameStore((s) => s.m3);
   const blastZones = useGameStore((s) => s.blastZones);
   const lightFlashes = useGameStore((s) => s.lightFlashes);
   const activeFloor = useGameStore((s) => s.activeFloor);
@@ -132,6 +135,10 @@ function DiegeticLightingRig({ weather }: { weather: WeatherType }) {
       (slot) => slot.kind === "torch" || slot.kind === "lantern",
     );
     const matchcords = slots.filter((slot) => slot.kind === "matchcord");
+    const cordSlots =
+      scenario === "mission3"
+        ? mission3CordLights(m3, weather, matchcords)
+        : matchcords;
 
     for (let i = 0; i < MAX_CANDELABRA_SLOTS; i++) {
       assignSlot(candleRefs.current[i] ?? null, candles[i], t, weather);
@@ -140,18 +147,20 @@ function DiegeticLightingRig({ weather }: { weather: WeatherType }) {
       assignSlot(torchRefs.current[i] ?? null, torches[i], t, weather);
     }
     for (let i = 0; i < MAX_MATCHCORD_SLOTS; i++) {
-      assignSlot(cordRefs.current[i] ?? null, matchcords[i], t, weather);
+      assignSlot(cordRefs.current[i] ?? null, cordSlots[i] ?? undefined, t, weather);
     }
 
     const shaftOpacity =
       weather === "fog" ? 0 : weather === "rain" ? 0.016 : 0.042;
     if (beamCourtRef.current) {
-      beamCourtRef.current.visible = scenario !== "mission2" && shaftOpacity > 0;
+      beamCourtRef.current.visible =
+        scenario !== "mission2" && scenario !== "mission3" && shaftOpacity > 0;
       (beamCourtRef.current.material as THREE.MeshBasicMaterial).opacity =
         shaftOpacity + Math.sin(t * 1.3) * 0.006;
     }
     if (beamGardenRef.current) {
-      beamGardenRef.current.visible = scenario !== "mission2" && shaftOpacity > 0;
+      beamGardenRef.current.visible =
+        scenario !== "mission2" && scenario !== "mission3" && shaftOpacity > 0;
       (beamGardenRef.current.material as THREE.MeshBasicMaterial).opacity =
         shaftOpacity * 0.85 + Math.cos(t * 1.1) * 0.005;
     }
@@ -420,8 +429,9 @@ export function TacticalScene() {
 
         <TacticalCamera />
         <InstancedBattlefield />
-        <GrandPrioryPalaceDressing />
-        <BridgeTowerDressing />
+        {scenario !== "mission3" && <GrandPrioryPalaceDressing />}
+        {scenario !== "mission3" && <BridgeTowerDressing />}
+        {scenario === "mission3" && <PowderYardDressing />}
         <CombatLines3D />
 
         {units.map((unit) => (

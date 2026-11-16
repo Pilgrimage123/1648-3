@@ -11,6 +11,7 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Faction, UnitArchetype } from "../../core/types";
+import { useGameStore } from "../../store/useGameStore";
 import {
   getSharedDepthMaterial,
   getSharedSpriteTexture,
@@ -64,12 +65,15 @@ export function UnitVisual2D({
         ? "#3b2112"
         : "#122038";
 
+  const scenario = useGameStore((s) => s.scenario);
   const ribbonColor =
-    faction === "player"
-      ? archetype === "sniper"
-        ? "#eab308"
-        : "#dc2626"
-      : "#facc15";
+    scenario === "mission3" && faction !== "player"
+      ? "#dc2626"
+      : faction === "player"
+        ? archetype === "sniper"
+          ? "#eab308"
+          : "#dc2626"
+        : "#facc15";
 
   return (
     // lockX={true} and lockZ={true} keep the miniature figurine standing vertically upright on the floor

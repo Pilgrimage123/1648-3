@@ -3,12 +3,13 @@
  * passage 5 tiles (8 m), one arch of 8 steps (12.8 m) to the threshold.
  */
 import assert from "node:assert/strict";
-import { checkLineOfSight3D } from "../src/core/CombatSystem.ts";
+import { applyBlackPowderChoking, calculateShot, checkLineOfSight3D } from "../src/core/CombatSystem.ts";
 import { computeFogOfWar, getTileVisibility } from "../src/core/FogOfWar.ts";
 import {
   coordKey,
   createInitialGrid,
   isEnclosedRoofedCoord,
+  WEAPON_CATALOG,
 } from "../src/core/GridSystem.ts";
 import { computeReachableTiles, findPathAStar } from "../src/core/Pathfinding.ts";
 import {
@@ -310,6 +311,29 @@ const plan = computeMission2Ai(grid, harrier, units, freshClock(units));
 assert.ok(plan.movePath.length > 0);
 assert.ok(plan.movePath.every((step) => step.x <= THRESHOLD_X && step.y === 0));
 assert.equal(plan.movePath[plan.movePath.length - 1]!.z, harrier.pos.z);
+
+const paced = applyBlackPowderChoking(units, grid);
+const pacedHavel = paced.find((unit) => unit.id === HAVEL_ID);
+assert.equal(pacedHavel?.movePerAp, 6, "Havel keeps pace 6 when he is not choking");
+assert.equal(pacedHavel?.isChoking, false);
+
+const outdoorMatchlock = {
+  ...harrier,
+  id: "enemy-matchlock-probe",
+  pos: { x: 5, y: 0 as const, z: 14 },
+  weapon: WEAPON_CATALOG.swedish_musket!,
+};
+assert.equal(isEnclosedRoofedCoord(5, 0, 14), false, "open bridge is not roofed");
+assert.equal(
+  calculateShot(grid, outdoorMatchlock, plachy, "rain").misfireChance,
+  20,
+  "outdoor matchlock keeps the +14 rain add",
+);
+assert.equal(
+  calculateShot(grid, harrier, plachy, "rain").misfireChance,
+  Math.min(60, harrier.weapon.baseMisfireChance + 4),
+  "outdoor wheellock harrier still takes the rain add",
+);
 
 const palace = createInitialGrid();
 assert.equal(isEnclosedRoofedCoord(5, 1, 23), true, "palace bedroom stays roofed");

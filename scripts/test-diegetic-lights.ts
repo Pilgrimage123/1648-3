@@ -16,6 +16,8 @@ import {
   LOCK_HEIGHT_M,
   LOCK_RIGHT_M,
   matchcordCandidates,
+  mission3CordLights,
+  portfireSample,
   MAX_CANDELABRA_SLOTS,
   MAX_MATCHCORD_SLOTS,
   MAX_TORCH_SLOTS,
@@ -233,5 +235,49 @@ assert.deepEqual(MISSION1_MOON_POSITION, [14, 28, 13]);
 assert.deepEqual(MISSION2_SUN_POSITION, [22, 24, 8]);
 assert.ok(MISSION2_SUN_POSITION[0] > 0, "Morning sun in Mission 2 must be on the East (+X)");
 assert.equal(VLTAVA_SUN_SPECULAR_COLOR, "#fef3c7");
+
+const yard = fixturesForScenario("mission3");
+assert.equal(yard.length, 2);
+assert.ok(yard.every((fixture) => fixture.kind === "torch"));
+const laneFx = yard.find((fixture) => fixture.id === "torch-lane");
+const galleryFx = yard.find((fixture) => fixture.id === "torch-gallery");
+assert.ok(laneFx && galleryFx);
+const laneRain = evaluateFixture(laneFx, "rain", 0, false);
+const laneClear = evaluateFixture(laneFx, "clear", 0, false);
+const galleryRain = evaluateFixture(galleryFx, "rain", 0, false);
+const galleryClear = evaluateFixture(galleryFx, "clear", 0, false);
+assert.equal(laneRain.exposed, true);
+assert.ok(laneRain.intensity < laneClear.intensity);
+assert.equal(galleryRain.exposed, false);
+assert.equal(galleryRain.intensity, galleryClear.intensity);
+assert.equal(evaluateLantern({ x: 6, y: 0, z: 9 }, "rain", 0, false).kind, "lantern");
+
+const enemyGlow = {
+  id: "enemy-sentry-1",
+  kind: "matchcord" as const,
+  position: { x: 0, y: 1, z: 0 },
+  color: "#ea580c",
+  radius: 2.2,
+  intensity: 1,
+  exposed: true,
+};
+const burning = {
+  lit: true,
+  cookedOff: false,
+  cord: [{ x: 9, y: 0 as const, z: 10 }],
+  sparkIndex: 0,
+};
+const litSlots = mission3CordLights(burning, "rain", [enemyGlow, enemyGlow]);
+assert.equal(litSlots[0]?.color, "#facc15");
+assert.equal(litSlots[1].color, "#f97316");
+assert.equal(litSlots[0]?.id, "m3-spark");
+const darkSlots = mission3CordLights(
+  { lit: false, cookedOff: false, cord: [], sparkIndex: 0 },
+  "rain",
+  [enemyGlow],
+);
+assert.equal(darkSlots[0]?.id, "enemy-sentry-1");
+assert.equal(darkSlots[1].id, "m3-portfire");
+assert.ok(portfireSample("rain").intensity < portfireSample("clear").intensity);
 
 console.log("diegetic lights ok");

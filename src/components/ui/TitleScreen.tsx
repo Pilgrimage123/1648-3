@@ -1,9 +1,9 @@
 /**
- * Úvodní stránka. Barokní nápis a dvě mise ve stejném jazyce jako taktický HUD:
+ * Úvodní stránka. Barokní nápis a tři mise ve stejném jazyce jako taktický HUD:
  * zlatá kartuše, Cinzel, oddělovače · a stužka stavu.
  */
 
-import { Shield, Swords } from "lucide-react";
+import { Flame, Shield, Swords } from "lucide-react";
 import type { ReactNode } from "react";
 import { text, useLocale } from "../../i18n";
 import { useGameStore } from "../../store/useGameStore";
@@ -74,7 +74,7 @@ export function TitleScreen() {
           {text("ui.briefing.title", undefined, locale)}
         </p>
 
-        <div className="grid w-full min-w-0 gap-4 md:grid-cols-2">
+        <div className="grid w-full min-w-0 gap-4 md:grid-cols-3">
           <MissionCard
             icon={<Swords className="h-4 w-4 text-amber-300" aria-hidden="true" />}
             indexLabel={text("ui.briefing.mission1.index", undefined, locale)}
@@ -96,6 +96,17 @@ export function TitleScreen() {
             chip={text("ui.briefing.mission2.chip", undefined, locale)}
             start={text("ui.briefing.start", undefined, locale)}
             onStart={() => beginScenario("mission2")}
+          />
+          <MissionCard
+            icon={<Flame className="h-4 w-4 text-amber-300" aria-hidden="true" />}
+            indexLabel={text("ui.briefing.mission3.index", undefined, locale)}
+            when={text("ui.briefing.mission3.when", undefined, locale)}
+            title={text("ui.briefing.mission3.title", undefined, locale)}
+            place={text("ui.briefing.mission3.place", undefined, locale)}
+            body={text("ui.briefing.mission3.body", undefined, locale)}
+            chip={text("ui.briefing.mission3.chip", undefined, locale)}
+            start={text("ui.briefing.start", undefined, locale)}
+            onStart={() => beginScenario("mission3")}
           />
         </div>
       </div>
