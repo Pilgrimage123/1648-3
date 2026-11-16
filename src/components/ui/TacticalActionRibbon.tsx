@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { bestTileCover, sameCoord } from "../../core/GridSystem";
+import { isUnitFighting } from "../../core/CombatSystem";
 import { INSCRIPTION, ROPE, WINDLASS } from "../../core/mission2";
 import {
   armClimb,
@@ -454,11 +455,7 @@ export function TacticalActionRibbon() {
 
   const cycleSquadMember = (delta: 1 | -1) => {
     const activeSquad = playerUnits.filter(
-      (u) =>
-        u.alive &&
-        u.hp > 0 &&
-        u.ap > 0 &&
-        (u.detainedTurns ?? 0) === 0,
+      (u) => isUnitFighting(u) && u.ap > 0,
     );
     if (activeSquad.length <= 1) return;
     const idx = activeSquad.findIndex((u) => u.id === selectedUnitId);
@@ -493,7 +490,7 @@ export function TacticalActionRibbon() {
                 {playerUnits.map((u) => {
                   const isSel = u.id === selectedUnitId;
                   const uDetained = (u.detainedTurns ?? 0) > 0;
-                  const isTurnEnded = !u.alive || u.ap === 0 || uDetained;
+                  const isTurnEnded = !isUnitFighting(u) || u.ap === 0;
                   return (
                     <button
                       key={u.id}
@@ -525,7 +522,7 @@ export function TacticalActionRibbon() {
                       }`}
                     >
                       <span>{u.name.charAt(0)}</span>
-                      {u.alive && u.ap > 0 && !uDetained && (
+                      {!isTurnEnded && (
                         <span
                           className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full ${
                             isSel ? "bg-sky-300" : "bg-emerald-400"
@@ -539,7 +536,7 @@ export function TacticalActionRibbon() {
 
               <button
                 type="button"
-                disabled={!canCommand || playerUnits.filter((u) => u.alive && u.ap > 0 && (u.detainedTurns ?? 0) === 0).length <= 1}
+                disabled={!canCommand || playerUnits.filter((u) => isUnitFighting(u) && u.ap > 0).length <= 1}
                 onClick={() => cycleSquadMember(1)}
                 title={text("ui.ribbon.nextSoldier", undefined, locale)}
                 className="px-1.5 py-0.5 rounded bg-slate-900 border border-amber-700/50 hover:border-amber-400 disabled:opacity-35 text-[10px] font-cinzel font-black text-amber-300 cursor-pointer"
@@ -552,6 +549,7 @@ export function TacticalActionRibbon() {
             <div className="flex items-center gap-2">
               <UnitPortrait
                 archetype={selectedUnit.archetype}
+                unitId={selectedUnit.id}
                 faction={selectedUnit.faction}
                 name={selectedUnit.name}
                 size="sm"
@@ -965,7 +963,7 @@ export function TacticalActionRibbon() {
                   <div className="grid grid-cols-3 gap-1.5 flex-1 text-center tabular-nums">
                     <div className="bg-slate-900/90 border border-emerald-500/50 rounded-lg py-1 px-1.5">
                       <div className="text-[8px] font-cinzel font-bold uppercase text-amber-200/80">
-                        Zásah
+                        {text("inspect.combat.hit", undefined, locale)}
                       </div>
                       <div className="text-base font-cinzel font-black text-emerald-400 leading-none mt-0.5">
                         {meleeCalc.hitChance}%
@@ -973,7 +971,7 @@ export function TacticalActionRibbon() {
                     </div>
                     <div className="bg-slate-900/90 border border-amber-500/50 rounded-lg py-1 px-1.5">
                       <div className="text-[8px] font-cinzel font-bold uppercase text-amber-200/80">
-                        Krit
+                        {text("inspect.combat.crit", undefined, locale)}
                       </div>
                       <div className="text-base font-cinzel font-black text-amber-300 leading-none mt-0.5">
                         {meleeCalc.critChance}%
@@ -981,7 +979,7 @@ export function TacticalActionRibbon() {
                     </div>
                     <div className="bg-slate-900/90 border border-rose-500/50 rounded-lg py-1 px-1.5">
                       <div className="text-[8px] font-cinzel font-bold uppercase text-amber-200/80">
-                        Zranění
+                        {text("inspect.combat.wound", undefined, locale)}
                       </div>
                       <div className="text-sm font-cinzel font-black text-rose-300 leading-none mt-0.5">
                         {meleeCalc.minDamage}–{meleeCalc.maxDamage}
@@ -1068,6 +1066,21 @@ export function TacticalActionRibbon() {
               >
                 <GripHorizontal className="w-3.5 h-3.5" />
               </div>
+              {(aimDrag.hasMoved || dockDrag.hasMoved || medallionDrag.hasMoved) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    aimDrag.resetOffset();
+                    dockDrag.resetOffset();
+                    medallionDrag.resetOffset();
+                  }}
+                  title={text("ui.ribbon.resetLayout", undefined, locale)}
+                  aria-label={text("ui.ribbon.resetLayout", undefined, locale)}
+                  className="p-1 rounded-md text-amber-300/75 hover:text-amber-100 hover:bg-amber-950/60 cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                </button>
+              )}
 
               {/* [1] Pohyb */}
               <div
@@ -1323,10 +1336,10 @@ export function TacticalActionRibbon() {
                 sameCoord(selectedUnit.pos, INSCRIPTION) && (
                   <button
                     type="button"
-                    disabled={!hasAp}
+                    disabled={!canCommand || !hasAp}
                     onClick={kneelAtInscription}
                     aria-label={text("ui.ribbon.kneel.aria", undefined, locale)}
-                    className="h-10 px-3 rounded-lg border border-amber-300 bg-amber-500 text-stone-950 font-cinzel text-xs font-bold cursor-pointer disabled:opacity-35"
+                    className="h-10 px-3 rounded-lg border border-amber-300 bg-amber-500 text-stone-950 font-cinzel text-xs font-bold cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                   >
                     {text("ui.ribbon.kneel", undefined, locale)}
                   </button>
@@ -1339,10 +1352,10 @@ export function TacticalActionRibbon() {
                 sameCoord(selectedUnit.pos, WINDLASS) && (
                   <button
                     type="button"
-                    disabled={!hasAp || m2.windlassArmed}
+                    disabled={!canCommand || !hasAp || m2.windlassArmed}
                     onClick={unpinWindlassPawl}
                     aria-label={text("ui.ribbon.unpin.aria", undefined, locale)}
-                    className="h-10 px-3 rounded-lg border border-amber-300 bg-amber-500 hover:bg-amber-400 text-stone-950 font-cinzel text-xs font-bold cursor-pointer shadow-[0_2px_8px_rgba(245,158,11,0.4)] disabled:opacity-35"
+                    className="h-10 px-3 rounded-lg border border-amber-300 bg-amber-500 hover:bg-amber-400 text-stone-950 font-cinzel text-xs font-bold cursor-pointer shadow-[0_2px_8px_rgba(245,158,11,0.4)] disabled:opacity-35 disabled:cursor-not-allowed"
                   >
                     {m2.windlassArmed
                       ? text("ui.mission.ropeTaut", undefined, locale)
@@ -1355,16 +1368,17 @@ export function TacticalActionRibbon() {
                 m2.pawlUnpinned &&
                 !m2.seated &&
                 selectedUnit &&
-                (sameCoord(selectedUnit.pos, ROPE) ||
-                  (selectedUnit.pos.y === 1 &&
-                    Math.abs(selectedUnit.pos.x - WINDLASS.x) <= 1 &&
-                    Math.abs(selectedUnit.pos.z - WINDLASS.z) <= 1)) && (
+                (selectedUnit.meleeWeapon?.kind === "dagger" ||
+                  selectedUnit.meleeWeapon?.kind === "sword") &&
+                selectedUnit.pos.y === ROPE.y &&
+                Math.abs(selectedUnit.pos.x - ROPE.x) <= 1 &&
+                Math.abs(selectedUnit.pos.z - ROPE.z) <= 1 && (
                   <button
                     type="button"
-                    disabled={!hasAp}
+                    disabled={!canCommand || !hasAp}
                     onClick={severPortcullisRope}
                     aria-label={text("ui.ribbon.severRope.aria", undefined, locale)}
-                    className="h-10 px-3 rounded-lg border border-red-500 bg-rose-600 hover:bg-rose-500 text-amber-50 font-cinzel text-xs font-black cursor-pointer shadow-[0_0_12px_rgba(244,63,94,0.7)] animate-pulse disabled:opacity-35"
+                    className="h-10 px-3 rounded-lg border border-red-500 bg-rose-600 hover:bg-rose-500 text-amber-50 font-cinzel text-xs font-black cursor-pointer shadow-[0_0_12px_rgba(244,63,94,0.7)] animate-pulse disabled:opacity-35 disabled:cursor-not-allowed"
                   >
                     {text("ui.ribbon.severRope", undefined, locale)}
                   </button>
@@ -1379,10 +1393,10 @@ export function TacticalActionRibbon() {
                 Math.abs(selectedUnit.pos.z - WINDLASS.z) <= 1 && (
                   <button
                     type="button"
-                    disabled={!hasAp}
+                    disabled={!canCommand || !hasAp}
                     onClick={douseWindlassFire}
                     aria-label={text("ui.ribbon.douse.aria", undefined, locale)}
-                    className="h-10 px-3 rounded-lg border border-blue-400 bg-blue-600 hover:bg-blue-500 text-white font-cinzel text-xs font-bold cursor-pointer shadow-[0_0_10px_rgba(59,130,246,0.5)] disabled:opacity-35"
+                    className="h-10 px-3 rounded-lg border border-blue-400 bg-blue-600 hover:bg-blue-500 text-white font-cinzel text-xs font-bold cursor-pointer shadow-[0_0_10px_rgba(59,130,246,0.5)] disabled:opacity-35 disabled:cursor-not-allowed"
                   >
                     {text("ui.ribbon.douse", undefined, locale)}
                   </button>

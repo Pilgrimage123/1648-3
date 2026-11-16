@@ -8,7 +8,6 @@
 import {
   bestTileCover,
   GridSystem,
-  isEnclosedRoofedCoord,
   sameCoord,
   soldierMovePerAp,
 } from "./GridSystem";
@@ -134,6 +133,7 @@ function checkDirectRay3D(
   from: GridCoord,
   to: GridCoord,
   allowAdjacentPillarPeek = true,
+  ignoreSmoke = false,
 ): { clear: boolean; ray: GridCoord[] } {
   const ray = bresenham3D(from, to);
   if (ray.length <= 2) {
@@ -211,7 +211,7 @@ function checkDirectRay3D(
   //    střelec shora prorazí až 2 kouřová pole; zablokováno je až při > 2.
   // 3. Střelba ve stejné rovině či zdola nahoru:
   //    2 a více po sobě jdoucích kouřových polí zcela přeruší zrakovou linii.
-  if (!isPointBlank) {
+  if (!ignoreSmoke && !isPointBlank) {
     if (isHighGround) {
       if (maxConsecutiveSmoke > 2) {
         return { clear: false, ray };
@@ -236,8 +236,9 @@ export function checkLineOfSight3D(
   grid: GridSystem,
   from: GridCoord,
   to: GridCoord,
+  ignoreSmoke = false,
 ): { clear: boolean; ray: GridCoord[] } {
-  const direct = checkDirectRay3D(grid, from, to, true);
+  const direct = checkDirectRay3D(grid, from, to, true, ignoreSmoke);
   if (direct.clear) {
     return direct;
   }
@@ -286,7 +287,7 @@ export function checkLineOfSight3D(
       canStepTo(from, off.dx, off.dz) ??
       (from.y !== to.y ? canEdgePeek(from, off.dx, off.dz, to) : null);
     if (!peekFrom) continue;
-    const peekCheck = checkDirectRay3D(grid, peekFrom, to, true);
+    const peekCheck = checkDirectRay3D(grid, peekFrom, to, true, ignoreSmoke);
     if (peekCheck.clear) {
       return { clear: true, ray: [from, ...peekCheck.ray.slice(1)] };
     }
@@ -298,7 +299,7 @@ export function checkLineOfSight3D(
       canStepTo(to, off.dx, off.dz) ??
       (from.y !== to.y ? canEdgePeek(to, off.dx, off.dz, from) : null);
     if (!peekTo) continue;
-    const peekCheck = checkDirectRay3D(grid, from, peekTo, true);
+    const peekCheck = checkDirectRay3D(grid, from, peekTo, true, ignoreSmoke);
     if (peekCheck.clear) {
       return {
         clear: true,
@@ -596,16 +597,23 @@ export class CombatCalculator {
       }
     }
 
-    // F) Počasí (Déšť / Mlha): Penalizace k viditelnosti
+    // F) Počasí (Déšť / Mlha): Penalizace k viditelnosti (neplatí, pokud celá dráha zůstává pod střechou)
+    const shooterRoofed = grid.isEnclosedRoofed(fromPos.x, fromPos.y, fromPos.z);
+    const shotFullyRoofed =
+      shooterRoofed &&
+      grid.isEnclosedRoofed(target.pos.x, target.pos.y, target.pos.z) &&
+      bresenham3D(fromPos, target.pos).every((cell) =>
+        grid.isEnclosedRoofed(cell.x, cell.y, cell.z),
+      );
     let weatherHitModifier = 0;
-    if (weather === "fog") {
+    if (!shotFullyRoofed && weather === "fog") {
       weatherHitModifier = -10;
       hitModifiers.push(
         statMod("weather-fog", "mod.fog", weatherHitModifier, "percent", "penalty", {
           detail: "mod.fog.detail",
         }),
       );
-    } else if (weather === "rain") {
+    } else if (!shotFullyRoofed && weather === "rain") {
       weatherHitModifier = -10;
       hitModifiers.push(
         statMod("weather-rain", "mod.rain", weatherHitModifier, "percent", "penalty", {
@@ -816,7 +824,6 @@ export class CombatCalculator {
     // 3. ŠANCE NA SELHÁNÍ VÝSTŘELU (Misfire % — v dešti mají doutnákové zámky 20 % šanci)
     // =========================================================================
     let weatherMisfireAdd = 0;
-    const shooterRoofed = isEnclosedRoofedCoord(fromPos.x, fromPos.y, fromPos.z);
     if (!shooterRoofed && weather === "rain") {
       weatherMisfireAdd = weapon.lockType === "matchlock" ? 14 : 4;
     } else if (!shooterRoofed && weather === "fog") {
@@ -1866,7 +1873,7 @@ export function applyBlackPowderChoking(
     if (!u.alive) return u;
     const tile = grid.getTile(u.pos);
     const inIndoorSmoke =
-      isEnclosedRoofedCoord(u.pos.x, u.pos.y, u.pos.z) &&
+      grid.isEnclosedRoofed(u.pos.x, u.pos.y, u.pos.z) &&
       (tile?.smokeTurns ?? 0) > 0;
 
     // Cuirassier Respiratory Resistance: plná zbroj a plné zdraví chrání dýchací cesty

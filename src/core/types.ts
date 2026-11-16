@@ -79,7 +79,7 @@ export interface TileData {
   cover: DirectionalCover;
   /** Typ překážky na dlaždici (nízká zídka/gabion, vysoká zeď, pilíř, výbušný prachový sud) */
   obstacle: ObstacleType;
-  /** Počet zbývajících kol hustého kouře z černého prachu na této dlaždici (-20 % k zásahu) */
+  /** Počet zbývajících kol hustého kouře z černého prachu na této dlaždici */
   smokeTurns: number;
   /** Vizuální povrch dlaždice odlišující honosný palác, zaprášenou ulici a rozstřílenou ruinu */
   surface:
@@ -465,7 +465,9 @@ export interface FogOfWarSnapshot {
   unitSightRadii: Record<string, number>;
 }
 
-export type ActionMode = "move" | "shoot" | "grenade" | "melee" | "reload";
+export type ScenarioId = "mission1" | "mission2" | "mission3";
+
+export type ActionMode = "move" | "shoot" | "grenade" | "melee" | "reload" | "lay";
 
 /**
  * Fáze skriptovaného tutoriálu ve stylu XCOM 2 (Mission 1 Onboarding).
@@ -473,7 +475,7 @@ export type ActionMode = "move" | "shoot" | "grenade" | "melee" | "reload";
 export type GuidedTutorialStep =
   | "step_1_matej_move"        // 1. Jan Matěj: Pohyb do krytu za balustrádu (1 AP vs 2 AP, Half/Full Cover)
   | "step_2_colloredo_escort"  // 2. Hrabě Colloredo: Těžké kulhání (3 pole/AP) & Pravidlo zajetí
-  | "step_3_vaclav_aim"        // 3. Václav z Michalovic: Výšková převaha (+15 %) & Křídlení (Flank +40 % Crit)
+  | "step_3_vaclav_aim"        // 3. Václav z Michalovic: Křídlení z arkády (Flank +40 % Crit) & Míření [2]
   | "step_4_vaclav_shoot"      // 4. Míření, rozpad šance a výstřel (Akční kamera)
   | "step_5_enemy_turn_react"  // 5. Tah nepřítele: Odveta a demonstrace záchrany kamenným krytem
   | "step_6_vaclav_reload"     // 6. Fázové nabíjení po 1 AP (Černoprachý realismus 17. století)

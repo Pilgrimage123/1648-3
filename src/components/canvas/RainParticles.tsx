@@ -42,13 +42,15 @@ function worldToGridXZ(wx: number, wz: number): [number, number] {
   return [gx, gz];
 }
 
-// Pick an outdoor world coordinate for rain (never inside the enclosed Grand Priory Palace)
+// Pick an outdoor world coordinate for rain (never inside enclosed interiors or under roofs)
 function randomOutdoorRainXZ(): [number, number] {
   for (let attempt = 0; attempt < 8; attempt++) {
     const wx = (Math.random() - 0.5) * 34;
     const wz = (Math.random() - 0.5) * 38;
     const [gx, gz] = worldToGridXZ(wx, wz);
-    if (!isEnclosedRoofedCoord(gx, 1, gz)) {
+    const rx = Math.round(gx);
+    const rz = Math.round(gz);
+    if (!isEnclosedRoofedCoord(rx, 1, rz) && !isEnclosedRoofedCoord(rx, 0, rz)) {
       return [wx, wz];
     }
   }
@@ -222,8 +224,12 @@ export function RainParticles() {
         drop.z += dt * 0.9;
 
         const [gx, gz] = worldToGridXZ(drop.x, drop.z);
+        const rx = Math.round(gx);
+        const rz = Math.round(gz);
         const floorCheck: 0 | 1 = drop.y < 2.25 ? 0 : 1;
-        const hitRoofOrPalace = isEnclosedRoofedCoord(gx, floorCheck, gz);
+        const hitRoofOrPalace =
+          grid.isEnclosedRoofed(rx, floorCheck, rz) ||
+          (drop.y < 2.75 && grid.isEnclosedRoofed(rx, 0, rz));
 
         if (drop.y < -0.2 || hitRoofOrPalace) {
           const [rx, rz] = randomOutdoorRainXZ();

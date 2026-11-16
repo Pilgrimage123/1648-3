@@ -21,7 +21,7 @@ Single-context (`GLOSSARY.md` + `docs/adr/`). See `docs/agents/domain.md`.
 All visual, spatial, and combat changes MUST strictly obey `docs/adr/0007-baroque-art-direction-and-biome-states.md`:
 
 1. **Composition & Tactical Grid Readability (Pillar 1)**:
-   - Ground surfaces (mud, cobbles, palace marble parquet, royal carpet, snow, water) must be texturally calm and low-contrast so the tactical grid and movement zones (`Blue 1 AP`, `Gold 2 AP`) remain 100% legible.
+   - Ground surfaces (mud, cobbles, palace marble parquet, royal carpet, water) must be texturally calm and low-contrast so the tactical grid and movement zones (`Blue 1 AP`, `Gold 2 AP`) remain 100% legible.
    - High geometric detail belongs exclusively to cover obstacles and units. Any battle-damage debris (fallen stucco, charred beams, crater rims) must sit at tile perimeters (`±0.35m` from center), never cluttering tile centers.
    - **Baroque Chiaroscuro**: Strong Caravaggio/Rembrandt light-shadow contrast — illuminated playable mid-ground (torchlight, God-rays) vs. deeply shadowed map borders and foreground.
 
@@ -32,17 +32,17 @@ All visual, spatial, and combat changes MUST strictly obey `docs/adr/0007-baroqu
 
 3. **Top-Down Class Silhouettes & Headgear Placement (Pillar 3)**:
    - All 5 unit archetypes (`ranger`, `sniper`, `trooper`, `sectoid`, `commander`) must have unmistakable top-down silhouettes (triangles/polearms, wide plumed cavalier hats + capes, broad square cuirassier pauldrons + morions, asymmetric back-banners + censers).
-   - Hats and helmets in both `UnitVisual2D` and `UnitVisual3D` must sit low on the forehead (`y ≈ 1.48–1.54`) with proper Z-order covering the upper head.
+   - Hats and helmets must sit low on the forehead with proper Z-order covering the upper head (`y ≈ 1.48–1.54` in `UnitVisual2D`, `y ≈ 1.28–1.30 m` on the 3D rig in `UnitVisual3D`).
 
 4. **Living Battlefield Secondary Motion (Pillar 4)**:
    - Continuous subtle motion: creeping black-powder ground smoke, swaying unit capes/plumes/banners in the wind, and flickering torches, votive altar candles, and light cones.
 
 5. **Environmental Biome Differentiation & Dynamic Devastation (Pillar 5)**:
-   - **Unplundered Opulent Palace (`x: 2..21, z: 16..27, damageLevel === 0`)**: Warm polished limestone parquet (`stone_floor`), cardinal-burgundy royal runner (`palace_carpet`) with flat gold brocade borders, cream-stucco walls, gilded Corinthian pillar capitals, walnut furniture barricades, and framed Chiaroscuro oil paintings. Piano Nobile is the same footprint at `y = 1`. The watchtower is `y = 2`, `x: 4..8`, `z: 17..19`.
-   - **Dusty Malá Strana Garden (`z: 5..15, damageLevel === 0`)**: Cool matte slate-mud cobblestones (`cobble`), weathered mossy sandstone walls, and rough field gabions. The Čertovka canal is `z: 0..4`. The garden belvedere is `y = 1`, `x: 9..14`, `z: 9..12`.
+   - **Unplundered Opulent Palace (`x: 2..21, z: 16..27, damageLevel === 0`)**: Warm polished limestone parquet (`stone_floor`), cardinal-burgundy royal runner (`palace_carpet`) with flat gold brocade borders, cream-stucco walls, gilded Corinthian pillar capitals, walnut furniture barricades, and framed Chiaroscuro oil paintings. Piano Nobile occupies `x: 3..20, z: 16..26` at `y = 1`. The watchtower is `y = 2`, `x: 4..8`, `z: 17..19`.
+   - **Dusty Malá Strana Garden (`z: 5..15, damageLevel === 0`)**: Cool matte slate-mud cobblestones (`cobble`), weathered mossy sandstone walls, and rough field gabions. The Čertovka canal water is `z: 0..2` (`x: 0..18`), plus the dock inlet `z = 3` at `x: 0..2`. The garden belvedere is `y = 1`, `x: 9..14`, `z: 9..12`.
    - **Devastated Shot-Up & Scorched Ruins (`damageLevel === 1 | 2`, `rubble` / `scorched_ruin`)**: Gunfire impacts (`grid.damageTile(c, 1)`) scar tiles with fallen plaster/mortar rubble; explosions (`grid.damageTile(c, 2)` in `3×3` blast zones) turn tiles into charred soot craters with glowing ember cracks, blackened walls, and perimeter debris.
 
 6. **Enclosed Interior Physics & 17th-Century Ballistics (Pillar 6)**:
-   - **Indoor Masking (`isEnclosedRoofedCoord`)**: Rain and snow never fall inside the palace when `y ≤ 1`, `x` is `1.5..21.5`, and `z` is `15.5..27.5`, except the open courtyard (`x` `9.6..13.4`, `z` `17.6..20.4`). They also never fall under the belvedere arcade (`y < 1`, `x` `8.5..14.5`, `z` `8.5..12.5`). Zero ash or dust floats indoors before combat starts; once gunfire or explosions occur, ash, embers, and ground mist spread organically outward from `blastZones` and `smokeTiles`.
-   - **Ballistics**: Muzzle flash/smoke erupts at the barrel tip (`+0.58m` forward), projectiles use a trailing wake (never a static laser line), shooters kick backward with firearm recoil (`-0.24m`), missed shots ricochet off stone behind the target, and sound/hit reactions fire at the exact moment of bullet arrival (`~240ms`).
+   - **Indoor Masking (`isEnclosedRoofedCoord`)**: Rain never falls inside the palace when `y ≤ 1`, `x` is `1.5..21.5`, and `z` is `15.5..27.5`, except the open courtyard (`x` `9.6..13.4`, `z` `17.6..20.4`). It also never falls under the belvedere arcade (`y < 1`, `x` `8.5..14.5`, `z` `8.5..12.5`) or inside the Mission 2 tower chamber / Mission 3 coach-house store. Zero ash or dust floats indoors before combat starts; once gunfire or explosions occur, ash, embers, and ground mist spread organically outward from `blastZones` and `smokeTiles`.
+   - **Ballistics**: Muzzle flash/smoke erupts at the barrel tip (`+0.58m` forward), projectiles use a trailing wake (never a static laser line), shooters kick backward with firearm recoil (`-0.25m`), missed shots ricochet off stone behind the target, and sound/hit reactions fire at the exact moment of bullet arrival (`~730ms` flight inside the `1780ms` full shot lifecycle).
 

@@ -967,6 +967,35 @@ async function storeRoundTrip(): Promise<void> {
     assert.equal(win.outcome, "victory");
     assert.equal(win.victoryReason, "skiff");
   }
+
+  // Q9 regressions: M3 floor cap P0/P1, preferredFogOfWar persistence, HOLD enemy death throes expiry
+  useGameStore.getState().setActiveFloor(0);
+  useGameStore.getState().toggleFloor();
+  assert.equal(useGameStore.getState().activeFloor, 1);
+  useGameStore.getState().toggleFloor();
+  assert.equal(useGameStore.getState().activeFloor, 0, "Mission 3 floor toggle must stay capped at P0/P1");
+
+  if (useGameStore.getState().fogOfWarEnabled) {
+    useGameStore.getState().toggleFogOfWar();
+  }
+  useGameStore.getState().beginScenario("mission3");
+  assert.equal(useGameStore.getState().fogOfWarEnabled, false, "preferredFogOfWar must persist across beginScenario");
+  useGameStore.getState().toggleFogOfWar();
+
+  useGameStore.setState((s) => ({
+    turn: "player",
+    isBusy: false,
+    outcome: "ongoing",
+    units: s.units.map((u) =>
+      u.id === "enemy-sentry-1"
+        ? { ...u, aiStance: "HOLD", alive: true, hp: -2, inDeathThroes: true, deathThroesTurns: 1 }
+        : u,
+    ),
+  }));
+  useGameStore.getState().endTurn();
+  await settle();
+  const sentryAfterTurn = useGameStore.getState().units.find((u) => u.id === "enemy-sentry-1");
+  assert.equal(sentryAfterTurn?.alive, false, "HOLD enemy in Death Throes must expire on endTurn");
 }
 
 void storeRoundTrip().then(

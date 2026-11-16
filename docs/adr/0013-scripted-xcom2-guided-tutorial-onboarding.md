@@ -17,7 +17,7 @@ Implement an on-rails, scripted onboarding architecture modeled after XCOM 2:
    - 9 granular micro-steps spanning Rounds 1–3:
      - `step_1_matej_move`: Jan Matěj moves to bedroom balustrade (`[6, 1, 20]`, Blue 1 AP vs Yellow 2 AP, Half/Full Cover).
      - `step_2_colloredo_escort`: Count Colloredo moves to protected escort position (`[5, 1, 21]`, 3-tile limp & Swedish capture/ransom rules).
-     - `step_3_vaclav_aim`: Václav z Michalovic targets flanked sentry from 1st-floor arcade (`[12, 1, 10]`, High Ground +15% & Flanking +40% Crit).
+     - `step_3_vaclav_aim`: Václav z Michalovic targets flanked sentry from 1st-floor arcade (`[12, 1, 10]`, Flanking +40% Crit).
      - `step_4_vaclav_shoot`: Aim breakdown verification and cinematic over-the-shoulder shot.
      - `step_5_enemy_turn_react`: Enemy turn demo — Swedish counterfire ricochets off stone balustrade, demonstrating cover efficacy.
      - `step_6_vaclav_reload`: Segmented reloading (`[R]`, 1 AP per step) for black powder firearms.

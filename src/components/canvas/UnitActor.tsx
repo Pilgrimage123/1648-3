@@ -17,7 +17,7 @@ import {
   Target,
   Zap,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import {
   liveMovementTelemetry,
@@ -28,7 +28,7 @@ import {
   isAdjacentForMelee,
   isUnitFighting,
 } from "../../core/CombatSystem";
-import { bestTileCover, isEnclosedRoofedCoord, sameCoord } from "../../core/GridSystem";
+import { bestTileCover, sameCoord } from "../../core/GridSystem";
 import { higherFloorUnitIgnoresClicks } from "../../core/inspectClick";
 import type { UnitData } from "../../core/types";
 import {
@@ -78,11 +78,22 @@ export function UnitActor({ unit }: UnitActorProps) {
   const previewEnemyMeleeHover = useGameStore((s) => s.previewEnemyMeleeHover);
   const completeUnitMovement = useGameStore((s) => s.completeUnitMovement);
 
-  const [hitFlash, setHitFlash] = useState(0);
-  const [lossTick, setLossTick] = useState(0);
+  const [, setLossTick] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const moveProgressRef = useRef(0);
   const locale = useLocale();
+
+  useEffect(() => {
+    const loss = unitFx?.combatLoss;
+    if (!loss) return;
+    const elapsed = performance.now() - loss.timestamp;
+    const duration = loss.durationMs ?? 1550;
+    const remaining = Math.max(0, duration - elapsed + 20);
+    const id = window.setTimeout(() => {
+      setLossTick((v) => (v === loss.id ? v + 1 : loss.id));
+    }, remaining);
+    return () => window.clearTimeout(id);
+  }, [unitFx?.combatLoss]);
 
   const isHiddenInFog =
     unit.faction === "enemy" &&
@@ -379,17 +390,17 @@ export function UnitActor({ unit }: UnitActorProps) {
     if (unitFx?.lungeTimestamp) {
       const elapsed = (now - unitFx.lungeTimestamp) / 1000;
       if (elapsed >= 0 && elapsed < 0.78) {
-        // Plynulý zpětný ráz muškety / arkebuzy při výstřelu (+90 % delší, C2-hladký návrat)
+        const isMeleeLunge = unitFx.lungeKind === "melee";
         const normT = elapsed / 0.78;
-        const recoilEnvelope =
+        const envelope =
           normT < 0.14
             ? THREE.MathUtils.smootherstep(normT, 0, 0.14)
             : Math.pow(1 - (normT - 0.14) / 0.86, 2.1);
-        const kickbackDist = -0.25 * recoilEnvelope;
+        const travelDist = (isMeleeLunge ? 0.34 : -0.25) * envelope;
         const [faceX, faceZ] = facingForward(unit.facing);
-        pivot.position.x += faceX * kickbackDist;
-        pivot.position.z += faceZ * kickbackDist;
-        pivot.rotation.x = -0.22 * recoilEnvelope;
+        pivot.position.x += faceX * travelDist;
+        pivot.position.z += faceZ * travelDist;
+        pivot.rotation.x = (isMeleeLunge ? 0.26 : -0.22) * envelope;
       }
     }
 
@@ -397,18 +408,13 @@ export function UnitActor({ unit }: UnitActorProps) {
       const elapsed = (now - unitFx.hitTimestamp) / 1000;
       if (elapsed >= 0 && elapsed < 1.05) {
         const intensity = Math.pow(1 - elapsed / 1.05, 1.5);
-        setHitFlash(intensity);
         // Fyzikální zakolísání zasaženého cíle vzad s tlumeným kmitáním
         const staggerBack = Math.sin(Math.min(1, elapsed * 3.2) * Math.PI) * 0.16;
         pivot.position.x += Math.sin(elapsed * 68) * 0.14 * intensity;
         pivot.position.z +=
           Math.cos(elapsed * 62) * 0.14 * intensity + staggerBack * 0.5;
         pivot.rotation.x -= staggerBack * 0.85;
-      } else if (hitFlash > 0) {
-        setHitFlash(0);
       }
-    } else if (hitFlash > 0) {
-      setHitFlash(0);
     }
 
     // Pokud jednotka právě padla (alive === false), ale stále probíhá sekvence útoku / výpisu ztrát,
@@ -425,14 +431,6 @@ export function UnitActor({ unit }: UnitActorProps) {
         pivot.rotation.x = -1.22 * collapseT;
         pivot.rotation.z = 0.28 * collapseT;
         pivot.position.y = -0.36 * collapseT;
-      } else if (lossTick !== unitFx.combatLoss.id) {
-        setLossTick(unitFx.combatLoss.id);
-      }
-    } else if (unitFx?.combatLoss) {
-      const lossElapsedSec = (now - unitFx.combatLoss.timestamp) / 1000;
-      const lossDurSec = (unitFx.combatLoss.durationMs ?? 1550) / 1000;
-      if (lossElapsedSec > lossDurSec && lossTick !== unitFx.combatLoss.id) {
-        setLossTick(unitFx.combatLoss.id);
       }
     }
   });
@@ -512,7 +510,7 @@ export function UnitActor({ unit }: UnitActorProps) {
                 <group rotation={[0, FACING_YAW[unit.facing], 0]}>
                   <MatchcordCoal
                     weather={weather}
-                    roofed={isEnclosedRoofedCoord(
+                    roofed={grid.isEnclosedRoofed(
                       unit.pos.x,
                       unit.pos.y,
                       unit.pos.z,
@@ -776,19 +774,24 @@ export function UnitActor({ unit }: UnitActorProps) {
           <UnitVisual2D
             archetype={unit.archetype}
             faction={unit.faction}
-            hitFlashIntensity={hitFlash}
+            facing={unit.facing}
+            hitTimestamp={unitFx?.hitTimestamp ?? 0}
             opacity={visualOpacity}
+            lockType={unit.weapon.lockType}
+            weather={weather}
+            roofed={grid.isEnclosedRoofed(unit.pos.x, unit.pos.y, unit.pos.z)}
+            unitId={unit.id}
           />
         ) : (
           <UnitVisual3D
             archetype={unit.archetype}
             faction={unit.faction}
             facing={unit.facing}
-            hitFlashIntensity={hitFlash}
+            hitTimestamp={unitFx?.hitTimestamp ?? 0}
             opacity={visualOpacity}
             lockType={unit.weapon.lockType}
             weather={weather}
-            roofed={isEnclosedRoofedCoord(unit.pos.x, unit.pos.y, unit.pos.z)}
+            roofed={grid.isEnclosedRoofed(unit.pos.x, unit.pos.y, unit.pos.z)}
             unitId={unit.id}
           />
         )}

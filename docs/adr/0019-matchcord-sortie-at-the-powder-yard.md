@@ -24,4 +24,4 @@ This is that later decision. The Swedes here are a master gunner, bearers, and m
 
 The working rules live in `GLOSSARY.md` under Mise 3. The lane from store mouth to battery gate has to be short enough that waiting on the skiff loses, and long enough that a party which moves on the first turn can still stop a third delivery. The store door has to sit within a six-tile cord of a tail Plachý can reach, including on the night Ondřej is absent and the lodge is climbed by the stair. The cook-off scars the yard only. It does not reach the Čertovka.
 
-No Mission 3 field is implemented yet. When it is, it should not invent a second explosive, a stealth attribute, or a UI fuse.
+Mission 3 (`src/core/mission3.ts`) implements the field without a second explosive, a stealth attribute, or a UI fuse.

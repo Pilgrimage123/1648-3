@@ -61,7 +61,7 @@ export const GUIDED_TUTORIAL_STEPS: Record<
     orderText:
       "Přesuňte maršála Colloreda do chráněné pozice za Janem Matějem [Pravé tlačítko myši]",
     tacticalTip:
-      "Maršál ujde kvůli 7 ranám z Lützenu jen 3 pole/AP. Švédové po něm nestřílí (chtějí výkupné 50 000 tolarů), ale zajmou jej při kontaktu na 1 AP!",
+      "Maršál ujde kvůli 7 ranám z Lützenu jen 3 pole/AP. Švédové po něm nestřílí (chtějí výkupné 100 000 tolarů), ale zajmou jej při kontaktu na 1 AP!",
     allowedUnitId: "player-colloredo",
     allowedTileCoords: [
       { x: 5, y: 1, z: 21 },
@@ -82,11 +82,11 @@ export const GUIDED_TUTORIAL_STEPS: Record<
     speaker: "Václav z Michalovic",
     role: "Klementinský student & písař",
     portrait: "sniper",
-    title: "KROK 3/8 · VÝŠKOVÁ PŘEVAHA A KŘÍDLENÍ (FLANK)",
+    title: "KROK 3/8 · KŘÍDLENÍ (FLANK) A MÍŘENÍ",
     orderText:
       "Přepněte na střelbu [Klávesa 2 nebo klik na terč] a zaměřte švédského zvěda na terase",
     tacticalTip:
-      "Střelba z 1. patra přidává +15 % k zásahu. Švéd nemá kryt ze strany arkády — žlutý štít značí Křídlení (Flank) a +40 % k šanci na kritický zásah!",
+      "Václav z arkády Piano Nobile obchází nepřátelský kryt — žlutý štít značí Křídlení (Flank) a +40 % k šanci na kritický zásah!",
     allowedUnitId: "player-vaclav-michalovic",
     allowedTileCoords: null,
     allowedActionMode: "shoot",
@@ -107,7 +107,7 @@ export const GUIDED_TUTORIAL_STEPS: Record<
     orderText:
       "Vystřelte na zaměřeného nepřítele [Klávesa Mezerník / Enter]",
     tacticalTip:
-      "Křídla rozpadu šance v liště ukazují transparentní výpočet: základní přesnost + výška − kryt. Výstřel spustí filmovou kameru přes rameno.",
+      "Křídla rozpadu šance v liště ukazují transparentní výpočet: základní přesnost ± vzdálenost − kryt. Výstřel spustí filmovou kameru přes rameno.",
     allowedUnitId: "player-vaclav-michalovic",
     allowedTileCoords: null,
     allowedActionMode: "shoot",

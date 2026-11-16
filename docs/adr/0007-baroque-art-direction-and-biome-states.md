@@ -15,7 +15,7 @@ All current and future visual elements, locations, biomes, unit sprites/models, 
 
 ### Pillar 1: Composition & Battlefield Readability (Priority #1)
 1. **Calm Ground Zones vs. High-Detail Cover & Units**:
-   - Walkable ground surfaces (mud, cobblestone, marble parquet, royal carpet, snow, water) MUST remain low-contrast and texturally calm so they never compete with the tactical grid, movement zones (`Blue 1 AP` / `Gold 2 AP`), or sightlines.
+   - Walkable ground surfaces (mud, cobblestone, marble parquet, royal carpet, water) MUST remain low-contrast and texturally calm so they never compete with the tactical grid, movement zones (`Blue 1 AP` / `Gold 2 AP`), or sightlines.
    - High geometric and material detail is reserved strictly for cover obstacles (pillars, walls, barricades, powder kegs) and units.
    - Any battle-damage debris (fallen stucco, masonry fragments, charred beams, crater rims) MUST be positioned along tile perimeters/corners (`±0.35m` from tile center) with near-zero vertical profile in the tile center so unit footing and grid lines stay 100% legible.
 2. **Baroque Chiaroscuro (Caravaggio / Rembrandt Lighting)**:
@@ -35,7 +35,7 @@ All current and future visual elements, locations, biomes, unit sprites/models, 
 ---
 
 ### Pillar 3: Shape Language (Top-Down Unit Silhouettes & Hat Geometry)
-Every unit archetype MUST be immediately recognizable from a bird's-eye view by its silhouette alone, and all headgear MUST sit physically on the brow (`y ≈ 1.48–1.54`) covering the upper cranium in both 2D sprites (`UnitVisual2D.tsx`) and 3D rigs (`UnitVisual3D.tsx`):
+Every unit archetype MUST be immediately recognizable from a bird's-eye view by its silhouette alone, and all headgear MUST sit physically on the brow covering the upper cranium in both 2D sprites (`UnitVisual2D.tsx`, `y ≈ 1.48–1.54`) and 3D rigs (`UnitVisual3D.tsx`, `y ≈ 1.28–1.30m`):
 1. **Pikemen / Halberdiers / Heavy Armourers (`ranger` — e.g., Bratr Bartoloměj, Jan Matěj)**:
    - Tall, sharp vertical triangles or broad-shouldered silhouettes with long weapons or wide-brimmed hats (`šířka krempy 0.88m`) and fluttering cloaks.
 2. **Musketeers / Marksmen (`sniper` / `trooper` — e.g., Václav z Michalovic, Švédský mušketýr)**:
@@ -73,15 +73,15 @@ The battlefield must visually distinguish intact noble interiors from dusty stre
 
 ### Pillar 6: Enclosed Interior Physics & Authentic 17th-Century Ballistics
 1. **Spatial Masking of Roofed Interiors (`isEnclosedRoofedCoord(x, y, z)`)**:
-   - Rain and snow (`RainParticles.tsx`) MUST NEVER fall inside enclosed palace interiors (`y ≤ 1`, `x: 1.5..21.5`, `z: 15.5..27.5`, except the open courtyard `x: 9.6..13.4`, `z: 17.6..20.4`) or under the belvedere arcade (`y < 1`, `x: 8.5..14.5`, `z: 8.5..12.5`).
-   - Before gunfire and explosions begin (`combatIntensity === 0 && blastZones.length === 0`), zero arbitrary ash, plaster dust, or black-powder smoke may float inside the enclosed palace.
+   - Rain (`RainParticles.tsx`) MUST NEVER fall inside enclosed palace interiors (`y ≤ 1`, `x: 1.5..21.5`, `z: 15.5..27.5`, except the open courtyard `x: 9.6..13.4`, `z: 17.6..20.4`), under the belvedere arcade (`y < 1`, `x: 8.5..14.5`, `z: 8.5..12.5`), or inside roofed mission chambers (Bridge Tower, Powder-Yard store).
+   - Before gunfire and explosions begin (`combatIntensity === 0 && blastZones.length === 0`), zero arbitrary ash, plaster dust, or black-powder smoke may float indoors or on the yard.
    - Once combat begins, ash, plaster dust, embers, and ground mist spawn causally at actual `blastZones` and `smokeTiles`, expanding organically outward over time:
      $$R(t) = \min\bigl(R_{\max},\; R_0 + v_{\text{diff}} \cdot \Delta t\bigr) \cdot \text{TILE\_SIZE}$$
 2. **17th-Century Firearm Ballistics & Recoil (`CombatLines3D.tsx`, `UnitActor.tsx`, `useGameStore.ts`)**:
    - Muzzle flash, directional flame cone, pan sparks, and black-powder smoke MUST erupt at the **barrel tip** (`+0.58m` forward along the firing vector, `+0.14m` right), never inside the shooter's torso.
    - Firearms MUST NOT render a static full-distance laser line; they fire a high-velocity lead ball with a properly oriented trailing cone (`rotation={[-Math.PI / 2, 0, 0]}`) and a dynamic dissipating vapor wake.
-   - Shooters experience a sharp **backward recoil kickback** (`-0.24m` along firing direction with upward muzzle climb `rotation.x = -0.22`), never a forward melee lunge.
-   - **Synchronized Impact Timing**: Sound effects (`playHitSound`, `playExplosionSound`), unit hit shake, floating damage banners, and tile scarring (`damageTile`) MUST fire at the exact moment the projectile reaches the target ($t_{\text{impact}} \approx 240\,\text{ms}$, i.e., $36\%$ of `680ms`).
+   - Shooters experience a sharp **backward recoil kickback** (`-0.25m` along firing direction with upward muzzle climb `rotation.x = -0.22`), distinct from forward melee lunges (`+0.34m`).
+   - **Synchronized Impact Timing**: Sound effects (`playHitSound`, `playExplosionSound`), unit hit shake, floating damage banners, and tile scarring (`damageTile`) MUST fire at the exact moment the projectile reaches the target ($t_{\text{impact}} \approx 730\,\text{ms}$ inside the `1780ms` full shot lifecycle).
    - **Miss vs. Hit**: Missed shots (`hit === false`) deflect past the target (`0.68m` lateral offset) and kick up grey stone ricochet dust rather than exploding on the target's chest.
 
 ## Consequences

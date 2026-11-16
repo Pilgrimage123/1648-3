@@ -73,6 +73,7 @@ export function InspectDossier() {
   const inspectKeyHeld = useGameStore((s) => s.inspectKeyHeld);
   const inspectPin = useGameStore((s) => s.inspectPin);
   const units = useGameStore((s) => s.units);
+  const scenario = useGameStore((s) => s.scenario);
   const grid = useGameStore((s) => s.grid);
   const gridVersion = useGameStore((s) => s.gridVersion);
   const fogSnapshot = useGameStore((s) => s.fogSnapshot);
@@ -121,13 +122,14 @@ export function InspectDossier() {
         : null;
 
   const view = buildInspectView({
+    scenario,
     units,
     tileAt: (coord) => grid.getTile(coord),
     doorAt: (coord) => grid.getDoor(coord),
     fog: fogSnapshot,
     fogOfWarEnabled,
     pin: inspectPin,
-    actionMode: actionMode === "lay" ? "move" : actionMode,
+    actionMode,
     selectedUnitId,
     selectedTargetId,
     activeCombat,
@@ -245,6 +247,7 @@ function UnitBody({ view }: { view: Extract<InspectView, { kind: "unit" }> }) {
       <div className="flex items-start gap-3">
         <UnitPortrait
           archetype={view.archetype}
+          unitId={view.unitId}
           faction={view.faction}
           name={view.name}
           size="xl"

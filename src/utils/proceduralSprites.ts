@@ -18,14 +18,167 @@
  */
 
 import * as THREE from "three";
-import type { UnitArchetype } from "../core/types";
+import type { ScenarioId, UnitArchetype } from "../core/types";
 
-const SPRITE_CACHE: Partial<Record<UnitArchetype, string>> = {};
-const TEXTURE_CACHE = new Map<UnitArchetype, THREE.Texture>();
-const DEPTH_MATERIAL_CACHE = new Map<UnitArchetype, THREE.MeshDepthMaterial>();
+export type SpriteVariant =
+  | UnitArchetype
+  | "plachy"
+  | "havel"
+  | "ondrej"
+  | "student"
+  | "harrier"
+  | "occultist"
+  | "m3_swede";
 
-function buildSvgMarkup(archetype: UnitArchetype): string {
-  switch (archetype) {
+export function resolveSpriteVariant(
+  archetype: UnitArchetype,
+  unitId?: string,
+  scenario?: ScenarioId,
+): SpriteVariant {
+  if (unitId === "player-plachy") return "plachy";
+  if (unitId === "player-havel") return "havel";
+  if (unitId === "player-ondrej") return "ondrej";
+  if (unitId?.startsWith("player-zak")) return "student";
+  if (unitId?.startsWith("enemy-harrier")) return "harrier";
+  if (unitId === "enemy-occultist") return "occultist";
+  if (scenario === "mission3" && unitId?.startsWith("enemy-")) return "m3_swede";
+  return archetype;
+}
+
+const SPRITE_CACHE: Partial<Record<SpriteVariant, string>> = {};
+const TEXTURE_CACHE = new Map<SpriteVariant, THREE.Texture>();
+const DEPTH_MATERIAL_CACHE = new Map<SpriteVariant, THREE.MeshDepthMaterial>();
+
+function buildSvgMarkup(variant: SpriteVariant): string {
+  switch (variant) {
+    case "plachy":
+      // Jesuit Father Jiří Plachý: black cassock & mantle, iron gorget, 4-ridged black biretta, gilded crucifix & wheellock pistol
+      return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 320" width="512" height="640">
+        <path d="M68 104 C44 156, 38 222, 48 282 L204 282 C214 222, 206 156, 188 104 Z" fill="#18181b" stroke="#09090b" stroke-width="5"/>
+        <path d="M84 104 L172 104 L182 288 L74 288 Z" fill="#27272a" stroke="#09090b" stroke-width="4.5"/>
+        <rect x="96" y="286" width="26" height="22" rx="4" fill="#09090b"/>
+        <rect x="134" y="286" width="26" height="22" rx="4" fill="#09090b"/>
+        <!-- Iron Gorget -->
+        <path d="M94 98 Q128 118 162 98 L156 122 Q128 134 100 122 Z" fill="#94a3b8" stroke="#1e293b" stroke-width="3.5"/>
+        <!-- Face -->
+        <circle cx="128" cy="78" r="20" fill="#ecc19c" stroke="#2b1d14" stroke-width="3.5"/>
+        <path d="M108 72 Q128 78 148 72 L148 62 L108 62 Z" fill="#09090b" opacity="0.55"/>
+        <circle cx="120" cy="77" r="2.6" fill="#1e293b"/>
+        <circle cx="136" cy="77" r="2.6" fill="#1e293b"/>
+        <path d="M116 88 Q128 84 140 88 Q134 98 128 95 Q122 98 116 88 Z" fill="#3f2b1d"/>
+        <!-- Black 4-Ridged Jesuit Biretta seated low on brow -->
+        <path d="M90 66 L100 40 L128 46 L156 40 L166 66 Z" fill="#18181b" stroke="#09090b" stroke-width="4"/>
+        <rect x="122" y="34" width="12" height="10" rx="3" fill="#27272a" stroke="#09090b" stroke-width="2.5"/>
+        <!-- Gilded Crucifix & Wheellock Pistol -->
+        <line x1="68" y1="126" x2="68" y2="188" stroke="#d4a73f" stroke-width="7" stroke-linecap="round"/>
+        <line x1="50" y1="146" x2="86" y2="146" stroke="#d4a73f" stroke-width="7" stroke-linecap="round"/>
+        <rect x="172" y="148" width="60" height="11" rx="3" transform="rotate(-14 180 156)" fill="#451a03" stroke="#0f172a" stroke-width="3"/>
+        <rect x="190" y="144" width="44" height="6.5" rx="2" transform="rotate(-14 180 156)" fill="#e2e8f0" stroke="#0f172a" stroke-width="2.5"/>
+      </svg>`;
+
+    case "havel":
+      // Havel Řezáč: butcher's journeyman with brown tunic, stained apron, wide cap, and heavy cleaver
+      return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 320" width="512" height="640">
+        <path d="M74 104 L182 104 L190 242 L66 242 Z" fill="#6b3a2a" stroke="#29150e" stroke-width="5"/>
+        <path d="M92 106 L164 106 L172 254 L84 254 Z" fill="#d6cbb8" stroke="#44403c" stroke-width="4"/>
+        <path d="M108 176 Q132 192 146 218" stroke="#991b1b" stroke-width="6" opacity="0.55" fill="none"/>
+        <rect x="86" y="250" width="34" height="58" rx="6" fill="#291d16" stroke="#0c0908" stroke-width="4"/>
+        <rect x="136" y="250" width="34" height="58" rx="6" fill="#291d16" stroke="#0c0908" stroke-width="4"/>
+        <circle cx="128" cy="80" r="20" fill="#ecc19c" stroke="#2b1d14" stroke-width="4"/>
+        <circle cx="120" cy="79" r="2.7" fill="#1d1612"/>
+        <circle cx="136" cy="79" r="2.7" fill="#1d1612"/>
+        <path d="M114 90 Q128 85 142 90" fill="none" stroke="#3d2314" stroke-width="4"/>
+        <!-- Wide Dark Felt Hat pulled low -->
+        <path d="M96 68 C96 42, 160 42, 160 68 Z" fill="#3b2618" stroke="#1a100a" stroke-width="4"/>
+        <path d="M70 67 Q128 58 186 67 Q172 76 84 76 Z" fill="#261910" stroke="#0c0908" stroke-width="4"/>
+        <!-- Butcher Cleaver & Sidearm -->
+        <rect x="46" y="138" width="12" height="56" rx="3" fill="#451a03" stroke="#1c1917" stroke-width="3"/>
+        <path d="M36 92 L72 92 L76 146 L34 146 Z" fill="#cbd5e1" stroke="#0f172a" stroke-width="4"/>
+        <rect x="174" y="152" width="54" height="11" rx="3" transform="rotate(-12 182 158)" fill="#5c3a21" stroke="#0f172a" stroke-width="3"/>
+      </svg>`;
+
+    case "ondrej":
+      // Ondřej Štěrba: agile thief of ropes & roofs, dark slate cloak, coiled rope, knife & pistol
+      return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 320" width="512" height="640">
+        <path d="M68 104 L188 104 L204 252 L52 252 Z" fill="#1e293b" stroke="#090d16" stroke-width="5"/>
+        <rect x="88" y="250" width="30" height="58" rx="6" fill="#171717" stroke="#09090b" stroke-width="4"/>
+        <rect x="138" y="250" width="30" height="58" rx="6" fill="#171717" stroke="#09090b" stroke-width="4"/>
+        <!-- Coiled Climbing Rope across chest -->
+        <ellipse cx="128" cy="144" rx="44" ry="22" transform="rotate(-24 128 144)" fill="none" stroke="#c29b61" stroke-width="10"/>
+        <ellipse cx="128" cy="144" rx="44" ry="22" transform="rotate(-24 128 144)" fill="none" stroke="#78562b" stroke-width="3" stroke-dasharray="6 4"/>
+        <circle cx="128" cy="80" r="19" fill="#ecc19c" stroke="#2b1d14" stroke-width="4"/>
+        <circle cx="120" cy="79" r="2.6" fill="#1d1612"/>
+        <circle cx="136" cy="79" r="2.6" fill="#1d1612"/>
+        <!-- Low Cavalier Cap -->
+        <path d="M96 68 C98 40, 158 40, 160 68 Z" fill="#1f2937" stroke="#090d16" stroke-width="4"/>
+        <path d="M74 66 Q128 57 182 66 Q168 75 88 75 Z" fill="#111827" stroke="#090d16" stroke-width="4"/>
+        <!-- Long Wheellock & Rope Knife -->
+        <rect x="164" y="148" width="66" height="11" rx="3" transform="rotate(-10 182 154)" fill="#451a03" stroke="#0f172a" stroke-width="3"/>
+        <polygon points="56,120 68,120 62,174 52,164" fill="#e2e8f0" stroke="#0f172a" stroke-width="3"/>
+      </svg>`;
+
+    case "student":
+      // Žák Klementina: dark scholar coat, gold-trimmed hat, pistol (no 2.3m Swedish pike)
+      return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 320" width="512" height="640">
+        <path d="M74 104 L182 104 L192 254 L64 254 Z" fill="#1e293b" stroke="#090d16" stroke-width="5"/>
+        <path d="M128 104 L128 248" stroke="#eab308" stroke-width="3.5"/>
+        <rect x="90" y="252" width="30" height="56" rx="5" fill="#1c1613" stroke="#090706" stroke-width="4"/>
+        <rect x="136" y="252" width="30" height="56" rx="5" fill="#1c1613" stroke="#090706" stroke-width="4"/>
+        <circle cx="128" cy="80" r="19" fill="#ecc19c" stroke="#2b1d14" stroke-width="4"/>
+        <circle cx="120" cy="79" r="2.6" fill="#1d1612"/>
+        <circle cx="136" cy="79" r="2.6" fill="#1d1612"/>
+        <path d="M96 68 C96 42, 160 42, 160 68 Z" fill="#1c1917" stroke="#09090b" stroke-width="4"/>
+        <path d="M72 67 Q128 58 184 67 Q170 76 86 76 Z" fill="#18181b" stroke="#09090b" stroke-width="4"/>
+        <rect x="97" y="60" width="62" height="6" rx="2" fill="#eab308"/>
+        <rect x="158" y="148" width="66" height="11" rx="3" transform="rotate(-12 178 154)" fill="#5c3a21" stroke="#0f172a" stroke-width="3"/>
+      </svg>`;
+
+    case "harrier":
+      // Švédský harcovník (Mission 2): swift hooded demonic skirmisher with short blade & crimson sash
+      return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 320" width="512" height="640">
+        <path d="M72 104 L184 104 L198 248 L58 248 Z" fill="#27272a" stroke="#09090b" stroke-width="5"/>
+        <path d="M84 114 L172 176 L160 192 L74 130 Z" fill="#991b1b" stroke="#450a0a" stroke-width="3"/>
+        <rect x="88" y="246" width="30" height="62" rx="5" fill="#18181b" stroke="#09090b" stroke-width="4"/>
+        <rect x="138" y="246" width="30" height="62" rx="5" fill="#18181b" stroke="#09090b" stroke-width="4"/>
+        <circle cx="128" cy="80" r="19" fill="#d6b89c" stroke="#1c1917" stroke-width="4"/>
+        <circle cx="120" cy="79" r="2.6" fill="#dc2626"/>
+        <circle cx="136" cy="79" r="2.6" fill="#dc2626"/>
+        <!-- Tight Dark Hood Pulled Over Brow -->
+        <path d="M96 74 C96 34, 160 34, 160 74 Q128 62 96 74 Z" fill="#3f3f46" stroke="#09090b" stroke-width="4"/>
+        <!-- Short Blade & Pistol -->
+        <polygon points="46,118 60,118 52,188 42,176" fill="#cbd5e1" stroke="#0f172a" stroke-width="3.5"/>
+        <rect x="172" y="152" width="54" height="10" rx="3" transform="rotate(-14 182 158)" fill="#3f2718" stroke="#0f172a" stroke-width="3"/>
+      </svg>`;
+
+    case "occultist":
+      // Švédský okultista (Mission 2): indigo robe, gold mitre, censer & seals
+      return buildSvgMarkup("sectoid");
+
+    case "m3_swede":
+      // Mission 3 Carolean Swede (Bearer / Sentry / Gunner / Relief): blue coat, crimson sash (#dc2626), M1624 musket, NO pike
+      return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 320" width="512" height="640">
+        <path d="M74 104 L182 104 L192 252 L64 252 Z" fill="#2563eb" stroke="#0f172a" stroke-width="5"/>
+        <path d="M84 112 L172 176 L160 192 L74 128 Z" fill="#dc2626" stroke="#450a0a" stroke-width="3.5"/>
+        <rect x="88" y="250" width="32" height="58" rx="4" fill="#1c1613" stroke="#090706" stroke-width="4"/>
+        <rect x="136" y="250" width="32" height="58" rx="4" fill="#1c1613" stroke="#090706" stroke-width="4"/>
+        <circle cx="128" cy="80" r="19" fill="#ecc19c" stroke="#2b1d14" stroke-width="4"/>
+        <circle cx="120" cy="79" r="2.6" fill="#1e293b"/>
+        <circle cx="136" cy="79" r="2.6" fill="#1e293b"/>
+        <!-- Morion Steel Helmet -->
+        <path d="M100 68 C100 38, 156 38, 156 68 Z" fill="#cbd5e1" stroke="#0f172a" stroke-width="4"/>
+        <path d="M76 68 Q128 58 180 68 Q166 77 90 77 Z" fill="#94a3b8" stroke="#0f172a" stroke-width="4"/>
+        <path d="M124 30 L132 30 L130 60 L126 60 Z" fill="#facc15"/>
+        <!-- M1624 Matchlock Musket -->
+        <rect x="58" y="148" width="166" height="12" rx="4" transform="rotate(-10 128 154)" fill="#5c3a21" stroke="#1e1108" stroke-width="4"/>
+        <rect x="122" y="144" width="114" height="7" rx="2" transform="rotate(-10 128 154)" fill="#e2e8f0" stroke="#0f172a" stroke-width="3"/>
+      </svg>`;
+
     case "ranger":
       // Heavy Infantry / Imperial Cuirassier-Dragoon:
       // Massive square & rounded silhouette — broad segmented pauldrons, heavy steel cuirass,
@@ -438,19 +591,19 @@ function buildSvgMarkup(archetype: UnitArchetype): string {
 }
 
 /**
- * Returns a Data URI (`data:image/svg+xml;utf8,...`) for the requested unit archetype.
+ * Returns a Data URI (`data:image/svg+xml;utf8,...`) for the requested unit variant or archetype.
  */
-export function getProceduralSpriteDataUri(archetype: UnitArchetype): string {
-  const cached = SPRITE_CACHE[archetype];
+export function getProceduralSpriteDataUri(variant: SpriteVariant): string {
+  const cached = SPRITE_CACHE[variant];
   if (cached) return cached;
 
-  const svg = buildSvgMarkup(archetype).trim();
+  const svg = buildSvgMarkup(variant).trim();
   const dataUri = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-  SPRITE_CACHE[archetype] = dataUri;
+  SPRITE_CACHE[variant] = dataUri;
   return dataUri;
 }
 
-const PORTRAIT_CACHE: Partial<Record<UnitArchetype, string>> = {};
+const PORTRAIT_CACHE: Partial<Record<SpriteVariant, string>> = {};
 
 /**
  * Returns a Data URI for a close-up portrait (head, hat/helmet, collar/pauldrons)
@@ -458,45 +611,48 @@ const PORTRAIT_CACHE: Partial<Record<UnitArchetype, string>> = {};
  */
 export function getProceduralPortraitDataUri(
   archetype: UnitArchetype,
+  unitId?: string,
+  scenario?: ScenarioId,
 ): string {
-  const cached = PORTRAIT_CACHE[archetype];
+  const variant = resolveSpriteVariant(archetype, unitId, scenario);
+  const cached = PORTRAIT_CACHE[variant];
   if (cached) return cached;
 
   let viewBox = "44 8 168 140";
-  if (archetype === "commander") {
+  if (variant === "commander") {
     viewBox = "48 30 160 128";
-  } else if (archetype === "ranger") {
+  } else if (variant === "ranger" || variant === "plachy" || variant === "havel") {
     viewBox = "46 18 164 132";
-  } else if (archetype === "trooper") {
+  } else if (variant === "trooper" || variant === "student" || variant === "m3_swede") {
     viewBox = "50 12 156 128";
-  } else if (archetype === "sniper") {
+  } else if (variant === "sniper" || variant === "ondrej" || variant === "harrier") {
     viewBox = "44 8 168 136";
-  } else if (archetype === "sectoid") {
+  } else if (variant === "sectoid" || variant === "occultist") {
     viewBox = "46 6 164 134";
   }
 
-  const svg = buildSvgMarkup(archetype)
+  const svg = buildSvgMarkup(variant)
     .trim()
     .replace('viewBox="0 0 256 320"', `viewBox="${viewBox}"`);
 
   const dataUri = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-  PORTRAIT_CACHE[archetype] = dataUri;
+  PORTRAIT_CACHE[variant] = dataUri;
   return dataUri;
 }
 
 /**
- * Returns a cached, shared THREE.Texture for the requested archetype to prevent WebGL memory leaks.
+ * Returns a cached, shared THREE.Texture for the requested variant to prevent WebGL memory leaks.
  */
-export function getSharedSpriteTexture(archetype: UnitArchetype): THREE.Texture {
-  let tex = TEXTURE_CACHE.get(archetype);
+export function getSharedSpriteTexture(variant: SpriteVariant): THREE.Texture {
+  let tex = TEXTURE_CACHE.get(variant);
   if (!tex) {
-    const uri = getProceduralSpriteDataUri(archetype);
+    const uri = getProceduralSpriteDataUri(variant);
     const loader = new THREE.TextureLoader();
     tex = loader.load(uri);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.minFilter = THREE.LinearFilter;
     tex.magFilter = THREE.LinearFilter;
-    TEXTURE_CACHE.set(archetype, tex);
+    TEXTURE_CACHE.set(variant, tex);
   }
   return tex;
 }
@@ -505,17 +661,17 @@ export function getSharedSpriteTexture(archetype: UnitArchetype): THREE.Texture 
  * Returns a cached, shared THREE.MeshDepthMaterial for shadow-casting billboards.
  */
 export function getSharedDepthMaterial(
-  archetype: UnitArchetype,
+  variant: SpriteVariant,
 ): THREE.MeshDepthMaterial {
-  let mat = DEPTH_MATERIAL_CACHE.get(archetype);
+  let mat = DEPTH_MATERIAL_CACHE.get(variant);
   if (!mat) {
-    const tex = getSharedSpriteTexture(archetype);
+    const tex = getSharedSpriteTexture(variant);
     mat = new THREE.MeshDepthMaterial({
       depthPacking: THREE.RGBADepthPacking,
       map: tex,
       alphaTest: 0.5,
     });
-    DEPTH_MATERIAL_CACHE.set(archetype, mat);
+    DEPTH_MATERIAL_CACHE.set(variant, mat);
   }
   return mat;
 }

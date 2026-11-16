@@ -7,6 +7,7 @@ import { contactPhrase, doorLabel, text } from "../i18n/runtime";
 import { getTileVisibility } from "./FogOfWar";
 import { bestTileCover, sameCoord } from "./GridSystem";
 import type {
+  ActionMode,
   CardinalDir,
   CoverLevel,
   DoorData,
@@ -18,6 +19,7 @@ import type {
   GridCoord,
   MeleeWeaponStats,
   ObstacleType,
+  ScenarioId,
   SoundContact,
   SoundContactKind,
   StairType,
@@ -33,7 +35,7 @@ export type InspectPin =
   | { kind: "unit"; id: string }
   | { kind: "tile"; coord: GridCoord };
 
-export type InspectActionMode = "move" | "shoot" | "grenade" | "melee" | "reload";
+export type InspectActionMode = ActionMode;
 
 export interface InspectLabeledValue {
   label: string;
@@ -55,6 +57,7 @@ export interface InspectCombatMath {
 }
 
 export interface InspectContext {
+  scenario?: ScenarioId;
   units: readonly UnitData[];
   tileAt: (coord: GridCoord) => TileData | undefined;
   doorAt: (coord: GridCoord) => DoorData | undefined;
@@ -69,6 +72,7 @@ export interface InspectContext {
 
 export interface InspectUnitView {
   kind: "unit";
+  unitId: string;
   tone: "amber" | "crimson";
   title: string;
   name: string;
@@ -158,7 +162,10 @@ function meleeKindLabel(kind: MeleeWeaponStats["kind"]): string {
   return text(`inspect.meleeKind.${kind}`);
 }
 
-function surfaceLabel(surface: TileData["surface"]): string {
+function surfaceLabel(surface: TileData["surface"], scenario?: ScenarioId): string {
+  if (surface === "water" && scenario === "mission2") {
+    return text("inspect.surface.water.vltava");
+  }
   return text(`inspect.surface.${surface}`);
 }
 
@@ -170,7 +177,13 @@ function stairLabel(stair: StairType): string {
   return text(`inspect.stair.${stair}`);
 }
 
-function floorLabel(floor: FloorLevel): string {
+function floorLabel(floor: FloorLevel, scenario?: ScenarioId): string {
+  if (scenario === "mission2") {
+    return text(`inspect.floor.m2.${floor}`);
+  }
+  if (scenario === "mission3" && (floor === 0 || floor === 1)) {
+    return text(`inspect.floor.m3.${floor}`);
+  }
   return text(`inspect.floor.${floor}`);
 }
 
@@ -281,6 +294,7 @@ function buildUnit(ctx: InspectContext, unit: UnitData): InspectUnitView {
 
   return {
     kind: "unit",
+    unitId: unit.id,
     tone: unit.faction === "enemy" ? "crimson" : "amber",
     title: unit.faction === "enemy" ? text("inspect.unit.enemy") : text("inspect.unit.player"),
     name: unit.name,
@@ -485,11 +499,11 @@ function buildTerrain(ctx: InspectContext, coord: GridCoord): InspectTerrainView
   }
 
   const door = ctx.doorAt(coord) ?? null;
-  const title = terrainTitle(tile, door);
+  const title = terrainTitle(tile, door, ctx.scenario);
   const lines: InspectLabeledValue[] = [
     { label: text("inspect.line.coord"), value: coordLabel(coord) },
-    { label: text("inspect.line.floor"), value: floorLabel(tile.coord.y) },
-    { label: text("inspect.line.surface"), value: surfaceLabel(tile.surface) },
+    { label: text("inspect.line.floor"), value: floorLabel(tile.coord.y, ctx.scenario) },
+    { label: text("inspect.line.surface"), value: surfaceLabel(tile.surface, ctx.scenario) },
     { label: text("inspect.line.move"), value: tile.walkable ? text("inspect.walkable") : text("inspect.blocked") },
     { label: text("inspect.line.flooring"), value: tile.hasFloor ? text("inspect.yes") : text("inspect.no") },
     {
@@ -502,7 +516,9 @@ function buildTerrain(ctx: InspectContext, coord: GridCoord): InspectTerrainView
     },
     {
       label: text("inspect.line.escape"),
-      value: tile.isEscapeZone ? text("inspect.escape.yes") : text("inspect.no"),
+      value: tile.isEscapeZone
+        ? text(ctx.scenario === "mission3" ? "inspect.escape.m3.yes" : "inspect.escape.yes")
+        : text("inspect.no"),
     },
   ];
 
@@ -564,13 +580,13 @@ function buildTerrain(ctx: InspectContext, coord: GridCoord): InspectTerrainView
   };
 }
 
-function terrainTitle(tile: TileData, door: DoorData | null): string {
+function terrainTitle(tile: TileData, door: DoorData | null, scenario?: ScenarioId): string {
   if (door) return doorLabel(door.id);
   if (tile.obstacle === "powder_keg") return text("inspect.obstacle.powder_keg");
   if (tile.obstacle !== "none") return obstacleLabel(tile.obstacle);
   const stair = tile.stairType ?? (tile.isLadder ? "ladder" : "none");
   if (stair !== "none") return stairLabel(stair);
-  return surfaceLabel(tile.surface);
+  return surfaceLabel(tile.surface, scenario);
 }
 
 function terrainOccupant(

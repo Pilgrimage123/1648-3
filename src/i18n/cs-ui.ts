@@ -16,16 +16,16 @@ export const csUiMessages = {
   "ui.epilogue.wipe.body": () =>
     "Švédský přepadový oddíl byl v zahradě Velkopřevorství do jednoho pobit! Cesta k rybářské pramici na Čertovce je zcela volná. Maršál Colloredo bezpečně přeplouvá rozvodněnou Vltavu, aby na pravém břehu zorganizoval legendární obranu Prahy.",
   "ui.epilogue.defeat.surrounded": () =>
-    "Obklíčen bez ochranky a zajat po 2 kolech (Kořist a výkupné):",
+    "Obklíčen bez ochranky a zajat (Kořist a výkupné):",
   "ui.epilogue.defeat.fallen": () => "Družina padla a maršál zůstal v moci Švédů:",
   "ui.epilogue.defeat.down": () =>
-    "Sražen k zemi a nevyproštěn včas (Zajetí po 2 kolech):",
+    "Podlehl smrtelným zraněním v boji:",
   "ui.epilogue.defeat.surroundedBody": () =>
-    "Švédští vojáci pronikli přímo k nechráněnému maršálu Rudolfu Colloredovi a drželi jej v šachu po dvě kola, aniž by jej jeho družina dokázala vyprostit. Maršál byl v noční košili odzbrojen a spoután pro královské výkupné (100 000 říšských tolarů).",
+    "Švédští vojáci pronikli přímo k nechráněnému maršálu Rudolfu Colloredovi bez ochrany jeho družiny. Maršál byl v noční košili odzbrojen a spoután pro královské výkupné (100 000 říšských tolarů).",
   "ui.epilogue.defeat.fallenBody": () =>
     "Všichni věrní obránci z maršálova doprovodu v zahradě Velkopřevorství padli. Zraněného polního maršála Rudolfa Colloreda už neměl kdo vyprostit ze švédského obklíčení a dragouni jej odvlekli v poutech.",
   "ui.epilogue.defeat.downBody": () =>
-    "Polní maršál Rudolf Colloredo klesl pod švédskou palbou k zemi (0 HP) a během dvou kol nebyl svou družinou vyproštěn. Švédští dragouni jej v noční košili spoutali pro tučné výkupné (100 000 říšských tolarů).",
+    "Těžce raněný polní maršál Rudolf Colloredo v Posledním vzepětí nedokázal dosáhnout rybářské pramice a podlehl svým zraněním (100 000 říšských tolarů výkupného zůstalo Švédům odepřeno, ale Praha přišla o velitele).",
   "ui.epilogue.defeat.coda": () =>
     "Stejně jako na Hradčanech a Malé Straně, kde padlo do zajetí přes 200 šlechticů včetně kardinála Harracha a purkrabího Martinice, ztratila Praha svého vrchního velitele — nikdo nezorganizoval posádku na Karlově mostě včas a celá Praha padla do rukou generála Königsmarcka!",
 
@@ -76,14 +76,14 @@ export const csUiMessages = {
   "ui.fullscreen": () => "Celá obrazovka [F]",
   "ui.advisor.toggle": () => "Taktický rádce [H]",
   "ui.battle.restart": () => "Restartovat bitvu",
-  "ui.floors.sectionAria": () => "Průřez pater Velkopřevorského paláce",
+  "ui.floors.sectionAria": () => "Průřez pater bojiště",
   "ui.floors.section": () => "Průřez pater",
-  "ui.floors.sight": (p) => `· Dohled ${p.distance ?? 0}m`,
+  "ui.floors.sight": (p) => `· Dohled ${p.distance ?? 0} polí`,
   "ui.floors.cycle": () => "[V] Přepnout",
   "ui.contact.mark": () => "[?] Kontakt",
   "ui.contact.fog": () => "Kontakt v šerosvitu",
   "ui.contact.approach": (p) =>
-    `${p.names ?? ""} — Přibližte se s jednotkou nebo vystoupejte na strážní věž pro odhalení cíle`,
+    `${p.names ?? ""} — Přibližte se s jednotkou nebo vystoupejte výše pro odhalení cíle`,
 
   "ui.chronicle.heading": (p) => `Diarium Belli (${p.count ?? 0})`,
 
@@ -168,9 +168,10 @@ export const csUiMessages = {
   "ui.recon.los": () => "Počet nepřátel v přímé palebné linii z této dlaždice",
   "ui.recon.revealed": () => "Nově odhalení nepřátelé v šerosvitu",
   "ui.grenade.throw": () => "💥 LKM: Hodit petardu (3×3)",
-  "ui.grenade.out": () => "Mimo dosah hodu (>8m)",
+  "ui.grenade.out": () => "Mimo dosah hodu (>8 polí)",
   "ui.grenade.back": () => "PKM: Zpět",
   "ui.boat.certovka": () => "Pramice na Čertovce",
+  "ui.boat.m3": () => "Pramice výsadku",
 
   "ui.loss.captured": () => "ZAJAT! (2/2)",
   "ui.loss.detained": (p) => `ZADRŽEN (${p.progress ?? 1}/2)`,
@@ -221,12 +222,13 @@ export const csUiMessages = {
   "ui.ribbon.fire": () => "PAL!",
   "ui.ribbon.fireCost": (p) => `${p.count ?? 1} AP · [LKM / ⎵]`,
   "ui.ribbon.critArmor": () => "Krit & Kyrys",
-  "ui.ribbon.noMelee": () => "Žádný nepřítel na sousední dlaždici (1m)",
+  "ui.ribbon.noMelee": () => "Žádný nepřítel na sousední dlaždici",
   "ui.ribbon.backMelee": () => "Zpět (Esc)",
   "ui.ribbon.meleeHead": (p, ctx) => `Zblízka · ${ctx.melee(p.meleeId)}`,
   "ui.ribbon.strike": () => "ÚDER!",
   "ui.ribbon.strikeCost": () => "1 AP · [⎵]",
   "ui.ribbon.dockDrag": () => "Tažením lze dok schopností odsunout",
+  "ui.ribbon.resetLayout": () => "Obnovit rozložení lišty",
   "ui.ribbon.move.title": () => "Taktický přesun & Sprint",
   "ui.ribbon.move.cost": () => "1–2 AP",
   "ui.ribbon.move.summary": (p) =>
@@ -239,7 +241,7 @@ export const csUiMessages = {
   "ui.ribbon.fireTitle": (p, ctx) => `Palba: ${ctx.weapon(p.weaponId) || "Střelná zbraň"}`,
   "ui.ribbon.fireEnds": (p) => `${p.count ?? 1} AP (ukončuje tah)`,
   "ui.ribbon.shoot.summary": (p) =>
-    `Výstřel z pušky/muškety ukončuje tah vojáka. Zranění ${p.damage ?? 4}–${p.required ?? 6} HP · Průraz zbroje ${p.armor ?? 1} · Dostřel ${p.distance ?? 12}m.`,
+    `Výstřel z pušky/muškety ukončuje tah vojáka. Zranění ${p.damage ?? 4}–${p.required ?? 6} HP · Průraz zbroje ${p.armor ?? 1} · Dostřel ${p.distance ?? 12} polí.`,
   "ui.ribbon.shoot.detail": () =>
     "LKM na ikonu hlavy nepřítele vpravo dole přepíná cíle · PKM míření zruší.",
   "ui.ribbon.shoot.blocked": () => "Nyní nelze střílet",
@@ -289,7 +291,7 @@ export const csUiMessages = {
   "ui.ribbon.grenade.title": () => "Litinová petarda s černým prachem",
   "ui.ribbon.grenade.cost": () => "1 AP",
   "ui.ribbon.grenade.summary": () =>
-    "Plošný výbuch 3×3 (dosah 8m): způsobí 4 HP poškození, strhne 1 bod zbroje, zničí nízké kryty a odpálí prachové sudy.",
+    "Plošný výbuch 3×3 (dosah 8 polí): způsobí 4 HP poškození, strhne 2 body zbroje, zničí nízké kryty a odpálí prachové sudy.",
   "ui.ribbon.grenade.detail": (p) =>
     `LKM: Potvrdit hod do zóny · PKM: Zrušit míření (Zbývá: ${p.count ?? 0})`,
   "ui.ribbon.grenade.blocked": () => "Nyní nelze házet petardu",
@@ -364,7 +366,12 @@ export const csUiMessages = {
   "ui.epilogue.m2.defeat.plachy": () => "Páter padl. Věž se bez něj neudrží.",
   "ui.epilogue.m2.defeat.wiped": () => "Obrana věže padla do posledního muže.",
   "ui.epilogue.m2.defeat.windlass": () => "Rumpál je zničený a mříž zůstala nahoře.",
+  "ui.epilogue.other": () => "Jiná mise",
   "ui.epilogue.m2.other": () => "Jiná mise",
+  "ui.sacrifice.clause": () =>
+    "Jeden z vašich věrných společníků musí zůstat u palácové branky a odpálit sudy s prachem",
+  "ui.sacrifice.vigilQuote": () =>
+    "„Tvá oběť z tebe smyla strach. Od této chvíle jsi mečem Železné vigilie.“",
   "ui.ribbon.kneel": () => "Pokleknout, 1 AP",
   "ui.ribbon.kneel.aria": () => "Pokleknout u nápisu za 1 AP",
   "ui.ribbon.unpin": () => "Vyrazit západku, 1 AP",

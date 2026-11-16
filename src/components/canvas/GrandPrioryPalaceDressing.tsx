@@ -29,6 +29,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import * as THREE from "three";
+import { getTileVisibility } from "../../core/FogOfWar";
 import { useGameStore } from "../../store/useGameStore";
 import {
   continuousGridToWorld,
@@ -382,6 +383,8 @@ export function GrandPrioryPalaceDressing() {
   const activeFloor = useGameStore((s) => s.activeFloor);
   const actionMode = useGameStore((s) => s.actionMode);
   const activeProjectile = useGameStore((s) => s.activeProjectile);
+  const fogSnapshot = useGameStore((s) => s.fogSnapshot);
+  const fogOfWarEnabled = useGameStore((s) => s.fogOfWarEnabled);
   const waterwheelRef = useRef<THREE.Group>(null);
 
   const isShootingView = actionMode === "shoot" || activeProjectile !== null;
@@ -393,6 +396,13 @@ export function GrandPrioryPalaceDressing() {
   });
 
   if (scenario !== "mission1") return null;
+
+  const isExplored = (x: number, y: 0 | 1 | 2, z: number) =>
+    getTileVisibility(
+      { x: Math.round(x), y, z: Math.round(z) },
+      fogSnapshot,
+      fogOfWarEnabled,
+    ) !== "unexplored";
 
   // Floor cutaway visibility:
   // When viewing P0, P1 interior dressing hides/fades so P0 is 100% unobstructed.
@@ -426,7 +436,7 @@ export function GrandPrioryPalaceDressing() {
           3. GRAND PRIOR COLLOREDO'S BEDCHAMBER & STUDY (P1: x: 3..7, z: 22..26)
              Strictly Perimeter-Aligned so walkable tiles stay 100% clear!
          ===================================================================== */}
-      {p1Opacity > 0.05 && (
+      {p1Opacity > 0.05 && isExplored(11, 1, 21) && (
         <group>
           {/* 3A. Marshal Colloredo's Four-Poster Baroque Canopy Bed (Nebesová postel)
               Flush against the west wall at x: 2.85, z: 25.0 */}
@@ -785,6 +795,7 @@ export function GrandPrioryPalaceDressing() {
       {/* =====================================================================
           5. GROUND FLOOR MALTESE ARMORY, COUR D'HONNEUR & SALA TERRENA (y = 0)
          ===================================================================== */}
+      {isExplored(11, 0, 20) && (
       <group>
         {/* 5A. Cour d'honneur Subtle Inlaid Stone Compass Rose (x: 11.5, y: 0, z: 19.0)
             Calm low-contrast stone mosaic (height 0.012m) preserving grid & AP zone readability. */}
@@ -980,7 +991,9 @@ export function GrandPrioryPalaceDressing() {
           [14.48, 8.52],
           [8.52, 12.48],
           [14.48, 12.48],
-        ].map(([bx, bz], bi) => {
+        ]
+          .filter(([bx, bz]) => isExplored(bx!, 0, bz!))
+          .map(([bx, bz], bi) => {
           const [pwx, pwy, pwz] = continuousGridToWorld(bx!, 0, bz!);
           return (
             <group key={`belv-pilaster-${bi}`} position={[pwx, pwy, pwz]}>
@@ -997,7 +1010,9 @@ export function GrandPrioryPalaceDressing() {
         })}
 
         {/* 5G. Certovka Canal Sandstone Mooring Bollards along bank edge (z = 4.46) */}
-        {[5.5, 9.5, 14.5, 18.5].map((mx, mi) => {
+        {[5.5, 9.5, 14.5, 18.5]
+          .filter((mx) => isExplored(mx, 0, 5))
+          .map((mx, mi) => {
           const [bwx, bwy, bwz] = continuousGridToWorld(mx, 0, 4.46);
           return (
             <group key={`bollard-${mi}`} position={[bwx, bwy, bwz]}>
@@ -1013,6 +1028,7 @@ export function GrandPrioryPalaceDressing() {
           );
         })}
       </group>
+      )}
 
       {/* =====================================================================
           6. HISTORICAL JULY 26, 1648 PERIMETER LANDMARKS:

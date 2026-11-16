@@ -234,6 +234,7 @@ useGameStore.getState().beginInspectHold();
 useGameStore.getState().toggleDoor(farDoor!.coord);
 assert.equal(useGameStore.getState().grid.getDoor(farDoor!.coord)!.state, farDoorState);
 assert.deepEqual(useGameStore.getState().inspectPin, { kind: "tile", coord: farDoor!.coord });
+useGameStore.getState().skipGuidedTutorial();
 useGameStore.getState().setActionMode("shoot");
 useGameStore.getState().handleRightClickCancel();
 assert.equal(useGameStore.getState().actionMode, "shoot", "held right-click does not leave aim");

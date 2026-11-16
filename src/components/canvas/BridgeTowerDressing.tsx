@@ -19,6 +19,7 @@ import {
   continuousGridToWorld,
   TILE_SIZE,
 } from "./worldCoords";
+import { getTileVisibility } from "../../core/FogOfWar";
 import { useGameStore } from "../../store/useGameStore";
 
 function at(x: number, floorY: number, z: number): [number, number, number] {
@@ -350,7 +351,7 @@ function WindlassAssembly({
   burning: boolean;
 }) {
   return (
-    <group position={at(11, 1, 14)}>
+    <group position={at(11, 1, 13.56)} scale={[0.78, 0.88, 0.72]}>
       {/* Heavy oak bed-sill bolted to P1 masonry floor */}
       <mesh position={[0, 0.06, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
         <boxGeometry args={[1.18, 0.12, 1.32]} />
@@ -935,8 +936,13 @@ export function BridgeTowerDressing() {
   const scenario = useGameStore((s) => s.scenario);
   const m2 = useGameStore((s) => s.m2);
   const activeFloor = useGameStore((s) => s.activeFloor);
+  const fogSnapshot = useGameStore((s) => s.fogSnapshot);
+  const fogOfWarEnabled = useGameStore((s) => s.fogOfWarEnabled);
 
   if (scenario !== "mission2") return null;
+
+  const isExplored = (x: number, y: 0 | 1 | 2, z: number) =>
+    getTileVisibility({ x, y, z }, fogSnapshot, fogOfWarEnabled) !== "unexplored";
 
   const seated = m2?.seated ?? false;
   const pawlUnpinned = m2?.pawlUnpinned ?? false;
@@ -1003,11 +1009,13 @@ export function BridgeTowerDressing() {
       {/* 2. P1 (Windlass Hall) Architecture & Mechanics — shown when activeFloor >= 1 */}
       {activeFloor >= 1 && (
         <group>
-          <WindlassAssembly
-            pawlUnpinned={pawlUnpinned}
-            ropeSevered={ropeSevered}
-            burning={windlassBurning}
-          />
+          {isExplored(11, 1, 14) && (
+            <WindlassAssembly
+              pawlUnpinned={pawlUnpinned}
+              ropeSevered={ropeSevered}
+              burning={windlassBurning}
+            />
+          )}
 
           {/* Western Parler Machicolation Embrasures on exterior West sill of (10, 1, 12..16) */}
           {[12, 13, 14, 15, 16].map((mz) => (
@@ -1034,7 +1042,9 @@ export function BridgeTowerDressing() {
       {/* 3. P2 (Roof Gallery) Architecture, Inscription & Upper Statues — shown when activeFloor >= 2 */}
       {activeFloor >= 2 && (
         <group>
-          <MarianInscriptionStela knelt={knelt} noted={inscriptionNoted} />
+          {isExplored(16, 2, 14) && (
+            <MarianInscriptionStela knelt={knelt} noted={inscriptionNoted} />
+          )}
 
           {/* Western P2 Machicolation Battlement Merlons (exterior edge x=9.46) */}
           {[12, 13, 14, 15, 16].map((mz) => (

@@ -46,7 +46,7 @@ Boj ve vícepatrových budovách v izometrických taktických hrách přináší
 - **Přísný zákaz duchů pro neodhalené nepřátele**: Nepřítel v neprozkoumané temnotě (*unexplored*) nebo v paměti šerosvitu (*shrouded*) se jako duch nikdy nevykreslí. Pokud se pohybuje nebo drží žhnoucí doutnák (`matchlock`), zobrazí se pouze zvukový kontakt (*SoundContact* např. *„Šramot kyrysu na pavlači ▲ +1“*).
 - **Zatemnění neprozkoumaných pater (*Floor Cutaway Fog Blackout*)**: Pevné podlahy a stropy blokují výhled vzhůru. Pokud hráč přepne cutaway do patra, kde ještě nebyl, vidí černočernou tmu (Terra Incognita), nikoliv odhalený interiér.
 - **Vertikální světlíky a šachty (*Vertical Light Shafts*)**: V místech otevřeného nebe (studna nádvoří `Cour d'honneur`, schodišťové šachty, hlavní oblouk Sala Terreny) světlo i LoS pronikají mezi patry obousměrně.
-- **Průhled shora přes přízemní dým (*Smoke Horizon Piercing*)**: Těžký černoprachový kouř leží u země; střelec z věže či balkonu se dívá shora a vidí cíle v kouři i za ním s mírným postihem (-10 % k zásahu místo plného zablokování LoS).
+- **Průhled shora přes přízemní dým (*Smoke Horizon Piercing*)**: Těžký černoprachový kouř leží u země; střelec z věže či balkonu se dívá shora a vidí cíle v kouři i přes až 2 kouřová pole s postihem (-20 % k zásahu místo plného zablokování LoS).
 - **Predikce průzkumu na schodišti (*Stairway Recon Preview*)**: Najetí myší na schodiště do neprozkoumaného patra hráče předem informuje o počtu nově odhalitelných polí a případném nebezpečí reakční palby.
 
 ## Důsledky

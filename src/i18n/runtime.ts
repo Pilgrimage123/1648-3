@@ -121,9 +121,13 @@ export function bindDocumentLocale(): void {
   applyDocument(current);
 }
 
+function lookupUnitLexeme(pack: LocalePack, id: string | undefined): UnitLexeme | undefined {
+  if (!id) return undefined;
+  return pack.units[id] ?? (/^enemy-bearer-\d+$/.test(id) ? pack.units["enemy-bearer-1"] : undefined);
+}
+
 function contextFor(pack: LocalePack): FormatContext {
-  const lex = (id: string | undefined): UnitLexeme | undefined =>
-    id ? pack.units[id] : undefined;
+  const lex = (id: string | undefined): UnitLexeme | undefined => lookupUnitLexeme(pack, id);
   return {
     unit: (id, gram: GramCase = "nom") => lex(id)?.[gram] ?? id ?? "",
     role: (id) => lex(id)?.roleTitle ?? "",
@@ -195,7 +199,7 @@ export function contactPhrase(kind: SoundContactKind): Phrase {
 
 export function projectUnit(unit: UnitData, locale: LocaleId = current): UnitData {
   const pack = packs[locale];
-  const lex = pack.units[unit.id];
+  const lex = lookupUnitLexeme(pack, unit.id);
   const weapon = pack.weapons[unit.weapon.id];
   const melee = unit.meleeWeapon ? pack.melee[unit.meleeWeapon.id] : undefined;
   const ability = unit.ability ? pack.abilities[unit.ability.id] : undefined;

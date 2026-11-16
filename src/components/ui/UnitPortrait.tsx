@@ -5,10 +5,12 @@
 
 import type { Faction, UnitArchetype } from "../../core/types";
 import { text, useLocale } from "../../i18n";
+import { useGameStore } from "../../store/useGameStore";
 import { getProceduralPortraitDataUri } from "../../utils/proceduralSprites";
 
 interface UnitPortraitProps {
   archetype: UnitArchetype;
+  unitId?: string;
   faction?: Faction;
   name?: string;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
@@ -29,6 +31,7 @@ const SIZE_CLASSES = {
 
 export function UnitPortrait({
   archetype,
+  unitId,
   faction = "player",
   name,
   size = "md",
@@ -39,7 +42,8 @@ export function UnitPortrait({
   borderTone = "auto",
 }: UnitPortraitProps) {
   const locale = useLocale();
-  const portraitUri = getProceduralPortraitDataUri(archetype);
+  const scenario = useGameStore((s) => s.scenario);
+  const portraitUri = getProceduralPortraitDataUri(archetype, unitId, scenario);
 
   const resolvedTone =
     borderTone !== "auto"

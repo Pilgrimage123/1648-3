@@ -6,11 +6,13 @@ import assert from "node:assert";
 import { createInitialUnits } from "../src/core/GridSystem.ts";
 import { pluralCs } from "../src/i18n/grammar.ts";
 import {
+  doorLabel,
   formatPhrase,
   listLocales,
   phrase,
   projectUnit,
   setLocale,
+  text,
   unitName,
 } from "../src/i18n/runtime.ts";
 
@@ -81,6 +83,17 @@ assert(
 assert(
   !formatPhrase(phrase("ui.epilogue.m3.defeatMeta", { count: 3 })).includes("Colloredo"),
   "Mission 3 defeat meta must not mention Colloredo",
+);
+assert.strictEqual(unitName("enemy-gunner", "nom"), "Dělmistr");
+assert.strictEqual(unitName("enemy-bearer-2", "nom"), "Druhý nosič prachu");
+assert.strictEqual(unitName("enemy-relief-1", "nom"), "Švédská posila");
+assert(
+  doorLabel("relief-west").includes("Západní"),
+  "Mission 3 relief-west door must resolve cleanly",
+);
+assert(
+  text("ui.sacrifice.body").includes(text("ui.sacrifice.clause")),
+  "Sacrifice body must contain sacrifice clause for splitAround highlighting",
 );
 
 console.log("✓ Czech pack declines names, pluralizes, and projects unit copy.");

@@ -56,6 +56,7 @@ import { applyPowderBlast } from "../core/explosions";
 import { computeReachableTiles, findPathAStar } from "../core/Pathfinding";
 import {
   applyKneel,
+  applyThrowPitch,
   applyWindlassHit,
   bindMission2Clock,
   closeEnemyTurn,
@@ -90,14 +91,20 @@ import {
   armClimb,
   canOfferCordLay,
   cutTackle,
+  displaceFromMelee,
+  displaceFromPowderBlast,
+  dropCartAsKeg,
   freshClock as freshMission3Clock,
   isTorchRing,
   judgeMission3,
   layCord,
   lightCord,
+  MUZZLE,
   openSwedishTurn,
   proposeCordLay,
   readMission3Clock,
+  STORE_DOOR,
+  tilesHitByCanister,
   type CampaignState,
   type Mission3Clock,
   type Mission3Loss,
@@ -125,6 +132,7 @@ import {
 import { muzzleFlashDraft, retainFlashes } from "../components/canvas/diegeticLights";
 import type { InspectPin } from "../core/inspectView";
 import type {
+  ActionMode,
   ActiveLightFlash,
   AttackOutcome,
   BuffId,
@@ -139,6 +147,7 @@ import type {
   MeleeTargetEvaluation,
   ReachableTile,
   RenderMode,
+  ScenarioId,
   TargetEvaluation,
   UnitData,
   WeatherType,
@@ -146,6 +155,8 @@ import type {
   GuidedTutorialState,
 } from "../core/types";
 import {
+  getGuidedStepData,
+  isActionAllowedForGuidedStep,
   isTileAllowedForGuidedMove,
   getGuidedRejectFeedback,
 } from "../core/GuidedTutorialSystem";
@@ -157,7 +168,7 @@ function persistCampaign(c: PersistedCampaign): PersistedCampaign {
   return c;
 }
 
-export type ActionMode = "move" | "shoot" | "grenade" | "melee" | "reload" | "lay";
+export type { ActionMode };
 
 export type ImpactObstacleKind =
   | "high_wall"
@@ -200,6 +211,7 @@ export interface UnitCombatLoss {
 
 export interface UnitVisualFX {
   lungeTimestamp: number;
+  lungeKind?: "recoil" | "melee";
   hitTimestamp: number;
   coverSettleTimestamp?: number;
   coverSettleDir?: CardinalDir | null;
@@ -265,7 +277,7 @@ interface GameStoreState {
   outcome: "ongoing" | "victory" | "defeat";
   victoryReason: "boat_escape" | "annihilation" | "portcullis" | "skiff" | null;
   defeatReason: CaptureReason | null;
-  scenario: "mission1" | "mission2" | "mission3";
+  scenario: ScenarioId;
   briefingOpen: boolean;
   m2: Mission2Clock | null;
   m3: Mission3Clock | null;
@@ -291,6 +303,7 @@ interface GameStoreState {
   /** null = sledovat výběr. Jinak přichycený cíl z podrženého kliknutí. */
   inspectPin: InspectPin;
   fogOfWarEnabled: boolean; // Barokní šerosvit a mlha války (Chiaroscuro Fog of War)
+  preferredFogOfWar: boolean; // Uživatelská preference mlhy války napříč misemi (Mise 3 ji dočasně vypíná)
   fogSnapshot: FogOfWarSnapshot;
   reachableTiles: Map<string, ReachableTile>;
   hoveredTile: GridCoord | null;
@@ -454,9 +467,6 @@ function mission3StepLogs(
   if (before.lit && !after.lit && before.stampTile) push("log.m3.spark.stamp", undefined, "alert");
   if (before.stamperIds.length === 0 && after.stamperIds.length > 0) {
     push("log.m3.stamp.warn", undefined, "alert");
-  }
-  if (!before.reliefSpawned && after.reliefSpawned) {
-    push("log.m3.relief", { dir: after.reliefDoor === "west" ? "west" : "south" }, "alert");
   }
   if (after.deliveries > before.deliveries) {
     push("log.m3.cart.delivery", { count: after.deliveries }, "alert");
@@ -1186,12 +1196,13 @@ export function checkMissionOutcome(
   grid: GridSystem,
   units: UnitData[],
   m2?: Mission2Clock | null,
+  m3?: Mission3Clock | null,
 ): {
   outcome: "ongoing" | "victory" | "defeat";
   victoryReason: "boat_escape" | "annihilation" | "portcullis" | "skiff" | null;
   defeatReason: CaptureReason | null;
 } {
-  const yard = readMission3Clock();
+  const yard = m3 === undefined ? readMission3Clock() : m3;
   if (yard) {
     const judged = judgeMission3(yard, units);
     return {
@@ -1267,6 +1278,36 @@ interface ExplosionResult {
   victims: string[];
 }
 
+function gunfireSmokeTurns(
+  grid: GridSystem,
+  pos: GridCoord,
+  weather: WeatherType,
+): number {
+  if (grid.isEnclosedRoofed(pos.x, pos.y, pos.z)) return 3;
+  return weather === "rain" ? 1 : 2;
+}
+
+function syncMission3BearerDrop(
+  scenario: ScenarioId,
+  m3: Mission3Clock | null,
+  grid: GridSystem,
+  units: UnitData[],
+): { m3: Mission3Clock | null; units: UnitData[]; dropped: boolean } {
+  if (scenario !== "mission3" || !m3 || !m3.cart) {
+    return { m3, units, dropped: false };
+  }
+  const bearerId = m3.cart.bearerId;
+  const bearer = units.find((u) => u.id === bearerId);
+  if (bearer && isUnitFighting(bearer)) {
+    return { m3, units, dropped: false };
+  }
+  const nextClock = dropCartAsKeg(m3, grid);
+  const nextUnits = units.map((u) =>
+    u.id === bearerId ? { ...u, attachedToCart: false } : u,
+  );
+  return { m3: nextClock, units: nextUnits, dropped: nextClock !== m3 };
+}
+
 function processExplosions(
   grid: GridSystem,
   units: UnitData[],
@@ -1274,13 +1315,20 @@ function processExplosions(
   damage = 5,
   armorShred = 2,
   weather: WeatherType = "clear",
+  scenario: ScenarioId = "mission1",
 ): ExplosionResult {
-  return applyPowderBlast(grid, units, blastCoord, {
+  const result = applyPowderBlast(grid, units, blastCoord, {
     damage,
     armorShred,
     shockwave: true,
     weather,
   });
+  if (scenario !== "mission3") return result;
+  let nextUnits = displaceFromPowderBlast(grid, result.nextUnits, blastCoord);
+  for (const kegCoord of result.detonatedKegs) {
+    nextUnits = displaceFromPowderBlast(grid, nextUnits, kegCoord);
+  }
+  return { ...result, nextUnits };
 }
 
 export const useGameStore = create<GameStoreState>((set, get) => {
@@ -1302,6 +1350,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     unitId: string,
     patch: Partial<{
       lunge: boolean;
+      lungeKind: "recoil" | "melee";
       hit: boolean;
       coverSettle: boolean;
       coverSettleDir: CardinalDir | null;
@@ -1316,6 +1365,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     set((state) => {
       const prev = state.unitFx[unitId] ?? {
         lungeTimestamp: 0,
+        lungeKind: "recoil",
         hitTimestamp: 0,
         coverSettleTimestamp: 0,
         coverSettleDir: null,
@@ -1327,6 +1377,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           ...state.unitFx,
           [unitId]: {
             lungeTimestamp: patch.lunge ? now : prev.lungeTimestamp,
+            lungeKind: patch.lunge ? (patch.lungeKind ?? "recoil") : prev.lungeKind,
             hitTimestamp: patch.hit ? now : prev.hitTimestamp,
             coverSettleTimestamp: patch.coverSettle
               ? now
@@ -1544,6 +1595,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       combatLog: [
         ...get().combatLog,
         makeLog(state.round, "player", phrase("log.m3.silent.break", { reason }), "alert"),
+        ...(next.reliefDoor
+          ? [makeLog(state.round, "enemy", phrase("log.m3.relief", { dir: next.reliefDoor }), "alert")]
+          : []),
       ],
     });
   };
@@ -1865,7 +1919,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
       // Výstřel z Overwatch vytvoří oblak kouře z černého prachu na dlaždici střelce
       if (!outcome.misfired) {
-        get().grid.addSmoke(freshWatcher.pos, 0, 2);
+        get().grid.addSmoke(
+          freshWatcher.pos,
+          0,
+          gunfireSmokeTurns(get().grid, freshWatcher.pos, get().weather),
+        );
       }
 
       if (outcome.misfired) {
@@ -2135,6 +2193,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     inspectClickConsumed: false,
     inspectPin: null,
     fogOfWarEnabled: true,
+    preferredFogOfWar: true,
     fogSnapshot: derived.fogSnapshot,
     reachableTiles: derived.reachableTiles,
     hoveredTile: null,
@@ -2335,14 +2394,16 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       if (!unit || !unit.alive || unit.faction !== "player") return;
 
       if (state.scenario === "mission1" && state.guidedTutorial.enabled && !state.guidedTutorial.dismissed) {
-        const step = state.guidedTutorial.currentStep;
-        if (
-          unitId === "player-vaclav-michalovic" &&
-          (step === "step_1_matej_move" || step === "step_2_colloredo_escort")
-        ) {
-          get().setGuidedTutorialStep("step_3_vaclav_aim");
-        } else if (unitId === "player-bartolomej" && step !== "step_9_free_combat") {
-          get().setGuidedTutorialStep("step_7_keg_explosion");
+        const stepData = getGuidedStepData(state.guidedTutorial.currentStep);
+        if (stepData.allowedUnitId && unitId !== stepData.allowedUnitId) {
+          set({
+            guidedTutorial: {
+              ...state.guidedTutorial,
+              rejectFeedback: getGuidedRejectFeedback(stepData.step, "unit"),
+              rejectTimestamp: Date.now(),
+            },
+          });
+          return;
         }
       }
 
@@ -2374,11 +2435,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     },
 
     toggleFloor: () => {
-      set((s) => ({
-        activeFloor: ((s.activeFloor + 1) % 3) as FloorLevel,
-        hoveredTile: null,
-        hoveredPath: [],
-      }));
+      set((s) => {
+        const maxFloors = s.scenario === "mission3" ? 2 : 3;
+        return {
+          activeFloor: ((s.activeFloor + 1) % maxFloors) as FloorLevel,
+          hoveredTile: null,
+          hoveredPath: [],
+        };
+      });
     },
 
     toggleFullscreen: () => {
@@ -2466,6 +2530,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       );
       set({
         fogOfWarEnabled: enabled,
+        preferredFogOfWar: enabled,
         fogSnapshot: sel.fogSnapshot,
         visibleTargets: sel.visibleTargets,
         visibleMeleeTargets: sel.visibleMeleeTargets,
@@ -2483,6 +2548,16 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
       if (state.scenario === "mission1" && state.guidedTutorial.enabled && !state.guidedTutorial.dismissed) {
         const step = state.guidedTutorial.currentStep;
+        if (mode !== "move" && !isActionAllowedForGuidedStep(step, mode)) {
+          set({
+            guidedTutorial: {
+              ...state.guidedTutorial,
+              rejectFeedback: getGuidedRejectFeedback(step, "action"),
+              rejectTimestamp: Date.now(),
+            },
+          });
+          return;
+        }
         if (step === "step_3_vaclav_aim" && mode === "shoot") {
           get().setGuidedTutorialStep("step_4_vaclav_shoot");
         }
@@ -3301,7 +3376,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             activeUnit.facing,
           );
           playGunshotSound(activeUnit.weapon.lockType === "wheellock");
-          get().grid.addSmoke(activeUnit.pos, 0, 2);
+          get().grid.addSmoke(
+            activeUnit.pos,
+            0,
+            gunfireSmokeTurns(get().grid, activeUnit.pos, get().weather),
+          );
           const nowTs = performance.now();
 
           set((s) => ({
@@ -3383,8 +3462,16 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             coord,
             5,
             2,
+            get().weather,
+            get().scenario,
           );
-          const captureSync = syncColloredoCaptureState(blast.nextUnits);
+          const bearerDrop = syncMission3BearerDrop(
+            get().scenario,
+            get().m3,
+            get().grid,
+            blast.nextUnits,
+          );
+          const captureSync = syncColloredoCaptureState(bearerDrop.units);
           const syncedUnits = syncColloredoMobility(captureSync.units);
 
           for (const vid of blast.victims) {
@@ -3419,6 +3506,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             return {
               gridVersion: s.gridVersion + 1,
               smokeVersion: s.smokeVersion + 2,
+              m3: bearerDrop.m3,
               units: syncedUnits,
               tutorialStep: nextTutorialStep,
               guidedTutorial: {
@@ -3438,6 +3526,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                   }),
                   "crit",
                 ),
+                ...(bearerDrop.dropped
+                  ? [makeLog(s.round, "player", phrase("log.m3.cart.drop"), "story")]
+                  : []),
               ],
             };
           });
@@ -4185,7 +4276,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
         // Pokud nedošlo k selhání doutnáku, výstřel zahalí dlaždici střelce oblakem kouře z černého prachu
         if (!outcome.misfired) {
-          get().grid.addSmoke(attacker.pos, 0, 2);
+          get().grid.addSmoke(
+            attacker.pos,
+            0,
+            gunfireSmokeTurns(get().grid, attacker.pos, get().weather),
+          );
         }
 
         // Zjistíme dopředu, zda zásah odpálí sousední prachový sud, aby 3D scéna vykreslila ohnivou kouli v okamžiku dopadu
@@ -4412,19 +4507,27 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               willDetonateKegPos,
               5,
               2,
+              s.weather,
+              s.scenario,
             );
             finalUnits = blast.nextUnits;
             kegVictims = blast.victims;
             kegDetonated = true;
           }
 
-          const captureSync = syncColloredoCaptureState(finalUnits);
+          const bearerDrop = syncMission3BearerDrop(
+            s.scenario,
+            s.m3,
+            s.grid,
+            finalUnits,
+          );
+          const captureSync = syncColloredoCaptureState(bearerDrop.units);
           rescuedByShot = captureSync.rescued;
           detainedByBlast = captureSync.newlyDetained;
           finalUnits = syncColloredoMobility(captureSync.units);
           afterUnitsShoot = finalUnits;
 
-          const outcomeCheck = checkMissionOutcome(s.grid, finalUnits);
+          const outcomeCheck = checkMissionOutcome(s.grid, finalUnits, s.m2, bearerDrop.m3);
           if (outcomeCheck.outcome === "defeat") {
             pendingDefeatReason = outcomeCheck.defeatReason ?? "zero_hp";
           }
@@ -4481,9 +4584,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 ? ("step_8_melee_finish" as const)
                 : s.guidedTutorial.currentStep;
 
+          if (bearerDrop.dropped) {
+            newLogs.push(makeLog(s.round, "player", phrase("log.m3.cart.drop"), "story"));
+          }
+
           return {
-            gridVersion: s.gridVersion + (outcome.misfired ? 0 : 1),
+            gridVersion: s.gridVersion + (outcome.misfired && !bearerDrop.dropped ? 0 : 1),
             smokeVersion: s.smokeVersion + (kegDetonated ? 2 : 1),
+            m3: bearerDrop.m3,
             units: finalUnits,
             tutorialStep: nextTutorialStep,
             guidedTutorial: {
@@ -4875,6 +4983,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
         triggerUnitFx(attacker.id, {
           lunge: true,
+          lungeKind: "melee",
           banner: spilledReload
             ? { phrase: phrase("banner.buttSpill"), tone: "overwatch" }
             : isFreeChain
@@ -4950,11 +5059,21 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             hp: targetAfter?.hp,
           });
 
-          const captureSync = syncColloredoCaptureState(updatedUnits);
+          const pushedUnits =
+            s.scenario === "mission3" && outcome.hit
+              ? displaceFromMelee(s.grid, updatedUnits, attacker, target.id)
+              : updatedUnits;
+          const bearerDrop = syncMission3BearerDrop(
+            s.scenario,
+            s.m3,
+            s.grid,
+            pushedUnits,
+          );
+          const captureSync = syncColloredoCaptureState(bearerDrop.units);
           rescuedByStrike = captureSync.rescued;
           const finalUnits = syncColloredoMobility(captureSync.units);
 
-          const outcomeCheck = checkMissionOutcome(s.grid, finalUnits);
+          const outcomeCheck = checkMissionOutcome(s.grid, finalUnits, s.m2, bearerDrop.m3);
           if (outcomeCheck.outcome === "defeat") {
             pendingDefeatReason = outcomeCheck.defeatReason ?? "zero_hp";
           }
@@ -4968,6 +5087,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               outcome.hit ? (outcome.critical ? "crit" : "hit") : "miss",
             ),
           ];
+          if (bearerDrop.dropped) {
+            newLogs.push(makeLog(s.round, "player", phrase("log.m3.cart.drop"), "story"));
+          }
           if (captureSync.rescued) {
             newLogs.push(
               makeLog(s.round, "player", phrase("log.rescue.melee"), "story"),
@@ -4982,6 +5104,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           }
 
           return {
+            gridVersion: s.gridVersion + (bearerDrop.dropped ? 1 : 0),
+            m3: bearerDrop.m3,
             units: finalUnits,
             guidedTutorial: {
               ...s.guidedTutorial,
@@ -5505,6 +5629,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               nearbyKegPos,
               5,
               2,
+              freshState.weather,
+              freshState.scenario,
             );
             updatedUnits = blast.nextUnits;
             kegDetonated = true;
@@ -5807,9 +5933,17 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           targetCoord,
           grenadeDamage,
           grenadeShred,
+          get().weather,
+          get().scenario,
         );
         const hitVictims = blast.victims;
-        const captureSync = syncColloredoCaptureState(blast.nextUnits);
+        const bearerDrop = syncMission3BearerDrop(
+          get().scenario,
+          get().m3,
+          get().grid,
+          blast.nextUnits,
+        );
+        const captureSync = syncColloredoCaptureState(bearerDrop.units);
         const updatedUnits = syncColloredoMobility(captureSync.units);
         let pendingDefeatReason: CaptureReason | null = null;
 
@@ -5848,7 +5982,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         }
 
         set((s) => {
-          const outcomeCheck = checkMissionOutcome(s.grid, updatedUnits);
+          const outcomeCheck = checkMissionOutcome(s.grid, updatedUnits, s.m2, bearerDrop.m3);
           if (outcomeCheck.outcome === "defeat") {
             pendingDefeatReason = outcomeCheck.defeatReason ?? "zero_hp";
           }
@@ -5874,9 +6008,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             );
           }
 
+          if (bearerDrop.dropped) {
+            extraLogs.push(makeLog(s.round, "player", phrase("log.m3.cart.drop"), "story"));
+          }
+
           return {
             gridVersion: s.gridVersion + 1,
             smokeVersion: s.smokeVersion + 1,
+            m3: bearerDrop.m3,
             units: updatedUnits,
             tutorialStep: nextTutorialStep,
             guidedTutorial: {
@@ -6042,33 +6181,79 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }
 
       if (state.scenario === "mission3" && state.m3) {
-        const step = closeMission3PlayerTurn(state.m3, state.grid, state.units);
+        const beforeUnits = state.units;
+        const step = closeMission3PlayerTurn(state.m3, state.grid, beforeUnits);
         const judged = judgeMission3(step.clock, step.units);
         const logs = mission3StepLogs(
           state.round,
           "player",
           state.m3,
           step.clock,
-          state.units,
+          beforeUnits,
           step.units,
         );
         const cooked = step.clock.cookedOff && !state.m3.cookedOff;
-        set({
+        if (cooked) {
+          playExplosionSound();
+          const nowTs = performance.now();
+          get().triggerLightFlash({
+            kind: "blast",
+            coord: STORE_DOOR,
+            color: "#f97316",
+            intensity: 14,
+            radius: 14,
+            durationMs: 650,
+          });
+          set((s) => ({
+            combatIntensity: s.combatIntensity + 3,
+            blastZones: [
+              ...s.blastZones.slice(-18),
+              {
+                id: fxSeq++,
+                coord: STORE_DOOR,
+                createdAt: nowTs,
+                baseRadius: 3.0,
+                maxRadius: 8.5,
+                isExplosion: true,
+              },
+            ],
+          }));
+          for (const afterUnit of step.units) {
+            const beforeUnit = beforeUnits.find((u) => u.id === afterUnit.id);
+            if (!beforeUnit) continue;
+            if (afterUnit.hp < beforeUnit.hp || afterUnit.armor < beforeUnit.armor) {
+              triggerUnitFx(afterUnit.id, {
+                hit: true,
+                loss: buildUnitCombatLoss(beforeUnit, afterUnit, {
+                  attackerId: "player-plachy",
+                  weaponId: "powder_keg",
+                  hit: true,
+                  critical: true,
+                  misfired: false,
+                  hitChance: 100,
+                  durationMs: 1500,
+                }),
+                banner: { phrase: phrase("banner.kegBlast"), tone: "crit" },
+              });
+            }
+          }
+        }
+        set((s) => ({
           m3: { ...step.clock, loss: judged.loss },
           units: step.units,
-          gridVersion: state.gridVersion + (cooked ? 1 : 0),
-          smokeVersion: state.smokeVersion + (cooked ? 1 : 0),
+          gridVersion: s.gridVersion + (cooked ? 1 : 0),
+          smokeVersion: s.smokeVersion + (cooked ? 1 : 0),
           outcome: judged.outcome,
           victoryReason: judged.victoryReason,
           defeatReason: null,
           combatLog: [
-            ...state.combatLog,
+            ...s.combatLog,
             ...logs,
             ...(judged.outcome === "ongoing"
               ? []
               : [mission3OutcomeLog(state.round, judged, step.clock.deliveries)]),
           ],
-        });
+        }));
         if (judged.outcome !== "ongoing") return;
       }
 
@@ -6352,6 +6537,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             !plan.targetId &&
             plan.movePath.length === 0
           ) {
+            if (await expireEnemyDeathThroes(enemyId)) return;
             continue;
           }
 
@@ -6605,7 +6791,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                     };
                   });
 
-                  triggerUnitFx(updatedEnemy.id, { lunge: true });
+                  triggerUnitFx(updatedEnemy.id, { lunge: true, lungeKind: "melee" });
                   await delay(320);
                   if (outcome.hit) {
                     playHitSound(outcome.critical, 2);
@@ -6694,8 +6880,72 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           const chosenTargetEval =
             targets.find((t) => t.targetId === plan.targetId) ?? targets[0];
           const windlassClock = get().m2;
+          const shouldThrowPitch =
+            get().scenario === "mission2" &&
+            plan.throwPitch &&
+            windlassClock &&
+            !windlassClock.seated &&
+            windlassClock.windlassHp > 0 &&
+            !windlassClock.windlassBurning &&
+            !windlassClock.pitchUsedHarrierIds.includes(updatedEnemy.id);
 
-          if (chosenTargetEval) {
+          if (shouldThrowPitch && windlassClock) {
+            const clockNow = windlassClock;
+            const nextClock = applyThrowPitch(clockNow, updatedEnemy.id);
+            const judged = judgeMission2(nextClock, get().units);
+            const shotFacing = facingFromDelta(
+              updatedEnemy.pos,
+              WINDLASS,
+              updatedEnemy.facing,
+            );
+            playExplosionSound();
+            const nowTs = performance.now();
+            set((s) => ({
+              m2: { ...nextClock, loss: judged.loss },
+              outcome: judged.outcome,
+              victoryReason: judged.victoryReason,
+              defeatReason: null,
+              combatIntensity: s.combatIntensity + 1,
+              units: s.units.map((u) =>
+                u.id === updatedEnemy.id
+                  ? {
+                      ...u,
+                      facing: shotFacing,
+                      ap: Math.max(0, u.ap - 1),
+                    }
+                  : u,
+              ),
+              activeProjectile: {
+                id: fxSeq++,
+                from: updatedEnemy.pos,
+                to: WINDLASS,
+                hitChance: 100,
+                kind: "grenade",
+                createdAt: nowTs,
+                durationMs: 1200,
+                hit: true,
+                critical: false,
+                misfired: false,
+                damage: 0,
+                bloodSeverity: 0,
+                armorShredded: 0,
+                armorAbsorbed: 0,
+                killed: false,
+                missImpactCoord: WINDLASS,
+              },
+              combatLog: [
+                ...s.combatLog,
+                makeLog(
+                  s.round,
+                  "enemy",
+                  phrase("log.m2.pitch.thrown"),
+                  "alert",
+                ),
+              ],
+            }));
+            await delay(1250);
+            set({ activeProjectile: null });
+          } else if (chosenTargetEval) {
             const targetUnit = get().units.find(
               (u) => u.id === chosenTargetEval.targetId && u.alive,
             );
@@ -6722,7 +6972,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               );
 
               if (!outcome.misfired) {
-                get().grid.addSmoke(updatedEnemy.pos, 0, 2);
+                get().grid.addSmoke(
+                  updatedEnemy.pos,
+                  0,
+                  gunfireSmokeTurns(get().grid, updatedEnemy.pos, get().weather),
+                );
               }
 
               if (outcome.misfired) {
@@ -6993,68 +7247,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             }
           } else if (
             get().scenario === "mission2" &&
-            plan.throwPitch &&
-            windlassClock &&
-            !windlassClock.seated &&
-            windlassClock.windlassHp > 0
-          ) {
-            const clockNow = windlassClock;
-            const nextClock = { ...clockNow, windlassBurning: true };
-            const judged = judgeMission2(nextClock, get().units);
-            const shotFacing = facingFromDelta(
-              updatedEnemy.pos,
-              WINDLASS,
-              updatedEnemy.facing,
-            );
-            playExplosionSound();
-            const nowTs = performance.now();
-            set((s) => ({
-              m2: { ...nextClock, loss: judged.loss },
-              outcome: judged.outcome,
-              victoryReason: judged.victoryReason,
-              defeatReason: null,
-              combatIntensity: s.combatIntensity + 1,
-              units: s.units.map((u) =>
-                u.id === updatedEnemy.id
-                  ? {
-                      ...u,
-                      facing: shotFacing,
-                      ap: Math.max(0, u.ap - 1),
-                    }
-                  : u,
-              ),
-              activeProjectile: {
-                id: fxSeq++,
-                from: updatedEnemy.pos,
-                to: WINDLASS,
-                hitChance: 100,
-                kind: "grenade",
-                createdAt: nowTs,
-                durationMs: 1200,
-                hit: true,
-                critical: false,
-                misfired: false,
-                damage: 0,
-                bloodSeverity: 0,
-                armorShredded: 0,
-                armorAbsorbed: 0,
-                killed: false,
-                missImpactCoord: WINDLASS,
-              },
-              combatLog: [
-                ...s.combatLog,
-                makeLog(
-                  s.round,
-                  "enemy",
-                  phrase("log.m2.pitch.thrown"),
-                  "alert",
-                ),
-              ],
-            }));
-            await delay(1250);
-            set({ activeProjectile: null });
-          } else if (
-            get().scenario === "mission2" &&
             plan.strikeWindlass &&
             windlassClock &&
             !windlassClock.seated &&
@@ -7087,7 +7279,13 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 WINDLASS,
                 updatedEnemy.facing,
               );
-              if (!outcome.misfired) get().grid.addSmoke(updatedEnemy.pos, 0, 2);
+              if (!outcome.misfired) {
+                get().grid.addSmoke(
+                  updatedEnemy.pos,
+                  0,
+                  gunfireSmokeTurns(get().grid, updatedEnemy.pos, get().weather),
+                );
+              }
               if (outcome.misfired) playMisfireSound();
               else playGunshotSound(updatedEnemy.weapon.lockType === "wheellock");
               const enemyFireAp = updatedEnemy.weapon.fireApCost ?? 1;
@@ -7212,6 +7410,60 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             beforeUnits,
             closed.units,
           );
+          const canisterFired = !beforeClock.silent && beforeClock.coneWarned && closed.clock.cone !== null;
+          if (canisterFired) {
+            playExplosionSound();
+            const nowTs = performance.now();
+            get().triggerLightFlash({
+              kind: "blast",
+              coord: MUZZLE,
+              color: "#f97316",
+              intensity: 14,
+              radius: 12,
+              durationMs: 550,
+            });
+            const hitTiles = closed.clock.cone
+              ? tilesHitByCanister(get().grid, closed.clock.cone)
+              : [];
+            set((s) => ({
+              combatIntensity: s.combatIntensity + 2,
+              blastZones: [
+                ...s.blastZones.slice(-18),
+                {
+                  id: fxSeq++,
+                  coord: MUZZLE,
+                  createdAt: nowTs,
+                  baseRadius: 2.0,
+                  maxRadius: 6.0,
+                  isExplosion: true,
+                },
+              ],
+            }));
+            for (const afterUnit of closed.units) {
+              const beforeUnit = beforeUnits.find((u) => u.id === afterUnit.id);
+              if (!beforeUnit) continue;
+              const wasHit =
+                afterUnit.hp < beforeUnit.hp || afterUnit.armor < beforeUnit.armor;
+              const inCone = hitTiles.some((t) => sameCoord(t, afterUnit.pos));
+              if (wasHit || inCone) {
+                if (wasHit) {
+                  triggerUnitFx(afterUnit.id, {
+                    hit: true,
+                    loss: buildUnitCombatLoss(beforeUnit, afterUnit, {
+                      attackerId: "enemy-gunner",
+                      weaponId: "swedish_musket",
+                      hit: true,
+                      critical: false,
+                      misfired: false,
+                      hitChance: 100,
+                      durationMs: 1400,
+                    }),
+                    banner: { phrase: phrase("banner.damage", { damage: beforeUnit.hp - afterUnit.hp }), tone: "crit" },
+                  });
+                }
+              }
+            }
+          }
           if (judged.outcome !== "ongoing") {
             set({
               m3: { ...closed.clock, loss: judged.loss },
@@ -7509,7 +7761,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         const explored = createMission2Explored(nextGrid);
         const firstId = PLACHY_ID;
         const currentWeather = "rain" as const;
-        const currentFogEnabled = get().fogOfWarEnabled;
+        const currentFogEnabled = get().preferredFogOfWar;
         const nextDerived = deriveSelectionData(
           nextGrid,
           nextUnits,
@@ -7560,6 +7812,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           activeFloor: 2,
           renderMode: "3D_MODEL",
           actionMode: "move",
+          fogOfWarEnabled: currentFogEnabled,
           inspectOpen: false,
           inspectKeyHeld: false,
           inspectClickConsumed: false,
@@ -7592,7 +7845,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         nextUnits.find((u) => u.faction === "player")?.id ??
         null;
       const currentWeather = "rain"; // Výchozí autentický noční déšť
-      const currentFogEnabled = get().fogOfWarEnabled;
+      const currentFogEnabled = get().preferredFogOfWar;
       const nextDerived = deriveSelectionData(
         nextGrid,
         nextUnits,
@@ -7644,6 +7897,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         selectedUnitId: firstId,
         activeFloor: 1,
         actionMode: "move",
+        fogOfWarEnabled: currentFogEnabled,
         inspectOpen: false,
         inspectKeyHeld: false,
         inspectClickConsumed: false,
@@ -7725,6 +7979,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         logs.push(
           makeLog(state.round, "player", phrase("log.m3.silent.break", { reason: "cord" }), "alert"),
         );
+        if (nextClock.reliefDoor) {
+          logs.push(
+            makeLog(state.round, "enemy", phrase("log.m3.relief", { dir: nextClock.reliefDoor }), "alert"),
+          );
+        }
       }
       set(mission3VerbPatch(state, nextClock, units, plachy.id, logs, true));
     },
@@ -7753,6 +8012,16 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             "alert",
           ),
         );
+        if (nextClock.reliefDoor) {
+          logs.push(
+            makeLog(
+              state.round,
+              "enemy",
+              phrase("log.m3.relief", { dir: nextClock.reliefDoor }),
+              "alert",
+            ),
+          );
+        }
       }
       set(mission3VerbPatch(state, nextClock, units, ondrej.id, logs, true));
     },

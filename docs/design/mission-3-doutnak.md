@@ -4,7 +4,7 @@
 |---|---|
 | **Author** | Design draft (implementer of record: the mission owner) |
 | **Date** | 2026-11-16 |
-| **Status** | Draft |
+| **Status** | Implemented |
 | **Scenario id** | `mission3` |
 | **Locked names** | Mise 3: Doutnák, prachový dvůr, doutnáková stopa, jiskra, kára, nosič, dělmistr, kartáčový kužel, žák Klementina, pramice výsadku, jizva kroniky |
 
@@ -546,10 +546,10 @@ No `setStairs`, no `isLadder`. The test that A* cannot change floor is mandatory
 
 Check in this order, same priority style as `judgeMission2`:
 
-1. Plachý missing, `!alive`, or `hp <= 0` → defeat, `loss: "plachy"`. Death throes do not let him walk the skiff. This matches `judgeMission2`'s Plachý check.
-2. No player unit with `alive && hp > 0` → defeat, `loss: "wiped"`. If Plachý is already dead, rule 1 fires first.
+1. Plachý missing or not `isUnitFighting(plachy)` (dead, not `alive`, or expired past Death Throes) → defeat, `loss: "plachy"`. During his 1-turn *Poslední vzepětí* (Death Throes), Plachý remains fighting and may reach the skiff (ADR-0012), matching `judgeMission2`'s Plachý check.
+2. No player unit passes `isUnitFighting(u)` → defeat, `loss: "wiped"`. If Plachý is already fallen, rule 1 fires first.
 3. `deliveries >= 3 && !cookedOff` → defeat, `loss: "delivery"`. Immediate. Do not keep resolving the Swedish turn.
-4. `cookedOff && deliveries < 3` and Plachý is on `(6,0,9)` or `(6,0,10)`, alive, hp > 0 → victory, `victoryReason: "skiff"`. Enemies may be alive.
+4. `cookedOff && deliveries < 3` and Plachý is on `(6,0,9)` or `(6,0,10)`, `isUnitFighting(plachy)` → victory, `victoryReason: "skiff"`. Enemies may be alive.
 5. Otherwise ongoing.
 
 Victory is not "cook-off alone" and not "everyone extracted." Companions may be dead or still in the yard.
@@ -676,7 +676,7 @@ Extend, do not replace:
 | `src/components/canvas/CombatAtmosphereField.tsx` | No indoor ash at start. Existing rule: ash grows from `blastZones` and `smokeTiles` only. Cook-off creates those |
 | `src/components/canvas/PragueSurroundings.tsx` | The `Mission` union gains `mission3`. Do not draw the Priory, the bridge deck, or Vltava specular. A dark mass stands in for the Malá Strana towers and a shut arch, outside the grid |
 | New `src/components/canvas/PowderYardDressing.tsx` | Coach-house shell, gallery posts, falconet and gabion meshes, two door leaves, rope coil on `(8,0,12)`, stair treads on `(10,0,12)`, distant emissive coal for the Old Town tower. Emissive only, no `FixtureDef`. 30% sandstone `#7d7267` and timber, 60% left to the cobble. No oil paintings, no gold brocade, no Maltese cross as a faction mark |
-| `src/components/canvas/UnitVisual2D.tsx`, `UnitVisual3D.tsx` | Enemy sash tint. Headgear heights stay inside y ≈ 1.48–1.54. No new silhouette |
+| `src/components/canvas/UnitVisual2D.tsx`, `UnitVisual3D.tsx` | M3 variants and enemy sash tint. Headgear heights stay at `y ≈ 1.48–1.54` (2D) / `y ≈ 1.28–1.30 m` (3D) |
 | `src/components/ui/TitleScreen.tsx` | Third card. Index `Mise III`, when `Noc`, place `Prachový dvůr u mosteckých věží`, title `Doutnák`, chip `Tři káry`, body one sentence: "Páter a dva muži. Doutnák do skladu dřív, než třetí kára projede branou." The grid becomes three columns on `md` |
 | `src/App.tsx` | `?mission=3` beside the existing `mission=2` query. Epilogue branch |
 | `src/i18n/cs-ui.ts`, `cs-messages.ts` | Every string in this document. No raw Czech in components (ADR-0001) |
@@ -689,7 +689,7 @@ Extend, do not replace:
 
 Chiaroscuro: moon is dim, borders beyond x = 4 and x = 17 have no floor and no fill light, the playable court is picked out by the two torches, the lantern, and later the spark. Rain streaks glint only near those flames (`RAIN_GLINT_RADIUS` already).
 
-Ballistics are untouched: muzzle at `MUZZLE_FORWARD_M = 0.58`, recoil, 240 ms arrival, ricochet. Canister is not a projectile trace. It is a cone flash using the existing blast-light pool (`MAX_BLAST_LIGHTS = 2`) at the muzzle tile for one shot, then the damage. Do not add a tracer mesh.
+Ballistics are untouched: muzzle at `MUZZLE_FORWARD_M = 0.58`, recoil, 730 ms arrival (`1780 ms` lifecycle), ricochet. Canister is not a projectile trace. It is a cone flash using the existing blast-light pool (`MAX_BLAST_LIGHTS = 2`) at the muzzle tile for one shot, then the damage. Do not add a tracer mesh.
 
 ### Store integration map
 
@@ -794,7 +794,7 @@ No feature flag service exists. The flag is the title card.
 4. Land lights and dressing (PR 5) after the grid exists. Best after the store, so the scene can read `m3`.
 5. Land the title card last (PR 6). Reverting that one commit hides the mission without reverting the clock. It depends on the ribbon: without PR 3 the card launches a mission whose cord cannot be laid from the UI.
 
-Rollback of a later PR does not require a save migration. `campaign` is memory. A half-merged UI that cannot light the cord is avoided by keeping the ribbon PR after the pure functions it calls, and by not putting the card up until `judgeMission3` is what the epilogue reads.
+Rollback of a later PR does not require a save migration; `campaign` mirrors only to tab `sessionStorage` under `praha1648.campaign` (malformed values ignored). A half-merged UI that cannot light the cord is avoided by keeping the ribbon PR after the pure functions it calls, and by not putting the card up until `judgeMission3` is what the epilogue reads.
 
 `scripts/test-scenario-lifecycle.ts` must grow a Mission 3 round-trip in the same PR as `beginScenario`, or the lifecycle test will keep assuming two scenarios and the new union will rot.
 

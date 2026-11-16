@@ -134,9 +134,12 @@ export function CombatAtmosphereField() {
     return puffs;
   }, [grid, smokeVersion, activeFloor]);
 
-  // 2. Částice omítkového prachu a jisker
+  // 2. Částice omítkového prachu a jisker (pouze po zahájení boje dle AGENTS.md / ADR-0007 Pillar 6)
   const debrisParticles = useMemo(() => {
     const list: DebrisParticleData[] = [];
+    if (blastZones.length === 0 && combatIntensity === 0) {
+      return list;
+    }
     const count = Math.min(
       MAX_DEBRIS_INSTANCES,
       Math.max(24, (blastZones.length + combatIntensity) * 14),

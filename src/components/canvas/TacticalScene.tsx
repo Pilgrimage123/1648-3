@@ -429,8 +429,8 @@ export function TacticalScene() {
 
         <TacticalCamera />
         <InstancedBattlefield />
-        {scenario !== "mission3" && <GrandPrioryPalaceDressing />}
-        {scenario !== "mission3" && <BridgeTowerDressing />}
+        {scenario === "mission1" && <GrandPrioryPalaceDressing />}
+        {scenario === "mission2" && <BridgeTowerDressing />}
         {scenario === "mission3" && <PowderYardDressing />}
         <CombatLines3D />
 

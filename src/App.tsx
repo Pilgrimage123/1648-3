@@ -24,13 +24,9 @@ import { TacticalUtilitiesCapsule } from "./components/ui/TacticalUtilitiesCapsu
 import { TitleScreen } from "./components/ui/TitleScreen";
 import { TurnSplashBanner } from "./components/ui/TurnSplashBanner";
 import { TutorialOrderBanner } from "./components/ui/TutorialOrderBanner";
+import { isUnitFighting } from "./core/CombatSystem";
 import { perkCopy, text, unitName, useLocale } from "./i18n";
 import { useGameStore } from "./store/useGameStore";
-
-const SACRIFICE_CLAUSE =
-  "Jeden z vašich věrných společníků musí zůstat u palácové branky a odpálit sudy s prachem";
-const VIGIL_QUOTE =
-  "„Tvá oběť z tebe smyla strach. Od této chvíle jsi mečem Železné vigilie.“";
 
 function splitAround(source: string, mark: string) {
   const at = source.indexOf(mark);
@@ -66,9 +62,9 @@ export default function App() {
   const chooseSacrifice = useGameStore((s) => s.chooseSacrifice);
   const locale = useLocale();
   const sacrificeBody = text("ui.sacrifice.body", undefined, locale);
-  const sacrificeParts = splitAround(sacrificeBody, SACRIFICE_CLAUSE);
+  const sacrificeParts = splitAround(sacrificeBody, text("ui.sacrifice.clause", undefined, locale));
   const boat3 = text("ui.epilogue.boat.3.body", undefined, locale);
-  const boat3Parts = splitAround(boat3, VIGIL_QUOTE);
+  const boat3Parts = splitAround(boat3, text("ui.sacrifice.vigilQuote", undefined, locale));
   const vigilPerk = ironVigilPerk ? perkCopy(ironVigilPerk.perkId, locale) : null;
 
   // Globální klávesové zkratky pro minimalistické taktické velení (XCOM Style):
@@ -164,7 +160,8 @@ export default function App() {
       }
       if (e.key === "PageUp") {
         e.preventDefault();
-        state.setActiveFloor(Math.min(2, state.activeFloor + 1) as 0 | 1 | 2);
+        const maxFloor = state.scenario === "mission3" ? 1 : 2;
+        state.setActiveFloor(Math.min(maxFloor, state.activeFloor + 1) as 0 | 1 | 2);
         return;
       }
       if (e.key === "PageDown") {
@@ -258,14 +255,9 @@ export default function App() {
             state.cycleTarget(e.shiftKey ? -1 : 1);
           }
         } else {
-          // Cyklení živých vojáků hráče, kteří ještě neukončili tah (ap > 0 a nejsou zadrženi)
+          // Cyklení bojujících vojáků hráče, kteří ještě neukončili tah (ap > 0)
           const activeSquad = state.units.filter(
-            (u) =>
-              u.faction === "player" &&
-              u.alive &&
-              u.hp > 0 &&
-              u.ap > 0 &&
-              (u.detainedTurns ?? 0) === 0,
+            (u) => u.faction === "player" && isUnitFighting(u) && u.ap > 0,
           );
           if (activeSquad.length > 0) {
             const currentIdx = activeSquad.findIndex(
@@ -727,7 +719,7 @@ export default function App() {
                 onClick={openBriefing}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-amber-700 text-amber-100 font-cinzel text-sm cursor-pointer"
               >
-                {text("ui.epilogue.m2.other", undefined, locale)}
+                {text("ui.epilogue.other", undefined, locale)}
               </button>
             </div>
           </div>

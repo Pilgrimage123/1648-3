@@ -66,16 +66,16 @@ export const csMessages = {
     return `ODHALENÍ HLÍDKY (POD REVEAL): Z šerosvitu vystoupila švédská patrola (${names}) a kvapně hledá kryt!`;
   },
   "log.capture.done": (p) => {
-    const reason =
-      p.capture === "surrounded_unprotected"
-        ? "Švédští dragouni drželi nechráněného maršála Colloreda v obklíčení po 2 kola a odvlekli jej v poutech!"
-        : p.capture === "all_companions_fallen"
-          ? "Všichni obránci z maršálovy družiny padli a bezmocný maršál Colloredo padl do rukou Švédů!"
-          : "Těžce raněný maršál Colloredo nebyl včas vyproštěn (2/2 kola zadržení) a švédští dragouni jej spoutali pro výkupné 100 000 tolarů!";
-    return `ZAJETÍ DOKONÁNO (2/2 KOLA): ${reason}`;
+    if (p.capture === "zero_hp") {
+      return "SMRTELNÁ ZRANĚNÍ: Těžce raněný polní maršál Colloredo podlehl svým zraněním a Praha ztratila vrchního velitele!";
+    }
+    if (p.capture === "all_companions_fallen") {
+      return "ZAJETÍ: Všichni obránci z maršálovy družiny padli a bezmocný maršál Colloredo padl do rukou Švédů!";
+    }
+    return "ZAJETÍ DOKONÁNO: Švédští vojáci obklíčili nechráněného maršála Colloreda a odvlekli jej v poutech pro výkupné 100 000 tolarů!";
   },
   "log.detained.overwatch": () =>
-    "POZOR (ZADRŽEN 1/2 KOLA): Maršál Colloredo klesl pod palbou z Overwatch k zemi! Máte 1 kolo na to, abyste k němu přivedli spojence a vyprostili jej!",
+    "POZOR (ZADRŽEN 1/2 KOLA): Maršál Colloredo se po palbě ze zálohy ocitl bez eskorty v blízkosti Švéda! Máte 1 kolo na to, abyste k němu přivedli spojence a vyprostili jej!",
   "log.overwatch.shot": (p, ctx) => {
     if (p.misfired) {
       return `${nom(ctx, p.attackerId)} chtěl vypálit ze zálohy na ${acc(ctx, p.targetId)}, ale zvlhlý prach selhal!`;
@@ -127,7 +127,7 @@ export const csMessages = {
   "log.rescue.shot": () =>
     "ZÁCHRANA VELITELE: Švédský věznitel padl a maršál Colloredo je opět volný!",
   "log.detained.blast": () =>
-    "VAROVÁNÍ (ZADRŽEN 1/2 KOLA): Výbuch srazil maršála Colloreda k zemi (0 HP)! Přiveďte k němu spojence a vyprostěte jej do 2 kol!",
+    "VAROVÁNÍ (ZADRŽEN 1/2 KOLA): Maršál Colloredo zůstal po výbuchu bez eskorty v švédském sevření! Přiveďte k němu spojence a vyprostěte jej do 2 kol!",
   "log.pistol.cannotReload": () =>
     "Jednorannou bambitku maršála Colloreda nelze v boji znovu nabít! Zbývá pouze úder těžkou pažbou zblízka [B].",
   "log.weapon.alreadyLoaded": (p, ctx) =>
@@ -175,7 +175,7 @@ export const csMessages = {
   "log.rescue.grenade": () =>
     "ZÁCHRANA VELITELE: Výbuch petardy smetl švédského věznitele a maršál Colloredo je opět volný!",
   "log.detained.grenade": () =>
-    "POZOR (ZADRŽEN 1/2 KOLA): Tlaková vlna výbuchu srazila maršála Colloreda k zemi (0 HP)! Máte 1 kolo na to, abyste k němu přivedli spojence a vyprostili jej!",
+    "POZOR (ZADRŽEN 1/2 KOLA): Maršál Colloredo se po výbuchu ocitl bez ochrany v blízkosti Švéda! Máte 1 kolo na to, abyste k němu přivedli spojence a vyprostili jej!",
   "log.grenade": (p, ctx) => {
     const keg = p.keg ? ` SUD NA [${p.kegX}, ${p.kegZ}] DETONOVAL!` : "";
     return `${nom(ctx, p.attackerId)} hodil petardu na [${p.x}, patro ${p.y}, ${p.z}] — výbuch 3×3 (${p.count ?? 0} zasaženo za ${p.damage ?? 0} HP, −${p.shred ?? 0} zbroj a dým)${keg}!`;
@@ -205,7 +205,7 @@ export const csMessages = {
     return `POZOR (HROZBA ZAJETÍ): ${nom(ctx, p.unitId)} namířil nabitou mušketu na hraběte Colloreda (${p.distance ?? 0} ${tiles}), ale vyčerpal AP na pohyb! Pokud v příštím tahu nezrušíte přímou viditelnost nebo jej nezlikvidujete, hrabě bude zajat!`;
   },
   "log.detained.enemyShot": () =>
-    "POZOR (ZADRŽEN 1/2 KOLA): Maršál Colloredo klesl k zemi! Přiveďte k němu v příštím kole spojence a vyčistěte okolí, jinak bude na konci příštího kola zajat!",
+    "POZOR (ZADRŽEN 1/2 KOLA): Maršál Colloredo je bez eskorty v dosahu Švéda! Přiveďte k němu v příštím kole spojence a vyčistěte okolí, jinak bude na konci příštího kola zajat!",
   "log.enemy.shot": (p, ctx) => {
     if (p.misfired) {
       return `${nom(ctx, p.attackerId)} chtěl vystřelit na ${acc(ctx, p.targetId)}, ale doutnák v dešti selhal!`;
@@ -473,6 +473,7 @@ export const csMessages = {
   "inspect.surface.rubble": () => "Suť",
   "inspect.surface.scorched_ruin": () => "Ohořelá ruina",
   "inspect.surface.water": () => "Voda Čertovky",
+  "inspect.surface.water.vltava": () => "Voda Vltavy",
   "inspect.surface.wood_dock": () => "Dřevěné molo",
   "inspect.obstacle.none": () => "Žádná",
   "inspect.obstacle.low_wall": () => "Nízká zídka",
@@ -487,6 +488,11 @@ export const csMessages = {
   "inspect.floor.0": () => "Přízemí (P0)",
   "inspect.floor.1": () => "Piano Nobile (P1)",
   "inspect.floor.2": () => "Maltézská věž (P2)",
+  "inspect.floor.m2.0": () => "Průjezd a práh (P0)",
+  "inspect.floor.m2.1": () => "Síň s rumpálem (P1)",
+  "inspect.floor.m2.2": () => "Ochoz pod střechou (P2)",
+  "inspect.floor.m3.0": () => "Prachový dvůr a sklad (P0)",
+  "inspect.floor.m3.1": () => "Krytá lodžie (P1)",
   "inspect.unexplored.title": () => "Neprozkoumáno",
   "inspect.unexplored.summary": () =>
     "Toto pole je stále v temnotě. Kryt, dveře ani překážky odtud nejsou vidět.",
@@ -509,6 +515,7 @@ export const csMessages = {
   "inspect.smokeNone": () => "Žádný",
   "inspect.line.escape": () => "Únik",
   "inspect.escape.yes": () => "Rybářská pramice",
+  "inspect.escape.m3.yes": () => "Pramice výsadku",
   "inspect.line.obstacle": () => "Překážka",
   "inspect.line.blast": () => "Výbuch",
   "inspect.blastValue": () => "3×3, 5 HP, 2 zbroj, kouř",
@@ -574,15 +581,15 @@ export const csMessages = {
   "tutorial.step_2_colloredo_escort.order": () =>
     "Přesuňte maršála Colloreda do chráněné pozice za Janem Matějem [Pravé tlačítko myši]",
   "tutorial.step_2_colloredo_escort.tip": () =>
-    "Maršál ujde kvůli 7 ranám z Lützenu jen 3 pole/AP. Švédové po něm nestřílí (chtějí výkupné 50 000 tolarů), ale zajmou jej při kontaktu na 1 AP!",
+    "Maršál ujde kvůli 7 ranám z Lützenu jen 3 pole/AP. Švédové po něm nestřílí (chtějí výkupné 100 000 tolarů), ale zajmou jej při kontaktu na 1 AP!",
   "tutorial.step_2_colloredo_escort.beacon": () => "Chráněná pozice maršála [PKM Pohyb]",
   "tutorial.step_3_vaclav_aim.speaker": () => "Václav z Michalovic",
   "tutorial.step_3_vaclav_aim.role": () => "Klementinský student & písař",
-  "tutorial.step_3_vaclav_aim.title": () => "KROK 3/8 · VÝŠKOVÁ PŘEVAHA A KŘÍDLENÍ (FLANK)",
+  "tutorial.step_3_vaclav_aim.title": () => "KROK 3/8 · KŘÍDLENÍ (FLANK) A MÍŘENÍ",
   "tutorial.step_3_vaclav_aim.order": () =>
     "Přepněte na střelbu [Klávesa 2 nebo klik na terč] a zaměřte švédského zvěda na terase",
   "tutorial.step_3_vaclav_aim.tip": () =>
-    "Střelba z 1. patra přidává +15 % k zásahu. Švéd nemá kryt ze strany arkády — žlutý štít značí Křídlení (Flank) a +40 % k šanci na kritický zásah!",
+    "Václav z arkády Piano Nobile obchází nepřátelský kryt — žlutý štít značí Křídlení (Flank) a +40 % k šanci na kritický zásah!",
   "tutorial.step_3_vaclav_aim.beacon": () => "Nekrytý švédský střelec (Křídlení +40 % Crit)",
   "tutorial.step_4_vaclav_shoot.speaker": () => "Václav z Michalovic",
   "tutorial.step_4_vaclav_shoot.role": () => "Klementinský student & písař",
@@ -590,7 +597,7 @@ export const csMessages = {
   "tutorial.step_4_vaclav_shoot.order": () =>
     "Vystřelte na zaměřeného nepřítele [Klávesa Mezerník / Enter]",
   "tutorial.step_4_vaclav_shoot.tip": () =>
-    "Křídla rozpadu šance v liště ukazují transparentní výpočet: základní přesnost + výška − kryt. Výstřel spustí filmovou kameru přes rameno.",
+    "Křídla rozpadu šance v liště ukazují transparentní výpočet: základní přesnost ± vzdálenost − kryt. Výstřel spustí filmovou kameru přes rameno.",
   "tutorial.step_4_vaclav_shoot.beacon": () => "Cíl střelby [Potvrdit výstřel Mezerníkem]",
   "tutorial.step_5_enemy_turn_react.speaker": () => "Arnošt Odowalsky",
   "tutorial.step_5_enemy_turn_react.role": () => "Velitel švédských mušketýrů",
@@ -723,7 +730,7 @@ export const csMessages = {
     `Pravým kliknutím okamžitý útok zblízka (${ctx.melee(p.meleeId)}, 1 AP)`,
   "ui.melee.charge": (p, ctx) =>
     `XCOM 2 Zteč zblízka: Pravým kliknutím okamžitý přesun (${p.count ?? 0} AP) spojený se seknutím (${ctx.melee(p.meleeId)}, +0 AP navíc)!`,
-  "ui.smoke.title": () => "Kouř z černého prachu (−20 % k zásahu)",
+  "ui.smoke.title": () => "Kouř z černého prachu (−10 % střelec / −15 % cíl / −20 % z výšky)",
   "ui.loss.armor": (p) => `−${p.shred ?? 0} ZBROJ`,
 
   "log.m2.briefing.gate": () =>
@@ -731,7 +738,7 @@ export const csMessages = {
   "log.m2.briefing.ward": () =>
     "Stráž věže je drží na prahu. Jeden okultista jde za nimi rozvázat svorník. Spusťte mříž, dokud stráž drží.",
   "log.m2.inscription": () =>
-    "Pod střechou je palindrom: Signate, signa, temere me tangis et angis. Pokleknutí stojí 1 AP a přidá obřadu jedno kolo.",
+    "Pod střechou je palindrom: Signa te, signa, temere me tangis et angis. Pokleknutí stojí 1 AP a přidá obřadu jedno kolo.",
   "log.m2.kneel": () =>
     "Jiří Plachý klečí u nápisu. Obřad na svorníku teď potřebuje ještě jedno nepřerušené kolo.",
   "log.m2.victory": () =>
@@ -812,8 +819,6 @@ export const csMessages = {
     if (p.unitId === "player-ondrej") return "Ondřej je na lodžii.";
     return "Výsadek je na lodžii.";
   },
-  "log.m3.epilogue.victory": () => "Doutnák dohořel",
-  "log.m3.epilogue.defeat": () => "Noc se nepodařila",
 } satisfies Record<string, MessageFn>;
 
 export type MessageId = keyof typeof csMessages;

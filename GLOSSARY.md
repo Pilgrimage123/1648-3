@@ -47,7 +47,7 @@ The concluding movement beat in which a soldier arriving at a cover tile perform
 _Avoid_: Instant camera snap, abrupt stop
 
 **Turn Splash Banner** (*Filmový banner tahu*):
-The brief (~1s) center-screen floating banner announcing initiative transitions ("Tah obránců Prahy", "Tah švédské hlídky") before gracefully dissolving into the Mission Status Chip.
+The brief (~1s) center-screen floating banner announcing initiative transitions (`"Tah obránců Prahy"`, `"Tah výsadku"`, `"Tah švédské hlídky"`) before gracefully dissolving into the Mission Status Chip.
 _Avoid_: Turn alert popup, turn modal
 
 **Tile Hover Indicator** (*Kurzorový náhled dlaždice*):
@@ -156,7 +156,7 @@ The horizontal bar of visible enemy icons at the bottom-center of the screen in 
 - **Slate/Blue Icon**: Target is visible in **Extreme Range** (*Extrémní dostřel*) with heavy smoothbore distance falloff.
 
 **Shot Calculation Result** (`ShotCalculationResult`):
-The structured output of the 17th-century combat calculator containing final metrics (`hitChance`, `critChance`, `minDamage`, `maxDamage`, `armorPierce`, `armorShred`, `misfireChance`, `expectedHpLossMin`, `expectedHpLossMax`, `expectedArmorLoss`) and two itemized arrays of `StatModifier` entries (`hitModifiers` and `critAndArmorModifiers`) for the expandable **Breakdown Wings** (the Rozpad button and its hover).
+The structured output of the 17th-century combat calculator containing final metrics (`hitChance`, `critChance`, `minDamage`, `maxDamage`, `armorPierce`, `armorShred`, `misfireChance`, `expectedHpLossMin`, `expectedHpLossMax`, `expectedArmorLoss`) and two itemized arrays of `StatModifier` entries (`hitModifiers` and `critModifiers`) for the expandable **Breakdown Wings** (the Rozpad button and its hover).
 
 **Inspect Dossier** (*Úplný přehled*, `F1` / `0`):
 The full sheet for a soldier, enemy, door, or tile. A tap shows the selected soldier, or the aimed enemy while targeting. Holding `F1` or `0` and clicking inspects that hero, enemy, or terrain without spending an action or opening a door. A fog-hidden enemy shows only the sound contact. An unexplored tile stays blank.
@@ -441,13 +441,13 @@ The strict color allocation across the scene: 60% desaturated calm ground & atmo
 The rule that all 5 unit archetypes (`ranger`, `sniper`, `trooper`, `sectoid`, `commander`) are immediately distinguishable from a bird's-eye view by their silhouette (tall triangular polearms, wide plumed cavalier hats with capes, square cuirassier pauldrons with morions, asymmetric back-banners with censers) and that all headgear sits physically low on the brow covering the upper cranium.
 
 **Nevypleněný honosný palác** (*Unplundered Opulent Palace Biome*):
-The intact interior of the Grand Priory Palace (`x: 2..21`, `z: 16..27`, `damageLevel === 0`) characterized by warm polished limestone parquet (`stone_floor`), a central cardinal-burgundy royal runner (`palace_carpet`) with flat gold brocade borders, cream-stucco masonry, gilded Corinthian pillar capitals, carved walnut furniture barricades, and framed Chiaroscuro oil paintings. The Piano Nobile occupies the same footprint at `y = 1`. The garden belvedere is `y = 1`, `x: 9..14`, `z: 9..12`. The Maltese watchtower is `y = 2`, `x: 4..8`, `z: 17..19`.
+The intact interior of the Grand Priory Palace (`x: 2..21`, `z: 16..27`, `damageLevel === 0`) characterized by warm polished limestone parquet (`stone_floor`), a central cardinal-burgundy royal runner (`palace_carpet`) with flat gold brocade borders, cream-stucco masonry, gilded Corinthian pillar capitals, carved walnut furniture barricades, and framed Chiaroscuro oil paintings. The Piano Nobile occupies `x: 3..20`, `z: 16..26` at `y = 1`. The garden belvedere is `y = 1`, `x: 9..14`, `z: 9..12`. The Maltese watchtower is `y = 2`, `x: 4..8`, `z: 17..19`.
 
 **Zaprášená malostranská ulice a nádvoří** (*Dusty Street & Courtyard Biome*):
-The Grand Priory garden (`z: 5..15`, `x: 1..22`, `damageLevel === 0`) characterized by cool matte slate-mud cobblestones (`cobble`), weathered mossy sandstone walls, and rough field stone gabions. The Čertovka canal is `z: 0..4`.
+The Grand Priory garden (`z: 5..15`, `x: 1..22`, `damageLevel === 0`) characterized by cool matte slate-mud cobblestones (`cobble`), weathered mossy sandstone walls, and rough field stone gabions. The Čertovka canal water is `z: 0..2` (`x: 0..18`, plus dock inlet `z = 3` at `x: 0..2`).
 
 **Vltava**:
-The broad river crossed by Charles Bridge in Mission 2 (`x: 1..9, z: 8..10` and `17..19`), flowing beneath the bridge arches and flanking the Old Town Bridge Tower.
+The broad river crossed by Charles Bridge in Mission 2 (`x: 0..14`, `z: 1..10` and `17..26`), flowing beneath the bridge arches and flanking the Old Town Bridge Tower.
 _Avoid_: Čertovka, moat, generic river
 
 **Ranní sluneční odlesk Vltavy** (*Vltava Morning Sun Specular Reflection*):
@@ -458,7 +458,7 @@ _Avoid_: Flat water sheen, static water texture, Čertovka sun reflection
 The dynamic battle-scarred state (`damageLevel: 1 | 2`, `rubble` / `scorched_ruin`) applied to any tile struck by gunfire (`damageLevel = 1`, fallen plaster/mortar rubble) or a 3×3 explosion (`damageLevel = 2`, charred soot crater, glowing ember cracks, blackened neighboring walls, and low-profile perimeter debris that keeps the tile center clear for tactical grid readability).
 
 **Krytý palácový interiér** (*Enclosed Roofed Masking* / `isEnclosedRoofedCoord`):
-The spatial boundary excluding enclosed rooms from outdoor rain and snow. Palace halls count when `y ≤ 1`, `x` is `1.5..21.5`, and `z` is `15.5..27.5`, except the open courtyard (`x` `9.6..13.4`, `z` `17.6..20.4`). The ground-floor belvedere arcade counts when `y < 1`, `x` is `8.5..14.5`, and `z` is `8.5..12.5`. Ash and dust stay at zero indoors until gunfire or explosions create `blastZones` and `smokeTiles`.
+The spatial boundary excluding enclosed rooms from outdoor rain. Palace halls count when `y ≤ 1`, `x` is `1.5..21.5`, and `z` is `15.5..27.5`, except the open courtyard (`x` `9.6..13.4`, `z` `17.6..20.4`). The ground-floor belvedere arcade counts when `y < 1`, `x` is `8.5..14.5`, and `z` is `8.5..12.5`. Ash and dust stay at zero indoors until gunfire or explosions create `blastZones` and `smokeTiles`.
 
 **Organické šíření prachu a dýmu** (*Causal Combat Diffusion* / `blastZones`):
 The physical rule that indoor and courtyard ash, plaster dust, embers, and creeping ground mist start at zero before combat and expand radially outward ($R(t) = \min(R_{\max}, R_0 + v_{\text{diff}} \cdot \Delta t)$) exclusively from actual gunfire and explosion epicenters.

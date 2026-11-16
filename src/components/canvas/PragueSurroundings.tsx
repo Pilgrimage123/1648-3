@@ -622,14 +622,14 @@ function Mission2Surroundings() {
   return (
     <group>
       {/* Vltava continuing north, south and west beyond the board */}
-      <WaterRect x0={-57} x1={5.2} z0={-95} z1={-BZ} color={water} />
-      <WaterRect x0={-57} x1={5.2} z0={BZ} z1={95} color={water} />
+      <WaterRect x0={-57} x1={4.96} z0={-95} z1={-BZ} color={water} />
+      <WaterRect x0={-57} x1={4.96} z0={BZ} z1={95} color={water} />
       <WaterRect x0={-57} x1={-BX} z0={-BZ} z1={BZ} color={water} />
 
-      {/* Old Town quay embankment (off-board) & Malá Strana quay */}
+      {/* Old Town quay embankment (off-board, aligned to BridgeTowerDressing wx=4.96) & Malá Strana quay */}
       {[-1, 1].map((s) => (
-        <mesh key={s} position={[5.5, -0.1, s * 58]} raycast={NO_RAYCAST}>
-          <boxGeometry args={[0.7, 0.4, 72]} />
+        <mesh key={s} position={[4.96, -0.1, s * 58]} raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.56, 0.4, 72]} />
           <meshStandardMaterial color="#5e5345" roughness={0.9} />
         </mesh>
       ))}

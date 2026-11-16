@@ -130,4 +130,23 @@ assert(
 );
 console.log("✓ Tutoriál po kroku 1 vybere Colloreda a po kroku 2 Václava.");
 
+// 9. Input guard v storu musí v kroku 1 odmítnout jinou postavu i nepovolený režim střelby
+useGameStore.getState().resetGame();
+useGameStore.getState().selectUnit("player-colloredo");
+assert(
+  useGameStore.getState().selectedUnitId === "player-jan-matej",
+  "Krok 1 musí zamítnout ruční přepnutí na Colloreda",
+);
+useGameStore.getState().setActionMode("shoot");
+assert(
+  useGameStore.getState().actionMode === "move",
+  "Krok 1 musí zamítnout ruční přepnutí do režimu střelby",
+);
+useGameStore.getState().skipGuidedTutorial();
+useGameStore.getState().selectUnit("player-colloredo");
+assert(
+  useGameStore.getState().selectedUnitId === "player-colloredo",
+  "Po přeskočení výcviku lze volně vybrat Colloreda",
+);
+
 console.log("=== ALL GUIDED TUTORIAL TESTS PASSED SUCCESSFULLY! ===");

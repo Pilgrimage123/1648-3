@@ -22,7 +22,7 @@
  * Wenceslas IV. y = 2 holds St Adalbert and St Sigismund. The glossary's
  * "Vitus, Wenceslas, Sigismund" is the shorthand; the niches follow the facade.
  * The kneel tile is the palindrome found under the roof:
- * Signate, signate, mere me tangis et angis.
+ * Signa te, signa, temere me tangis et angis.
  *
  * Not on this map: cellars, a fourth floor, side streets, Malá Strana's two
  * towers, the 1621 heads (gone by ~1631), Mocker's 1874 roof, the 1649 arms,
@@ -32,6 +32,7 @@
 import {
   checkLineOfSight3D,
   evaluateVisibleTargets,
+  isUnitFighting,
   type EnemyAiDecision,
 } from "./CombatSystem";
 import {
@@ -39,7 +40,6 @@ import {
   GridSystem,
   MELEE_CATALOG,
   sameCoord,
-  setRoofMask,
   WEAPON_CATALOG,
 } from "./GridSystem";
 import { findPathAStar } from "./Pathfinding";
@@ -83,6 +83,7 @@ export interface Mission2Clock {
   windlassArmed: boolean;
   windlassHp: number;
   windlassBurning: boolean;
+  pitchUsedHarrierIds: string[];
   pawlUnpinned: boolean;
   ropeSevered: boolean;
   seated: boolean;
@@ -144,8 +145,8 @@ function paint(
 }
 
 export function createMission2Grid(): GridSystem {
-  setRoofMask(isBridgeTowerRoofed, "bridge");
   const grid = new GridSystem();
+  grid.setRoofMask(isBridgeTowerRoofed, "bridge");
 
   for (let y = 0; y < 3; y++) {
     for (let z = 0; z < 28; z++) {
@@ -408,6 +409,7 @@ export function freshClock(units: UnitData[]): Mission2Clock {
     windlassArmed: false,
     windlassHp: WIND_HP,
     windlassBurning: false,
+    pitchUsedHarrierIds: [],
     pawlUnpinned: false,
     ropeSevered: false,
     seated: false,
@@ -427,8 +429,7 @@ function livingAt(units: UnitData[], id: string, coord: GridCoord): UnitData | u
   return units.find(
     (unit) =>
       unit.id === id &&
-      unit.alive &&
-      unit.hp > 0 &&
+      isUnitFighting(unit) &&
       sameCoord(unit.pos, coord),
   );
 }
@@ -443,8 +444,7 @@ export function applyUnpinAction(clock: Mission2Clock, worker: UnitData): Missio
   if (
     clock.pawlUnpinned ||
     worker.ap < 1 ||
-    !worker.alive ||
-    worker.hp <= 0 ||
+    !isUnitFighting(worker) ||
     clock.windlassHp <= 0 ||
     !sameCoord(worker.pos, WINDLASS)
   ) {
@@ -462,17 +462,20 @@ export function applySeverRopeAction(clock: Mission2Clock, cutter: UnitData): Mi
     !clock.pawlUnpinned ||
     clock.seated ||
     cutter.ap < 1 ||
-    !cutter.alive ||
-    cutter.hp <= 0
+    !isUnitFighting(cutter)
   ) {
     return null;
   }
-  const onRope = sameCoord(cutter.pos, ROPE);
-  const nearWindlass =
-    cutter.pos.y === 1 &&
-    Math.abs(cutter.pos.x - WINDLASS.x) <= 1 &&
-    Math.abs(cutter.pos.z - WINDLASS.z) <= 1;
-  if (!onRope && !nearWindlass) {
+  const hasBlade =
+    cutter.meleeWeapon?.kind === "dagger" || cutter.meleeWeapon?.kind === "sword";
+  if (!hasBlade) {
+    return null;
+  }
+  const nearRope =
+    cutter.pos.y === ROPE.y &&
+    Math.abs(cutter.pos.x - ROPE.x) <= 1 &&
+    Math.abs(cutter.pos.z - ROPE.z) <= 1;
+  if (!nearRope) {
     return null;
   }
   return {
@@ -486,8 +489,7 @@ export function applyDouseAction(clock: Mission2Clock, douser: UnitData): Missio
   if (
     !clock.windlassBurning ||
     douser.ap < 1 ||
-    !douser.alive ||
-    douser.hp <= 0 ||
+    !isUnitFighting(douser) ||
     douser.pos.y !== 1 ||
     Math.abs(douser.pos.x - WINDLASS.x) > 1 ||
     Math.abs(douser.pos.z - WINDLASS.z) > 1
@@ -500,11 +502,15 @@ export function applyDouseAction(clock: Mission2Clock, douser: UnitData): Missio
   };
 }
 
-export function applyThrowPitch(clock: Mission2Clock): Mission2Clock {
+export function applyThrowPitch(clock: Mission2Clock, harrierId?: string): Mission2Clock {
   if (clock.windlassHp <= 0 || clock.seated) return clock;
+  if (harrierId && clock.pitchUsedHarrierIds.includes(harrierId)) return clock;
   return {
     ...clock,
     windlassBurning: true,
+    pitchUsedHarrierIds: harrierId
+      ? [...clock.pitchUsedHarrierIds, harrierId]
+      : clock.pitchUsedHarrierIds,
   };
 }
 
@@ -512,15 +518,14 @@ export function applyThrowPitch(clock: Mission2Clock): Mission2Clock {
 export function closePlayerTurn(clock: Mission2Clock, units: UnitData[]): Mission2Clock {
   const next: Mission2Clock = { ...clock, hpMark: { ...clock.hpMark } };
   const occultist = units.find((unit) => unit.id === OCCULTIST_ID);
-  if (occultist && occultist.alive && wasHit(clock, occultist)) {
+  if (occultist && isUnitFighting(occultist) && wasHit(clock, occultist)) {
     next.riteProgress = 0;
   }
 
   const worker = units.find(
     (unit) =>
       unit.faction === "player" &&
-      unit.alive &&
-      unit.hp > 0 &&
+      isUnitFighting(unit) &&
       sameCoord(unit.pos, WINDLASS),
   );
   if (!worker || wasHit(clock, worker) || next.pawlUnpinned || next.windlassHp <= 0) {
@@ -535,7 +540,7 @@ export function closePlayerTurn(clock: Mission2Clock, units: UnitData[]): Missio
   const plachy = units.find((unit) => unit.id === PLACHY_ID);
   if (
     plachy &&
-    plachy.alive &&
+    isUnitFighting(plachy) &&
     sameCoord(plachy.pos, INSCRIPTION) &&
     !next.knelt &&
     !next.inscriptionNoted
@@ -576,7 +581,7 @@ export function closeEnemyTurn(clock: Mission2Clock, units: UnitData[]): Mission
   }
 
   const occultist = units.find((unit) => unit.id === OCCULTIST_ID);
-  if (!occultist || !occultist.alive || occultist.hp <= 0) {
+  if (!occultist || !isUnitFighting(occultist)) {
     next.riteLocked = true;
   } else if (!next.riteLocked && sameCoord(occultist.pos, KEYSTONE)) {
     if (wasHit(clock, occultist)) next.riteProgress = 0;
@@ -590,7 +595,7 @@ export function closeEnemyTurn(clock: Mission2Clock, units: UnitData[]): Mission
 }
 
 export function applyKneel(clock: Mission2Clock, plachy: UnitData): Mission2Clock | null {
-  if (clock.knelt || plachy.ap < 1 || !plachy.alive || plachy.hp <= 0) return null;
+  if (clock.knelt || plachy.ap < 1 || !isUnitFighting(plachy)) return null;
   if (!sameCoord(plachy.pos, INSCRIPTION)) return null;
   return { ...clock, knelt: true, riteRequired: clock.riteRequired + 1 };
 }
@@ -602,11 +607,11 @@ export function applyWindlassHit(clock: Mission2Clock, damage: number): Mission2
 
 export function judgeMission2(clock: Mission2Clock, units: UnitData[]): Mission2Judgement {
   const plachy = units.find((unit) => unit.id === PLACHY_ID);
-  if (!plachy || !plachy.alive || plachy.hp <= 0) {
+  if (!plachy || !isUnitFighting(plachy)) {
     return { outcome: "defeat", victoryReason: null, loss: "plachy" };
   }
   const anyDefender = units.some(
-    (unit) => unit.faction === "player" && unit.alive && unit.hp > 0,
+    (unit) => unit.faction === "player" && isUnitFighting(unit),
   );
   if (!anyDefender) {
     return { outcome: "defeat", victoryReason: null, loss: "wiped" };
@@ -702,7 +707,13 @@ export function computeMission2Ai(
   if (enemy.id.startsWith("enemy-harrier")) {
     const losToWindlass = checkLineOfSight3D(grid, dest, WINDLASS).clear;
     const distToWindlass = Math.max(Math.abs(dest.x - WINDLASS.x), Math.abs(dest.z - WINDLASS.z));
-    if (!_clock.windlassBurning && _clock.windlassHp > 0 && distToWindlass <= 3 && losToWindlass) {
+    if (
+      !_clock.windlassBurning &&
+      _clock.windlassHp > 0 &&
+      !_clock.pitchUsedHarrierIds.includes(enemy.id) &&
+      distToWindlass <= 3 &&
+      losToWindlass
+    ) {
       throwPitch = true;
     } else if (!person && enemy.firearmLoaded !== false && losToWindlass) {
       strikeWindlass = true;

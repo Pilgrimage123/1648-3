@@ -320,18 +320,20 @@ export function TacticalUtilitiesCapsule() {
         </button>
 
         {/* Rádce [H] */}
-        <button
-          type="button"
-          onClick={toggleTutorial}
-          title={text("ui.advisor.toggle", undefined, locale)}
-          className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
-            !tutorialDismissed && tutorialStep !== null
-              ? "bg-amber-600/35 border-amber-400 text-amber-200"
-              : "baroque-bronze-btn text-amber-300 hover:text-amber-100"
-          }`}
-        >
-          <GraduationCap className="w-3.5 h-3.5" />
-        </button>
+        {scenario === "mission1" && (
+          <button
+            type="button"
+            onClick={toggleTutorial}
+            title={text("ui.advisor.toggle", undefined, locale)}
+            className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+              !tutorialDismissed && tutorialStep !== null
+                ? "bg-amber-600/35 border-amber-400 text-amber-200"
+                : "baroque-bronze-btn text-amber-300 hover:text-amber-100"
+            }`}
+          >
+            <GraduationCap className="w-3.5 h-3.5" />
+          </button>
+        )}
 
         {/* Restart */}
         <button

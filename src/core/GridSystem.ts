@@ -113,15 +113,19 @@ export function resolvePreferredFloorCoord(
  * - Patro 1 (y = 1): Zahradní belveder (x: 9..14, z: 9..12) a Piano Nobile Velkopřevorského paláce (x: 3..20, z: 16..26)
  * - Patro 2 (y = 2): Maltézská strážní věž a střešní ochoz konventu (x: 4..8, z: 17..19)
  */
-export function getRoofParapetCover(c: GridCoord, dir: CardinalDir): CoverLevel {
-  if (roofKind === "powder-yard") {
+export function evalRoofParapetCover(
+  kind: RoofKind | null,
+  c: GridCoord,
+  dir: CardinalDir,
+): CoverLevel {
+  if (kind === "powder-yard") {
     if (c.y === 1 && c.z === 12 && c.x >= 8 && c.x <= 15 && dir === "S") return "half";
     if (c.y === 1 && c.x === 8 && c.z >= 12 && c.z <= 14 && dir === "W") return "half";
     if (c.y === 1 && c.x === 15 && c.z >= 12 && c.z <= 14 && dir === "E") return "half";
     return "none";
   }
 
-  if (roofKind === "bridge") {
+  if (kind === "bridge") {
     // Mission 2: Charles Bridge outer stone parapets (x: 1..9, z: 11 N & z: 16 S)
     if (c.y === 0 && c.x >= 1 && c.x <= 9) {
       if (c.z === 11 && dir === "N") return "half";
@@ -178,6 +182,10 @@ export function getRoofParapetCover(c: GridCoord, dir: CardinalDir): CoverLevel 
   return "none";
 }
 
+export function getRoofParapetCover(c: GridCoord, dir: CardinalDir): CoverLevel {
+  return evalRoofParapetCover(roofKind, c, dir);
+}
+
 export class GridSystem {
   public readonly width: number;
   public readonly depth: number;
@@ -186,6 +194,29 @@ export class GridSystem {
   private readonly doors: Map<string, DoorData> = new Map();
   /** Closed doors a mover may not breach. Mission 3 seals both relief doors until the roll. */
   public readonly sealedDoorIds: Set<string> = new Set();
+  private instanceRoofMask: ((x: number, y: number, z: number) => boolean) | null = null;
+  private instanceRoofKind: RoofKind | null = null;
+
+  public setRoofMask(
+    fn: ((x: number, y: number, z: number) => boolean) | null,
+    kind?: RoofKind,
+  ): void {
+    this.instanceRoofMask = fn;
+    this.instanceRoofKind = fn ? (kind ?? "bridge") : null;
+    setRoofMask(fn, kind);
+  }
+
+  public getRoofKind(): RoofKind | null {
+    return this.instanceRoofKind;
+  }
+
+  public isEnclosedRoofed(x: number, y: number, z: number): boolean {
+    return evalEnclosedRoofedCoord(this.instanceRoofMask, x, y, z);
+  }
+
+  public getRoofParapetCover(c: GridCoord, dir: CardinalDir): CoverLevel {
+    return evalRoofParapetCover(this.instanceRoofKind, c, dir);
+  }
 
   constructor(width = GRID_WIDTH, depth = GRID_DEPTH, floors = GRID_FLOORS) {
     this.width = width;
@@ -287,9 +318,9 @@ export class GridSystem {
     return this.getAllDoors().filter((door) => {
       if (door.state !== "open") return false;
       const c = door.coord;
-      if (!isEnclosedRoofedCoord(c.x, c.y, c.z)) return true;
+      if (!this.isEnclosedRoofed(c.x, c.y, c.z)) return true;
       return offsets.some(
-        (off) => !isEnclosedRoofedCoord(c.x + off.dx, c.y, c.z + off.dz),
+        (off) => !this.isEnclosedRoofed(c.x + off.dx, c.y, c.z + off.dz),
       );
     });
   }
@@ -347,7 +378,7 @@ export class GridSystem {
     if (!tile) return;
     tile.obstacle = obstacle;
     tile.walkable = tile.hasFloor && obstacle === "none";
-    if (obstacle === "low_wall" && c.z < 15 && c.y === 0) {
+    if (obstacle === "low_wall" && c.z < 15 && c.y === 0 && this.instanceRoofKind !== "powder-yard") {
       tile.surface = "rubble";
     }
     this.bakeCoverFromObstacles();
@@ -472,7 +503,7 @@ export class GridSystem {
         if (dist <= 1) {
           tile.smokeTurns = 0;
         } else {
-          const indoor = isEnclosedRoofedCoord(c.x, c.y, c.z);
+          const indoor = this.isEnclosedRoofed(c.x, c.y, c.z);
           const turns = indoor ? 3 : weather === "rain" ? 1 : 2;
           tile.smokeTurns = Math.max(tile.smokeTurns, turns);
         }
@@ -492,7 +523,7 @@ export class GridSystem {
     for (const tile of this.tiles.values()) {
       if (tile.smokeTurns <= 0) continue;
       const c = tile.coord;
-      const isIndoor = isEnclosedRoofedCoord(c.x, c.y, c.z);
+      const isIndoor = this.isEnclosedRoofed(c.x, c.y, c.z);
 
       // Průvanové odvětrávání otevřenými portály
       let hasDraft = false;
@@ -526,10 +557,10 @@ export class GridSystem {
 
       // Reset na výchozí krytí dlaždice (parapety na ochozech a věži, jinak žádné)
       tile.cover = {
-        N: getRoofParapetCover(tile.coord, "N"),
-        E: getRoofParapetCover(tile.coord, "E"),
-        S: getRoofParapetCover(tile.coord, "S"),
-        W: getRoofParapetCover(tile.coord, "W"),
+        N: this.getRoofParapetCover(tile.coord, "N"),
+        E: this.getRoofParapetCover(tile.coord, "E"),
+        S: this.getRoofParapetCover(tile.coord, "S"),
+        W: this.getRoofParapetCover(tile.coord, "W"),
       };
 
       for (const dir of ["N", "E", "S", "W"] as CardinalDir[]) {
@@ -946,13 +977,13 @@ export function setRoofMask(
   roofKind = fn ? (kind ?? "bridge") : null;
 }
 
-/**
- * Určí, zda se daná pozice na mřížce nachází v zastřešeném interiéru Velkopřevorského paláce
- * nebo pod klenutým loubím zahradního belvederu.
- * V těchto krytých prostorách nikdy neprší a prach/popel se v nich objeví až po zahájení střelby či výbuchů.
- */
-export function isEnclosedRoofedCoord(x: number, y: number, z: number): boolean {
-  if (roofMask) return roofMask(x, y, z);
+export function evalEnclosedRoofedCoord(
+  mask: ((x: number, y: number, z: number) => boolean) | null,
+  x: number,
+  y: number,
+  z: number,
+): boolean {
+  if (mask) return mask(x, y, z);
   // 1. Přízemí a Piano Nobile Velkopřevorského paláce mimo otevřené nádvoří (x: 10..13, z: 18..20)
   if (y <= 1 && x >= 1.5 && x <= 21.5 && z >= 15.5 && z <= 27.5) {
     const inOpenCourtyard = x >= 9.6 && x <= 13.4 && z >= 17.6 && z <= 20.4;
@@ -965,6 +996,15 @@ export function isEnclosedRoofedCoord(x: number, y: number, z: number): boolean 
     return true;
   }
   return false;
+}
+
+/**
+ * Určí, zda se daná pozice na mřížce nachází v zastřešeném interiéru Velkopřevorského paláce
+ * nebo pod klenutým loubím zahradního belvederu.
+ * V těchto krytých prostorách nikdy neprší a prach/popel se v nich objeví až po zahájení střelby či výbuchů.
+ */
+export function isEnclosedRoofedCoord(x: number, y: number, z: number): boolean {
+  return evalEnclosedRoofedCoord(roofMask, x, y, z);
 }
 
 /** Unencumbered soldier pace. Weapon weight is subtracted via `soldierMovePerAp`. Colloredo's limp replaces this. */
@@ -1323,7 +1363,7 @@ export const MELEE_CATALOG: Record<string, MeleeWeaponStats> = {
   },
   cleric_dagger: {
     id: "cleric_dagger",
-    name: "Úder pažbou švédské muškety",
+    name: "Úder pažbou klementinské muškety",
     kind: "musket_butt",
     minDamage: 4,
     maxDamage: 6,

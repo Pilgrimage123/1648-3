@@ -22,7 +22,7 @@ interface UnitVisual3DProps {
   archetype: UnitArchetype;
   faction: Faction;
   facing: CardinalDir;
-  hitFlashIntensity: number;
+  hitTimestamp?: number;
   opacity?: number;
   lockType?: FirearmLockType;
   weather?: WeatherType;
@@ -92,7 +92,7 @@ export function UnitVisual3D({
   archetype,
   faction,
   facing,
-  hitFlashIntensity,
+  hitTimestamp = 0,
   opacity = 1,
   lockType,
   weather = "clear",
@@ -102,14 +102,18 @@ export function UnitVisual3D({
   const cloakRef = useRef<THREE.Mesh>(null);
   const plumeRef = useRef<THREE.Group>(null);
   const bannerRef = useRef<THREE.Group>(null);
+  const torsoMatRef = useRef<THREE.MeshStandardMaterial>(null);
 
   const scenario = useGameStore((s) => s.scenario);
   const isPlayer = faction === "player";
   const isPlachy = unitId === "player-plachy";
   const isHavel = unitId === "player-havel";
   const isOndrej = unitId === "player-ondrej";
+  const isStudent = unitId?.startsWith("player-zak") ?? false;
   const isHarrier = unitId?.startsWith("enemy-harrier") ?? false;
   const isOccultist = unitId === "enemy-occultist";
+  const isSwedishBearer = unitId?.startsWith("enemy-bearer") ?? false;
+  const isM3MusketSwede = scenario === "mission3" && !isPlayer;
   const isPistolUser =
     isPlachy ||
     isHavel ||
@@ -117,24 +121,21 @@ export function UnitVisual3D({
     isHarrier ||
     isOccultist ||
     (isPlayer && archetype === "commander");
-  const coatColor =
-    hitFlashIntensity > 0.05
-      ? "#ef4444"
-      : isPlachy
-        ? "#1c1917"
-        : isHavel
-          ? "#6b3a2a"
-          : isHarrier
-            ? "#3f3f46"
-            : isPlayer
-              ? archetype === "commander"
-                ? "#f8fafc" // White baroque nightshirt of Marshal Colloredo
-                : archetype === "sniper"
-                  ? "#1e3a5f" // Clementinum indigo-slate coat
-                  : "#b91c1c" // Rich Imperial Crimson Dragoon coat
-              : archetype === "sectoid"
-                ? "#1e3a8a" // Elite Carolean dark royal blue
-                : "#2563eb"; // Vivid Swedish royal blue
+  const coatColor = isPlachy
+    ? "#1c1917"
+    : isHavel
+      ? "#6b3a2a"
+      : isHarrier
+        ? "#3f3f46"
+        : isPlayer
+          ? archetype === "commander"
+            ? "#f8fafc" // White baroque nightshirt of Marshal Colloredo
+            : archetype === "sniper"
+              ? "#1e3a5f" // Clementinum indigo-slate coat
+              : "#b91c1c" // Rich Imperial Crimson Dragoon coat
+          : archetype === "sectoid"
+            ? "#1e3a8a" // Elite Carolean dark royal blue
+            : "#2563eb"; // Vivid Swedish royal blue
 
   const accentColor =
     scenario === "mission3" && !isPlayer
@@ -144,10 +145,10 @@ export function UnitVisual3D({
         : isPlayer
           ? "#eab308"
           : "#facc15";
-  const steelColor = hitFlashIntensity > 0.05 ? "#fca5a5" : "#cbd5e1";
+  const steelColor = "#cbd5e1";
   const transparent = opacity < 0.99;
 
-  // Secondary wind animation for cloaks, plumes, and back banners
+  // Secondary wind animation & zero-alloc hit-flash decay
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
     if (cloakRef.current) {
@@ -159,6 +160,22 @@ export function UnitVisual3D({
     }
     if (bannerRef.current) {
       bannerRef.current.rotation.y = Math.sin(t * 4.2) * 0.24;
+    }
+    if (torsoMatRef.current) {
+      let flash = 0;
+      if (hitTimestamp > 0) {
+        const elapsed = (performance.now() - hitTimestamp) / 1000;
+        if (elapsed >= 0 && elapsed < 1.05) {
+          flash = Math.pow(1 - elapsed / 1.05, 1.5);
+        }
+      }
+      if (flash > 0.05) {
+        torsoMatRef.current.emissive.set("#ef4444");
+        torsoMatRef.current.emissiveIntensity = flash * 1.5;
+      } else {
+        torsoMatRef.current.emissive.set("#000000");
+        torsoMatRef.current.emissiveIntensity = 0;
+      }
     }
   });
 
@@ -184,8 +201,8 @@ export function UnitVisual3D({
         />
       </mesh>
 
-      {/* Billowing Baroque Cloak in the Wind (Ranger, Sniper, Sectoid) */}
-      {(archetype === "ranger" ||
+      {/* Billowing Baroque Cloak in the Wind (Ranger, Sniper, Sectoid; omitted for M3 Swedish Nosič) */}
+      {((archetype === "ranger" && !isSwedishBearer) ||
         archetype === "sniper" ||
         archetype === "sectoid" ||
         isPlachy) && (
@@ -234,20 +251,20 @@ export function UnitVisual3D({
           ]}
         />
         <meshStandardMaterial
+          ref={torsoMatRef}
           color={coatColor}
           roughness={0.48}
           metalness={0.15}
-          emissive={hitFlashIntensity > 0.05 ? "#ef4444" : "#000000"}
-          emissiveIntensity={hitFlashIntensity * 1.5}
           transparent={transparent}
           opacity={opacity}
         />
       </mesh>
 
-      {/* Steel Breastplate / Cuirass & Broad Pauldrons (Heavy Silhouette for Ranger & Sectoid) */}
+      {/* Steel Breastplate / Cuirass & Broad Pauldrons (Heavy Silhouette for Ranger & Sectoid, omitted for Havel/Harrier/M3 Bearer) */}
       {(archetype === "ranger" || archetype === "sectoid") &&
         !isHavel &&
-        !isHarrier && (
+        !isHarrier &&
+        !isSwedishBearer && (
         <group>
           <mesh position={[0, 0.84, 0.04]} castShadow receiveShadow>
             <boxGeometry args={[0.48, 0.44, 0.29]} />
@@ -287,7 +304,13 @@ export function UnitVisual3D({
       <mesh position={[0, 0.82, 0.16]} rotation={[0, 0, 0.55]} castShadow>
         <boxGeometry args={[0.13, 0.58, 0.06]} />
         <meshStandardMaterial
-          color={archetype === "ranger" ? "#dc2626" : accentColor}
+          color={
+            isM3MusketSwede
+              ? "#dc2626"
+              : archetype === "ranger"
+                ? "#dc2626"
+                : accentColor
+          }
           roughness={0.35}
           transparent={transparent}
           opacity={opacity}
@@ -298,7 +321,7 @@ export function UnitVisual3D({
       <mesh position={[0, 1.24, 0]} castShadow receiveShadow>
         <sphereGeometry args={[0.18, 14, 14]} />
         <meshStandardMaterial
-          color={hitFlashIntensity > 0.05 ? "#fca5a5" : "#ecc19c"}
+          color="#ecc19c"
           roughness={0.55}
           transparent={transparent}
           opacity={opacity}
@@ -314,30 +337,30 @@ export function UnitVisual3D({
               <group position={[0, 1.28, 0]}>
                 <mesh castShadow>
                   <boxGeometry args={[0.35, 0.085, 0.35]} />
-                  <meshStandardMaterial color="#18181b" roughness={0.72} />
+                  <meshStandardMaterial color="#18181b" roughness={0.72} transparent={transparent} opacity={opacity} />
                 </mesh>
                 {/* Raised biretta blades / horns */}
                 <mesh position={[0, 0.055, 0.14]} castShadow>
                   <boxGeometry args={[0.32, 0.055, 0.045]} />
-                  <meshStandardMaterial color="#18181b" roughness={0.7} />
+                  <meshStandardMaterial color="#18181b" roughness={0.7} transparent={transparent} opacity={opacity} />
                 </mesh>
                 <mesh position={[0, 0.055, -0.14]} castShadow>
                   <boxGeometry args={[0.32, 0.055, 0.045]} />
-                  <meshStandardMaterial color="#18181b" roughness={0.7} />
+                  <meshStandardMaterial color="#18181b" roughness={0.7} transparent={transparent} opacity={opacity} />
                 </mesh>
                 <mesh position={[0.14, 0.055, 0]} castShadow>
                   <boxGeometry args={[0.045, 0.055, 0.32]} />
-                  <meshStandardMaterial color="#18181b" roughness={0.7} />
+                  <meshStandardMaterial color="#18181b" roughness={0.7} transparent={transparent} opacity={opacity} />
                 </mesh>
                 <mesh position={[0, 0.075, 0]}>
                   <sphereGeometry args={[0.042, 8, 6]} />
-                  <meshStandardMaterial color="#27272a" roughness={0.65} />
+                  <meshStandardMaterial color="#27272a" roughness={0.65} transparent={transparent} opacity={opacity} />
                 </mesh>
               </group>
               {/* Steel gorget worn over Jesuit cassock & mantle */}
               <mesh position={[0, 1.05, 0.08]} castShadow>
                 <torusGeometry args={[0.13, 0.028, 8, 16, Math.PI]} />
-                <meshStandardMaterial color="#94a3b8" metalness={0.75} roughness={0.3} />
+                <meshStandardMaterial color="#94a3b8" metalness={0.75} roughness={0.3} transparent={transparent} opacity={opacity} />
               </mesh>
             </>
           ) : (
@@ -464,7 +487,7 @@ export function UnitVisual3D({
         <group position={[0, 1.3, 0]}>
           <mesh castShadow>
             <sphereGeometry args={[0.2, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
-            <meshStandardMaterial color="#3f3f46" roughness={0.8} />
+            <meshStandardMaterial color="#3f3f46" roughness={0.8} transparent={transparent} opacity={opacity} />
           </mesh>
         </group>
       ) : (
@@ -507,8 +530,8 @@ export function UnitVisual3D({
       )}
 
       {/* Class-Specific Silhouette Weapons & Banners */}
-      {/* 1. Trooper Towering Vertical Pike / Halberd with Fluttering Pennant (Triangle Silhouette) */}
-      {archetype === "trooper" && (
+      {/* 1. Trooper Towering Vertical Pike / Halberd with Fluttering Pennant (omitted for M3 musketeers & students) */}
+      {archetype === "trooper" && !isM3MusketSwede && !isStudent && (
         <group position={[-0.26, 0, 0.1]}>
           <mesh position={[0, 1.15, 0]} castShadow>
             <cylinderGeometry args={[0.025, 0.028, 2.3, 8]} />
@@ -553,7 +576,7 @@ export function UnitVisual3D({
           <group position={[0.2, 1.45, -0.18]}>
             <mesh castShadow>
               <cylinderGeometry args={[0.02, 0.02, 1.1, 6]} />
-              <meshStandardMaterial color="#78350f" roughness={0.7} />
+              <meshStandardMaterial color="#78350f" roughness={0.7} transparent={transparent} opacity={opacity} />
             </mesh>
             <group ref={bannerRef} position={[0.18, 0.32, 0]}>
               <mesh castShadow>
@@ -576,6 +599,8 @@ export function UnitVisual3D({
                 color={isOccultist ? "#b45309" : "#1e293b"}
                 roughness={0.45}
                 metalness={0.65}
+                transparent={transparent}
+                opacity={opacity}
               />
             </mesh>
             <mesh position={[0, isOccultist ? 0.02 : 0.11, 0]}>
@@ -584,6 +609,8 @@ export function UnitVisual3D({
                 color="#f97316"
                 emissive="#fb923c"
                 emissiveIntensity={isOccultist ? 1.4 : 2.2}
+                transparent={transparent}
+                opacity={opacity}
               />
             </mesh>
           </group>
@@ -634,7 +661,7 @@ export function UnitVisual3D({
           <group>
             <mesh position={[0, -0.42, 0.55]} castShadow>
               <cylinderGeometry args={[0.018, 0.018, 0.84, 6]} />
-              <meshStandardMaterial color="#78350f" roughness={0.7} />
+              <meshStandardMaterial color="#78350f" roughness={0.7} transparent={transparent} opacity={opacity} />
             </mesh>
           </group>
         )}
@@ -661,17 +688,17 @@ export function UnitVisual3D({
           {/* Vertical crucifix beam */}
           <mesh castShadow>
             <boxGeometry args={[0.024, 0.28, 0.018]} />
-            <meshStandardMaterial color="#78350f" roughness={0.6} />
+            <meshStandardMaterial color="#78350f" roughness={0.6} transparent={transparent} opacity={opacity} />
           </mesh>
           {/* Horizontal crucifix crosspiece */}
           <mesh position={[0, 0.06, 0]} castShadow>
             <boxGeometry args={[0.16, 0.024, 0.018]} />
-            <meshStandardMaterial color="#78350f" roughness={0.6} />
+            <meshStandardMaterial color="#78350f" roughness={0.6} transparent={transparent} opacity={opacity} />
           </mesh>
           {/* Gilded corpus */}
           <mesh position={[0, 0.04, 0.012]} castShadow>
             <boxGeometry args={[0.06, 0.1, 0.012]} />
-            <meshStandardMaterial color="#d4a73f" metalness={0.7} roughness={0.3} />
+            <meshStandardMaterial color="#d4a73f" metalness={0.7} roughness={0.3} transparent={transparent} opacity={opacity} />
           </mesh>
         </group>
       )}

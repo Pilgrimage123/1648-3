@@ -14,6 +14,7 @@ import type {
   FogOfWarSnapshot,
   FogVisibilityState,
   GridCoord,
+  ScenarioId,
   SoundContact,
   SoundContactKind,
   UnitData,
@@ -99,20 +100,16 @@ export function checkFogLineOfSight3D(
     return checkFogLineOfSight3D(grid, from, prefixEnd, ignoreSmoke);
   }
 
-  const los = checkLineOfSight3D(grid, from, to);
-  if (!los.clear) return false;
+  const los = checkLineOfSight3D(grid, from, to, ignoreSmoke);
+  return los.clear;
+}
 
-  if (!ignoreSmoke && from.y <= to.y && los.ray.length > 2) {
-    for (let i = 1; i < los.ray.length - 1; i++) {
-      const stepCoord = los.ray[i]!;
-      const stepTile = grid.getTile(stepCoord);
-      if (stepTile && stepTile.smokeTurns > 0 && stepCoord.y >= from.y) {
-        return false;
-      }
-    }
-  }
-
-  return true;
+function inferScenario(grid: GridSystem, scenario?: ScenarioId): ScenarioId {
+  if (scenario) return scenario;
+  const kind = grid.getRoofKind();
+  if (kind === "bridge") return "mission2";
+  if (kind === "powder-yard") return "mission3";
+  return "mission1";
 }
 
 /**
@@ -122,8 +119,15 @@ export function checkFogLineOfSight3D(
  * Samotná noční Velkopřevorská zahrada (`z: 4..14`) začíná zahalena v neprozkoumané temnotě ('unexplored'),
  * dokud do ní družina nepohlédne nebo nevstoupí.
  */
-export function createInitialExploredCoords(grid: GridSystem): Set<string> {
+export function createInitialExploredCoords(
+  grid: GridSystem,
+  scenario?: ScenarioId,
+): Set<string> {
+  const activeScenario = inferScenario(grid, scenario);
   const explored = new Set<string>();
+  if (activeScenario !== "mission1") {
+    return explored;
+  }
   for (const tile of grid.getAllTiles()) {
     if (!tile.hasFloor) continue;
     const { x, y, z } = tile.coord;
@@ -149,10 +153,12 @@ export function computeFogOfWar(
   weather: WeatherType = "rain",
   prevExploredCoords?: Set<string>,
   dynamicLights: DynamicLightSource[] = [],
+  scenario?: ScenarioId,
 ): FogOfWarSnapshot {
+  const activeScenario = inferScenario(grid, scenario);
   const visibleCoords = new Set<string>();
   const exploredCoords = new Set<string>(
-    prevExploredCoords ?? createInitialExploredCoords(grid),
+    prevExploredCoords ?? createInitialExploredCoords(grid, activeScenario),
   );
   const unitSightRadii: Record<string, number> = {};
 
@@ -212,7 +218,7 @@ export function computeFogOfWar(
   // - Mise 1: Lucerna na přídi rybářské pramice na Čertovce (x: 2..3, z: 2..3, y: 0)
   // - Mise 2 (Ráno 26. července 1648): Otevřená mostovka Karlova mostu (x <= 10, y: 0) a Křižovnické náměstí (x >= 19, y: 0)
   //   jsou na ranním denním světle plně přehledné z ochozu věže i z průjezdu (pokud je nezahalí černoprachový dým).
-  const isMission2 = units.some((u) => u.id === "player-plachy");
+  const isMission2 = activeScenario === "mission2";
   if (isMission2) {
     for (const tile of allFloorTiles) {
       if (
@@ -227,7 +233,7 @@ export function computeFogOfWar(
         exploredCoords.add(k);
       }
     }
-  } else {
+  } else if (activeScenario === "mission1") {
     for (let z = 1; z <= 3; z++) {
       for (let x = 1; x <= 4; x++) {
         const c: GridCoord = { x, y: 0, z };

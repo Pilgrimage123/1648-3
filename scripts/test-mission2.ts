@@ -359,5 +359,38 @@ for (const enemy of units.filter((u) => u.faction === "enemy")) {
   );
 }
 
+// Q2 & Q8 regression checks: Plachý Death Throes, 1-use pitch flask, ROPE + blade severing
+const plachyAgony = units.map((unit) =>
+  unit.id === PLACHY_ID
+    ? { ...unit, hp: -2, alive: true, inDeathThroes: true, deathThroesTurns: 1 }
+    : unit,
+);
+assert.equal(judgeMission2(freshClock(plachyAgony), plachyAgony).outcome, "ongoing");
+
+const windlassOpenClock = { ...freshClock(units), windlassBurning: false, pitchUsedHarrierIds: [] };
+const thrownOnce = applyThrowPitch(windlassOpenClock, harrier.id);
+assert.ok(thrownOnce.windlassBurning && thrownOnce.pitchUsedHarrierIds.includes(harrier.id));
+const dousedClock = applyDouseAction(thrownOnce, { ...plachy, pos: WINDLASS, ap: 1 })!;
+assert.equal(dousedClock.windlassBurning, false);
+const secondPitchAttempt = applyThrowPitch(dousedClock, harrier.id);
+assert.equal(secondPitchAttempt.windlassBurning, false, "same harrier cannot throw a second pitch flask");
+
+const postPawl = { ...freshClock(units), pawlUnpinned: true };
+assert.equal(
+  applySeverRopeAction(postPawl, { ...plachy, pos: { x: 10, y: 1, z: 14 }, ap: 1 }),
+  null,
+  "severing requires adjacency to ROPE (12,1,14), not far side of windlass",
+);
+assert.equal(
+  applySeverRopeAction(postPawl, {
+    ...plachy,
+    pos: ROPE,
+    ap: 1,
+    meleeWeapon: { ...plachy.meleeWeapon!, kind: "musket_butt" },
+  }),
+  null,
+  "severing requires a bladed melee weapon (dagger or sword)",
+);
+
 void (null as Mission2Clock | null);
 console.log("mission 2 ok");

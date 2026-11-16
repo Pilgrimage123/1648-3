@@ -930,9 +930,9 @@ function BaroqueLivingDecor({
       scenario === "mission1"
         ? highWalls.filter(
             (t) =>
-              t.coord.z === 15 &&
+              t.coord.z === 16 &&
               (t.coord.x === 3 ||
-                t.coord.x === 5 ||
+                t.coord.x === 7 ||
                 t.coord.x === 15 ||
                 t.coord.x === 16),
           )
@@ -1340,7 +1340,7 @@ function BaroqueLivingDecor({
                 >
                   <dodecahedronGeometry args={[0.06, 0]} />
                   <meshStandardMaterial
-                    color={tile.coord.z >= 15 ? "#9c9083" : "#575049"}
+                    color={scenario === "mission1" && tile.coord.z >= 15 ? "#9c9083" : "#575049"}
                     roughness={0.88}
                   />
                 </mesh>
@@ -1351,7 +1351,7 @@ function BaroqueLivingDecor({
                 >
                   <boxGeometry args={[0.14, 0.035, 0.1]} />
                   <meshStandardMaterial
-                    color={tile.coord.z >= 15 ? "#8a7e72" : "#4a443e"}
+                    color={scenario === "mission1" && tile.coord.z >= 15 ? "#8a7e72" : "#4a443e"}
                     roughness={0.88}
                   />
                 </mesh>
@@ -1701,7 +1701,7 @@ export function InstancedBattlefield() {
                   ? t.stairType
                   : "straight_stairs",
               stairDir: t.stairDir ?? "N",
-              inPalace: t.coord.z >= 15,
+              inPalace: scenario === "mission1" && t.coord.z >= 15,
             });
           }
         }
@@ -2025,7 +2025,7 @@ export function InstancedBattlefield() {
         _color.setHex(colorFn(tile, dmg));
         const fogVis = getTileVisibility(tile.coord, fogSnapshot, fogOfWarEnabled);
         if (fogVis === "shrouded") {
-          if (tile.coord.z >= 15 && scenario !== "mission2") {
+          if (tile.coord.z >= 15 && scenario === "mission1") {
             _color.lerp(_palaceShroudTint, 0.14);
             _color.multiplyScalar(0.84);
           } else {
@@ -2082,32 +2082,38 @@ export function InstancedBattlefield() {
       // Během míření nebo letu projektilu snížíme na sokl (Wall Stub) každou zeď v koridoru mezi střelcem,
       // dráhou střely, cílem a boční akční kamerou
       if (shotFrom && shotTo) {
-        const segX = shotTo.x - shotFrom.x;
-        const segZ = shotTo.z - shotFrom.z;
-        const segLenSq = Math.max(0.001, segX * segX + segZ * segZ);
-        const tProj = Math.max(
-          -0.25,
-          Math.min(
-            1.25,
-            ((c.x - shotFrom.x) * segX + (c.z - shotFrom.z) * segZ) / segLenSq,
-          ),
-        );
-        const closestX = shotFrom.x + tProj * segX;
-        const closestZ = shotFrom.z + tProj * segZ;
-        const distToShotLine = Math.hypot(c.x - closestX, c.z - closestZ);
-        if (distToShotLine <= 2.65) {
-          return true;
+        const minShotY = Math.min(shotFrom.y, shotTo.y);
+        const maxShotY = Math.max(shotFrom.y, shotTo.y);
+        if (c.y >= minShotY && c.y <= maxShotY) {
+          const segX = shotTo.x - shotFrom.x;
+          const segZ = shotTo.z - shotFrom.z;
+          const segLenSq = Math.max(0.001, segX * segX + segZ * segZ);
+          const tProj = Math.max(
+            -0.25,
+            Math.min(
+              1.25,
+              ((c.x - shotFrom.x) * segX + (c.z - shotFrom.z) * segZ) / segLenSq,
+            ),
+          );
+          const closestX = shotFrom.x + tProj * segX;
+          const closestZ = shotFrom.z + tProj * segZ;
+          const distToShotLine = Math.hypot(c.x - closestX, c.z - closestZ);
+          if (distToShotLine <= 2.65) {
+            return true;
+          }
         }
       }
 
       if (c.y !== effectiveViewFloor) return false;
       // Never stub a wall jamb directly adjacent to a doorway on the same floor,
       // so 3D doors and portals remain anchored into full-height wall jambs on both sides.
+      const skipJambLock = scenario === "mission3" && c.z === 15;
       if (
-        grid.getDoor({ x: c.x - 1, y: c.y, z: c.z }) ||
-        grid.getDoor({ x: c.x + 1, y: c.y, z: c.z }) ||
-        grid.getDoor({ x: c.x, y: c.y, z: c.z - 1 }) ||
-        grid.getDoor({ x: c.x, y: c.y, z: c.z + 1 })
+        !skipJambLock &&
+        (grid.getDoor({ x: c.x - 1, y: c.y, z: c.z }) ||
+          grid.getDoor({ x: c.x + 1, y: c.y, z: c.z }) ||
+          grid.getDoor({ x: c.x, y: c.y, z: c.z - 1 }) ||
+          grid.getDoor({ x: c.x, y: c.y, z: c.z + 1 }))
       ) {
         return false;
       }
@@ -2207,7 +2213,7 @@ export function InstancedBattlefield() {
 
         const fogVis = getTileVisibility(tile.coord, fogSnapshot, fogOfWarEnabled);
         if (fogVis === "shrouded") {
-          if (tile.coord.z >= 15 && scenario !== "mission2") {
+          if (tile.coord.z >= 15 && scenario === "mission1") {
             _color.lerp(_palaceShroudTint, 0.14);
             _color.multiplyScalar(0.84);
           } else {
@@ -2382,7 +2388,7 @@ export function InstancedBattlefield() {
         // temně modrou mlžnou clonou, aby vynikla teplá záře lustrů, koberců a vybavení!
         const isShroudedPalaceInterior =
           vis === "shrouded" &&
-          scenario !== "mission2" &&
+          scenario === "mission1" &&
           tile.coord.z >= 15 &&
           tile.coord.x >= 2 &&
           tile.coord.x <= 21;
@@ -2465,6 +2471,7 @@ export function InstancedBattlefield() {
     actionMode,
     reachableTiles,
     grid,
+    scenario,
   ]);
 
   // Populate Reachable Movement Zones — Filtered by `effectiveViewFloor` so upper/lower floors don't create double-grid clutter!
@@ -3416,7 +3423,9 @@ export function InstancedBattlefield() {
               >
                 <div className="pointer-events-none select-none flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-950/95 border border-amber-400 text-amber-300 font-cinzel font-black text-[11px] uppercase tracking-wider shadow-[0_0_20px_rgba(251,191,36,0.5)] backdrop-blur-md whitespace-nowrap">
                   <span>⛵</span>
-                  <span>{text("ui.boat.certovka", undefined, locale)}</span>
+                  <span>
+                    {text(scenario === "mission3" ? "ui.boat.m3" : "ui.boat.certovka", undefined, locale)}
+                  </span>
                 </div>
               </WorldHtml>
             )}

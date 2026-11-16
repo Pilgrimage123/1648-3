@@ -3,6 +3,7 @@
  * The court cobble stays the calm 60%. Gold and orange stay on the cord,
  * the kegs, the live cart clock, and the falconet. The Old Town coal is emissive only.
  */
+import { getTileVisibility } from "../../core/FogOfWar";
 import { LANE } from "../../core/mission3";
 import type { GridCoord } from "../../core/types";
 import { useGameStore } from "../../store/useGameStore";
@@ -90,10 +91,10 @@ function FieldFalconet({ coord }: { coord: GridCoord }) {
         </mesh>
       ))}
 
-      {/* Tapered bronze/iron barrel aiming west (-X) with reinforce rings & cascabel */}
+      {/* Tapered weathered-bronze barrel aiming west (-X) with reinforce rings & cascabel */}
       <mesh position={[-0.08, 0.52, 0]} rotation={[0, 0, Math.PI / 2]} raycast={NO_RAYCAST}>
         <cylinderGeometry args={[0.075, 0.105, 0.96, 12]} />
-        <meshStandardMaterial color="#f97316" roughness={0.42} metalness={0.38} />
+        <meshStandardMaterial color="#b45309" roughness={0.42} metalness={0.58} />
       </mesh>
       {[-0.48, -0.18, 0.14].map((rx) => (
         <mesh key={`ring-${rx}`} position={[rx, 0.52, 0]} rotation={[0, 0, Math.PI / 2]} raycast={NO_RAYCAST}>
@@ -123,7 +124,12 @@ export function PowderYardDressing() {
   const scenario = useGameStore((s) => s.scenario);
   const activeFloor = useGameStore((s) => s.activeFloor);
   const m3 = useGameStore((s) => s.m3);
+  const fogSnapshot = useGameStore((s) => s.fogSnapshot);
+  const fogOfWarEnabled = useGameStore((s) => s.fogOfWarEnabled);
   if (scenario !== "mission3") return null;
+
+  const isExplored = (coord: GridCoord) =>
+    getTileVisibility(coord, fogSnapshot, fogOfWarEnabled) !== "unexplored";
 
   const roof = continuousGridToWorld(14, 0, 8.5);
   const coal = continuousGridToWorld(28, 8, 6);
@@ -134,6 +140,7 @@ export function PowderYardDressing() {
     { x: 15, y: 0, z: 14 },
   ];
   const storeCutaway = activeFloor === 0;
+  const lodgeGhost = activeFloor === 0;
   const cartCoord = m3?.cart ? (LANE[m3.cart.laneIndex] ?? LANE[0]!) : null;
   const showStagedCart =
     !m3?.cookedOff && !m3?.cart && Boolean(m3?.spawnQueued) && (m3?.deliveries ?? 0) < 3;
@@ -161,12 +168,13 @@ export function PowderYardDressing() {
       ))}
 
       {/* Store interior reserve kegs along the north wall */}
-      {[-0.36, 0.36].map((kx) => (
-        <mesh key={`reserve-${kx}`} position={place({ x: 14, y: 0, z: 8 }, kx, 0.34, -0.4)} raycast={NO_RAYCAST}>
-          <cylinderGeometry args={[0.24, 0.22, 0.64, 10]} />
-          <meshStandardMaterial color="#b45309" roughness={0.7} metalness={0.2} />
-        </mesh>
-      ))}
+      {isExplored({ x: 14, y: 0, z: 8 }) &&
+        [-0.36, 0.36].map((kx) => (
+          <mesh key={`reserve-${kx}`} position={place({ x: 14, y: 0, z: 8 }, kx, 0.34, -0.4)} raycast={NO_RAYCAST}>
+            <cylinderGeometry args={[0.24, 0.22, 0.64, 10]} />
+            <meshStandardMaterial color="#b45309" roughness={0.7} metalness={0.2} />
+          </mesh>
+        ))}
 
       {/* Battery gate timber posts and iron-strapped arch lintel at (17,0,8) */}
       {[-0.56, 0.56].map((gz) => (
@@ -192,10 +200,16 @@ export function PowderYardDressing() {
         </mesh>
       ))}
 
-      {/* Lodge y=1 half-cover balustrade */}
+      {/* Lodge y=1 half-cover balustrade (ghosts alongside P1 floor when viewing P0) */}
       <mesh position={continuousGridToWorld(11.5, 1, 12).map((v, i) => (i === 1 ? v + 0.36 : i === 2 ? v - 0.68 : v)) as [number, number, number]} raycast={NO_RAYCAST}>
         <boxGeometry args={[12.6, 0.72, 0.12]} />
-        <meshStandardMaterial color={TIMBER} roughness={0.84} />
+        <meshStandardMaterial
+          color={TIMBER}
+          roughness={0.84}
+          transparent={lodgeGhost}
+          opacity={lodgeGhost ? 0.18 : 1}
+          depthWrite={!lodgeGhost}
+        />
       </mesh>
       {[8, 15].map((lx) => (
         <mesh
@@ -206,27 +220,35 @@ export function PowderYardDressing() {
           raycast={NO_RAYCAST}
         >
           <boxGeometry args={[0.12, 0.72, 4.6]} />
-          <meshStandardMaterial color={TIMBER} roughness={0.84} />
+          <meshStandardMaterial
+            color={TIMBER}
+            roughness={0.84}
+            transparent={lodgeGhost}
+            opacity={lodgeGhost ? 0.18 : 1}
+            depthWrite={!lodgeGhost}
+          />
         </mesh>
       ))}
 
       {/* Live Cart Clock & staged next cart */}
-      {!m3?.cookedOff && cartCoord && <PowderCart coord={cartCoord} />}
-      {showStagedCart && <PowderCart coord={{ x: 15, y: 0, z: 8 }} dx={0.35} />}
+      {!m3?.cookedOff && cartCoord && isExplored(cartCoord) && <PowderCart coord={cartCoord} />}
+      {showStagedCart && isExplored({ x: 15, y: 0, z: 8 }) && <PowderCart coord={{ x: 15, y: 0, z: 8 }} dx={0.35} />}
 
       {/* 1648 Field Falconet at (17,0,10) */}
-      <FieldFalconet coord={{ x: 17, y: 0, z: 10 }} />
+      {isExplored({ x: 17, y: 0, z: 10 }) && <FieldFalconet coord={{ x: 17, y: 0, z: 10 }} />}
 
       {/* Gabion baskets */}
       {[
         { x: 16, y: 0 as const, z: 12 },
         { x: 17, y: 0 as const, z: 11 },
-      ].map((coord) => (
-        <mesh key={`gabion-${coord.x}-${coord.z}`} position={place(coord, 0, 0.42, 0)} raycast={NO_RAYCAST}>
-          <cylinderGeometry args={[0.46, 0.5, 0.7, 8]} />
-          <meshStandardMaterial color={SAND} roughness={0.92} />
-        </mesh>
-      ))}
+      ]
+        .filter(isExplored)
+        .map((coord) => (
+          <mesh key={`gabion-${coord.x}-${coord.z}`} position={place(coord, 0, 0.42, 0)} raycast={NO_RAYCAST}>
+            <cylinderGeometry args={[0.46, 0.5, 0.7, 8]} />
+            <meshStandardMaterial color={SAND} roughness={0.92} />
+          </mesh>
+        ))}
 
       {/* Store door timber jambs */}
       <mesh position={place({ x: 12, y: 0, z: 10 }, 0.55, 0.85, -0.42)} raycast={NO_RAYCAST}>
@@ -239,10 +261,12 @@ export function PowderYardDressing() {
       </mesh>
 
       {/* Rope coil at (8,0,12) */}
-      <mesh position={place({ x: 8, y: 0, z: 12 }, -0.48, 0.14, 0.2)} rotation={[Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
-        <torusGeometry args={[0.16, 0.045, 6, 10]} />
-        <meshStandardMaterial color={TIMBER} roughness={0.9} />
-      </mesh>
+      {isExplored({ x: 8, y: 0, z: 12 }) && (
+        <mesh position={place({ x: 8, y: 0, z: 12 }, -0.48, 0.14, 0.2)} rotation={[Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
+          <torusGeometry args={[0.16, 0.045, 6, 10]} />
+          <meshStandardMaterial color={TIMBER} roughness={0.9} />
+        </mesh>
+      )}
 
       {/* Stair treads at (10,0,12) */}
       {[0.12, 0.28, 0.44].map((step, index) => (

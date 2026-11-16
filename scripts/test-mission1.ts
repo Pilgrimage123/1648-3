@@ -902,9 +902,23 @@ assert(
   "Unspotted dragoon within acoustic range must emit a 17th-century Sound Contact",
 );
 
-// Verify black-powder smoke LoS occlusion on same floor vs. high-ground overlook
+// Verify black-powder smoke LoS occlusion on same floor vs. high-ground overlook (ADR-0011: >= 2 consecutive smoke tiles across sightline block same-level LoS)
 const smokeTestGrid = createInitialGrid();
+smokeTestGrid.addSmoke({ x: 10, y: 0, z: 12 }, 0, 2);
 smokeTestGrid.addSmoke({ x: 11, y: 0, z: 12 }, 0, 2);
+smokeTestGrid.addSmoke({ x: 12, y: 0, z: 12 }, 0, 2);
+assert(
+  checkFogLineOfSight3D(
+    smokeTestGrid,
+    { x: 11, y: 0, z: 16 },
+    { x: 11, y: 0, z: 9 },
+    false,
+  ),
+  "A 1-tile-deep black-powder smoke band must preserve tenuous same-level Fog of War visibility",
+);
+smokeTestGrid.addSmoke({ x: 10, y: 0, z: 11 }, 0, 2);
+smokeTestGrid.addSmoke({ x: 11, y: 0, z: 11 }, 0, 2);
+smokeTestGrid.addSmoke({ x: 12, y: 0, z: 11 }, 0, 2);
 const losBlockedBySmoke = checkFogLineOfSight3D(
   smokeTestGrid,
   { x: 11, y: 0, z: 16 },
@@ -913,7 +927,7 @@ const losBlockedBySmoke = checkFogLineOfSight3D(
 );
 assert(
   !losBlockedBySmoke,
-  "Intermediate black-powder smoke tile must block ground-level P0->P0 Fog of War line of sight",
+  "Two consecutive black-powder smoke rows must block ground-level P0->P0 Fog of War line of sight",
 );
 const losOverSmokeFromTower = checkFogLineOfSight3D(
   smokeTestGrid,
@@ -1060,6 +1074,7 @@ console.log(
 
 // 15. Test "Zpět k pohybu" and aim mode cancellation under all conditions (0 AP, detained, 0 visible targets, ground click)
 useGameStore.getState().resetGame();
+useGameStore.getState().skipGuidedTutorial();
 const testStore = useGameStore.getState();
 const activePlayer = testStore.units.find((u) => u.id === testStore.selectedUnitId)!;
 
@@ -1107,6 +1122,7 @@ assert(
 
 // 15d: Ground click while in aim mode cancels aim mode and returns to move mode
 useGameStore.getState().resetGame();
+useGameStore.getState().skipGuidedTutorial();
 useGameStore.getState().setActionMode("shoot");
 assert(
   useGameStore.getState().actionMode === "shoot",
@@ -1319,6 +1335,7 @@ console.log(
 
 // 21. Test Active-Floor Preference (P0/P1/P2) & Václav Same-Floor P1 Navigation
 useGameStore.getState().resetGame();
+useGameStore.getState().skipGuidedTutorial();
 useGameStore.getState().selectUnit("player-vaclav-michalovic");
 const vaclavStoreState = useGameStore.getState();
 assert(
@@ -1600,6 +1617,7 @@ console.log(
 
 // 24. Test Overwatch (Hlídka) Mechanics, Reaction Trigger & Action Camera Payload
 useGameStore.getState().resetGame();
+useGameStore.getState().skipGuidedTutorial();
 const preOwStore = useGameStore.getState();
 const testShooter = preOwStore.units.find((u) => u.id === "player-vaclav-michalovic")!;
 assert(
@@ -1811,6 +1829,7 @@ assert(meleeRoll.misfired === false, "Melee attacks must never misfire");
 assert(meleeRoll.damage >= 1 && meleeRoll.damage <= 10, "Damage must be applied against target");
 
 // 25e: Store Execution: Single-shot wheellock pistol discharge & blocked subsequent shot
+useGameStore.getState().skipGuidedTutorial();
 const freshStoreUnits = createInitialUnits();
 useGameStore.setState((s) => ({
   ...s,
@@ -2224,6 +2243,7 @@ assert(
 
 // Verify Segmented Reload (1 AP per step: 0/4 -> 4/4 for Heavy Musket, 0/2 -> 2/2 for Swedish Musket)
 useGameStore.getState().resetGame();
+useGameStore.getState().skipGuidedTutorial();
 useGameStore.setState((s) => ({
   ...s,
   isBusy: false,
@@ -2552,6 +2572,22 @@ assert(
 
 console.log(
   "✓ Poslední vzepětí (Death Throes), Negative HP Thresholds & Capture Prohibition (ADR-0012) validated.",
+);
+
+// Indoor shotFullyRoofed weather aim exemption (Q3 / ADR-0011)
+const indoorShooter: UnitData = { ...units[0]!, id: "probe-indoor-s", pos: { x: 5, y: 1, z: 23 } };
+const indoorTarget: UnitData = { ...units[4]!, id: "probe-indoor-t", faction: "enemy", pos: { x: 7, y: 1, z: 23 }, alive: true };
+const indoorShotCalc = calculateShot(grid, indoorShooter, indoorTarget, "rain");
+assert(
+  !indoorShotCalc.hitModifiers.some((m) => m.id === "weather-rain"),
+  "Fully enclosed indoor shot under roof must not suffer -10% rain aim penalty",
+);
+const outdoorShooter: UnitData = { ...indoorShooter, pos: { x: 6, y: 0, z: 10 } };
+const outdoorTarget: UnitData = { ...indoorTarget, pos: { x: 8, y: 0, z: 10 } };
+const outdoorShotCalc = calculateShot(grid, outdoorShooter, outdoorTarget, "rain");
+assert(
+  outdoorShotCalc.hitModifiers.some((m) => m.id === "weather-rain" && m.value === -10),
+  "Outdoor shot in rain must retain -10% rain aim penalty",
 );
 
 console.log("=== ALL MISSION 1 TESTS PASSED SUCCESSFULLY! ===");

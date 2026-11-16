@@ -11,6 +11,7 @@ import {
   computeEnemyAiDecision,
   isAdjacentForMelee,
   isInstantOverkill,
+  isUnitFighting,
   type EnemyAiDecision,
 } from "./CombatSystem";
 import { applyPowderBlast } from "./explosions";
@@ -19,7 +20,6 @@ import {
   GridSystem,
   MELEE_CATALOG,
   sameCoord,
-  setRoofMask,
   soldierMovePerAp,
   WEAPON_CATALOG,
 } from "./GridSystem";
@@ -165,7 +165,7 @@ export function readMission3Clock(): Mission3Clock | null {
 }
 
 export function isPowderYardRoofed(x: number, y: number, z: number): boolean {
-  const store = y === 0 && x >= 13 && x <= 15 && z >= 8 && z <= 9;
+  const store = y <= 1 && x >= 13 && x <= 15 && z >= 8 && z <= 9;
   const lodge = y === 1 && x >= 8 && x <= 15 && z >= 12 && z <= 14;
   const soffit = y === 0 && x >= 8 && x <= 15 && z >= 12 && z <= 14;
   return store || lodge || soffit;
@@ -202,8 +202,7 @@ function livingAt(units: UnitData[], coord: GridCoord, ignoreId?: string): boole
   return units.some(
     (unit) =>
       unit.id !== ignoreId &&
-      unit.alive &&
-      unit.hp > 0 &&
+      isUnitFighting(unit) &&
       sameCoord(unit.pos, coord),
   );
 }
@@ -267,8 +266,8 @@ function wall(grid: GridSystem, x: number, z: number): void {
 }
 
 export function createMission3Grid(): GridSystem {
-  setRoofMask(isPowderYardRoofed, "powder-yard");
   const grid = new GridSystem();
+  grid.setRoofMask(isPowderYardRoofed, "powder-yard");
 
   for (const tile of grid.getAllTiles()) {
     tile.hasFloor = false;
@@ -573,7 +572,7 @@ export function layCord(
   grid: GridSystem,
   units: UnitData[],
 ): Mission3Clock | null {
-  if (clock.cookedOff || layer.ap < 1 || !layer.alive || layer.hp <= 0) return null;
+  if (clock.cookedOff || layer.ap < 1 || !isUnitFighting(layer)) return null;
   const allowed = layer.id === ONDREJ_ID ? 2 : 1;
   if (tiles.length < 1 || tiles.length > allowed) return null;
   if (clock.cord.length + tiles.length > MAX_CORD) return null;
@@ -619,7 +618,7 @@ export function lightCord(
   rng: () => number = Math.random,
 ): Mission3Clock | null {
   if (plachy.id !== PLACHY_ID) return null;
-  if (plachy.ap < 1 || !plachy.alive || plachy.hp <= 0) return null;
+  if (plachy.ap < 1 || !isUnitFighting(plachy)) return null;
   if (clock.cookedOff || clock.lit || clock.cord.length === 0) return null;
   const spark = clock.cord[clock.sparkIndex];
   if (!spark || !isAdjacentForMelee(plachy.pos, spark)) return null;
@@ -630,7 +629,7 @@ export function lightCord(
 /** Ribbon predicate. AP is the button's enabled state, not whether the verb exists. */
 export function canLightCord(clock: Mission3Clock, plachy: UnitData): boolean {
   if (plachy.id !== PLACHY_ID || plachy.faction !== "player") return false;
-  if (!plachy.alive || plachy.hp <= 0) return false;
+  if (!isUnitFighting(plachy)) return false;
   if (clock.cookedOff || clock.lit || clock.cord.length === 0) return false;
   const spark = clock.cord[clock.sparkIndex];
   return !!spark && isAdjacentForMelee(plachy.pos, spark);
@@ -654,7 +653,7 @@ export function canOfferCordLay(
   grid: GridSystem,
   units: UnitData[],
 ): boolean {
-  if (clock.cookedOff || layer.faction !== "player" || !layer.alive || layer.hp <= 0) {
+  if (clock.cookedOff || layer.faction !== "player" || !isUnitFighting(layer)) {
     return false;
   }
   if (clock.cord.length >= MAX_CORD) return false;
@@ -718,7 +717,7 @@ export function applyStamp(clock: Mission3Clock, units: UnitData[]): Mission3Clo
   const tile = clock.stampTile;
   const stillThere = clock.stamperIds.some((id) => {
     const unit = units.find((candidate) => candidate.id === id);
-    return !!unit && unit.alive && unit.hp > 0 && isAdjacentForMelee(unit.pos, tile);
+    return !!unit && isUnitFighting(unit) && isAdjacentForMelee(unit.pos, tile);
   });
   if (!stillThere) return { ...clock, stamperIds: [], stampTile: null };
   return { ...clock, lit: false, stamperIds: [], stampTile: null };
@@ -755,7 +754,7 @@ export function displaceFromPowderBlast(
   center: GridCoord,
 ): UnitData[] {
   return units.map((unit) => {
-    if (!unit.alive || unit.hp <= 0 || !sameCoord(unit.pos, center)) return unit;
+    if (!isUnitFighting(unit) || !sameCoord(unit.pos, center)) return unit;
     const here = chebyshev(unit.pos, center);
     for (const [dx, dz] of PUSH_STEPS) {
       const dest: GridCoord = { x: unit.pos.x + dx, y: unit.pos.y, z: unit.pos.z + dz };
@@ -774,7 +773,7 @@ export function displaceFromMelee(
   defenderId: string,
 ): UnitData[] {
   const defender = units.find((unit) => unit.id === defenderId);
-  if (!defender || !defender.alive || defender.hp <= 0) return units;
+  if (!defender || !isUnitFighting(defender)) return units;
   const dx = Math.sign(defender.pos.x - attacker.pos.x);
   const dz = Math.sign(defender.pos.z - attacker.pos.z);
   if (dx === 0 && dz === 0) return units;
@@ -852,7 +851,7 @@ export function canCutTackle(
   ondrej: UnitData,
   units: UnitData[],
 ): boolean {
-  if (ondrej.id !== ONDREJ_ID || !ondrej.alive || ondrej.hp <= 0) return false;
+  if (ondrej.id !== ONDREJ_ID || !isUnitFighting(ondrej)) return false;
   const probe = ondrej.ap > 0 ? ondrej : { ...ondrej, ap: 1 };
   if (probe.pos.y !== 1 || !onLodge(probe.pos) || !clock.cart) return false;
   const bearer = units.find((unit) => unit.id === clock.cart!.bearerId);
@@ -869,7 +868,7 @@ export function cutTackle(
   rng: () => number = Math.random,
 ): TurnStep | null {
   if (ondrej.id !== ONDREJ_ID) return null;
-  if (ondrej.ap < 1 || !ondrej.alive || ondrej.hp <= 0) return null;
+  if (ondrej.ap < 1 || !isUnitFighting(ondrej)) return null;
   if (ondrej.pos.y !== 1 || !onLodge(ondrej.pos) || !clock.cart) return null;
   const bearer = units.find((unit) => unit.id === clock.cart!.bearerId);
   const seeBearer = bearer ? checkLineOfSight3D(grid, ondrej.pos, bearer.pos).clear : false;
@@ -938,7 +937,7 @@ export function advanceCarts(
   if (next.cart) {
     const bearerId = next.cart.bearerId;
     const bearer = nextUnits.find((unit) => unit.id === bearerId);
-    const pushing = !!bearer && bearer.alive && bearer.hp > 0 && bearer.attachedToCart === true;
+    const pushing = !!bearer && isUnitFighting(bearer) && bearer.attachedToCart === true;
     if (!pushing) {
       next = { ...next, cart: null };
     } else if (next.cart.laneIndex + 1 === LANE.length) {
@@ -947,9 +946,10 @@ export function advanceCarts(
       delivered = true;
     } else {
       const lane = LANE[next.cart.laneIndex + 1]!;
+      const shoulder: GridCoord = { x: lane.x, y: lane.y, z: lane.z + 1 };
       next = { ...next, cart: { bearerId, laneIndex: next.cart.laneIndex + 1 } };
       nextUnits = nextUnits.map((unit) =>
-        unit.id === bearerId ? { ...unit, pos: copyCoord(lane) } : unit,
+        unit.id === bearerId ? { ...unit, pos: shoulder } : unit,
       );
     }
   }
@@ -980,7 +980,7 @@ export function tilesHitByCanister(grid: GridSystem, cone: ConeId): GridCoord[] 
 }
 
 export function selectCone(grid: GridSystem, units: UnitData[]): ConeId {
-  const players = units.filter((unit) => unit.faction === "player" && unit.alive && unit.hp > 0);
+  const players = units.filter((unit) => unit.faction === "player" && isUnitFighting(unit));
   const order: ConeId[] = ["lane", "court", "cord"];
   let best: ConeId = "lane";
   let bestCount = -1;
@@ -1004,7 +1004,7 @@ export function applyCanister(
   if (!clock.cone) return { clock, units };
   const hitTiles = tilesHitByCanister(grid, clock.cone);
   const nextUnits = units.map((unit) => {
-    if (!unit.alive || unit.hp <= 0 || unit.pos.y >= 1) return unit;
+    if (!isUnitFighting(unit) || unit.pos.y >= 1) return unit;
     if (!hitTiles.some((tile) => sameCoord(tile, unit.pos))) return unit;
     const nextHp = unit.hp - CANISTER_DAMAGE;
     const instant = isInstantOverkill(nextHp, unit.maxHp);
@@ -1029,7 +1029,7 @@ export function applyCanister(
 }
 
 export function armClimb(clock: Mission3Clock, unit: UnitData): Mission3Clock | null {
-  if (unit.ap < 1 || !unit.alive || unit.hp <= 0 || unit.faction !== "player") return null;
+  if (unit.ap < 1 || !isUnitFighting(unit) || unit.faction !== "player") return null;
   if (clock.climbArmedId) return null;
   if (sameCoord(unit.pos, ROPE_FOOT)) {
     if (unit.id !== ONDREJ_ID) return null;
@@ -1061,7 +1061,7 @@ export function resolveClimbs(clock: Mission3Clock, units: UnitData[]): TurnStep
   const id = clock.climbArmedId;
   const kind = clock.climbKind;
   const unit = id ? units.find((candidate) => candidate.id === id) : undefined;
-  const ready = !!unit && !!kind && unit.alive && unit.hp > 0 && climbFoot(unit, kind);
+  const ready = !!unit && !!kind && isUnitFighting(unit) && climbFoot(unit, kind);
   if (!ready || !unit || !kind || !id) {
     return {
       clock: { ...clock, stairProgress: {}, climbArmedId: null, climbKind: null },
@@ -1143,8 +1143,7 @@ function writeStamp(clock: Mission3Clock, units: UnitData[]): Mission3Clock {
     .filter(
       (unit) =>
         unit.faction === "enemy" &&
-        unit.alive &&
-        unit.hp > 0 &&
+        isUnitFighting(unit) &&
         isAdjacentForMelee(unit.pos, tile),
     )
     .map((unit) => unit.id);
@@ -1154,7 +1153,7 @@ function writeStamp(clock: Mission3Clock, units: UnitData[]): Mission3Clock {
 function dropDeadCart(clock: Mission3Clock, grid: GridSystem, units: UnitData[]): Mission3Clock {
   if (!clock.cart) return clock;
   const bearer = units.find((unit) => unit.id === clock.cart?.bearerId);
-  if (bearer && bearer.alive && bearer.hp > 0) return clock;
+  if (bearer && isUnitFighting(bearer)) return clock;
   return dropCartAsKeg(clock, grid);
 }
 
@@ -1259,11 +1258,11 @@ const SKIFF_B: GridCoord = { x: 6, y: 0, z: 10 };
 
 export function judgeMission3(clock: Mission3Clock, units: UnitData[]): Mission3Judgement {
   const plachy = units.find((unit) => unit.id === PLACHY_ID);
-  if (!plachy || !plachy.alive || plachy.hp <= 0) {
+  if (!plachy || !isUnitFighting(plachy)) {
     return { outcome: "defeat", victoryReason: null, loss: "plachy" };
   }
   const anyPlayer = units.some(
-    (unit) => unit.faction === "player" && unit.alive && unit.hp > 0,
+    (unit) => unit.faction === "player" && isUnitFighting(unit),
   );
   if (!anyPlayer) return { outcome: "defeat", victoryReason: null, loss: "wiped" };
   if (clock.deliveries >= DELIVERY_LIMIT && !clock.cookedOff) {
