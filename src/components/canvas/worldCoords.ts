@@ -27,3 +27,14 @@ export function continuousGridToWorld(
   const wz = (z - (GRID_DEPTH - 1) * 0.5) * TILE_SIZE;
   return [wx, wy, wz];
 }
+
+export function worldToContinuousGridXZ(wx: number, wz: number): [number, number] {
+  const gx = wx / TILE_SIZE + (GRID_WIDTH - 1) * 0.5;
+  const gz = wz / TILE_SIZE + (GRID_DEPTH - 1) * 0.5;
+  return [gx, gz];
+}
+
+export function worldToGridXZ(wx: number, wz: number): { x: number; z: number } {
+  const [gx, gz] = worldToContinuousGridXZ(wx, wz);
+  return { x: Math.round(gx), z: Math.round(gz) };
+}

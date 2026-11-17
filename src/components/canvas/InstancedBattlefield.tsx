@@ -1643,30 +1643,21 @@ export function InstancedBattlefield() {
     locale,
   ]);
 
-  const groundFloorTiles = useMemo(
-    () => grid.getFloorTiles(0),
-    [grid, gridVersion],
-  );
-  const waterFloorTiles = useMemo(
-    () => groundFloorTiles.filter((t) => t.surface === "water"),
-    [groundFloorTiles],
-  );
-  const escapeTile = useMemo(
-    () => getMission1EscapeTile(grid),
-    [grid, gridVersion],
-  );
-  const upperFloorTiles = useMemo(
-    () => grid.getFloorTiles(1),
-    [grid, gridVersion],
-  );
-  const watchtowerFloorTiles = useMemo(
-    () => grid.getFloorTiles(2),
-    [grid, gridVersion],
-  );
-
-  // Separate obstacles by floor and type for InstancedMesh rendering + Roof Cutaway
-  const obstacles = useMemo(() => {
+  const {
+    groundFloorTiles,
+    waterFloorTiles,
+    escapeTile,
+    upperFloorTiles,
+    watchtowerFloorTiles,
+    obstacles,
+  } = useMemo(() => {
     void gridVersion;
+    const groundFloorTiles: TileData[] = [];
+    const waterFloorTiles: TileData[] = [];
+    const upperFloorTiles: TileData[] = [];
+    const watchtowerFloorTiles: TileData[] = [];
+    let escapeTile: TileData | undefined;
+
     const low0: TileData[] = [];
     const high0: TileData[] = [];
     const pillar0: TileData[] = [];
@@ -1681,6 +1672,16 @@ export function InstancedBattlefield() {
 
     for (const t of grid.getAllTiles()) {
       if (!t.hasFloor) continue;
+
+      if (t.coord.y === 0) {
+        groundFloorTiles.push(t);
+        if (t.surface === "water") waterFloorTiles.push(t);
+        if (!escapeTile && t.isEscapeZone) escapeTile = t;
+      } else if (t.coord.y === 1) {
+        upperFloorTiles.push(t);
+      } else if (t.coord.y === 2) {
+        watchtowerFloorTiles.push(t);
+      }
 
       if (t.isLadder || (t.stairType && t.stairType !== "none")) {
         const conns =
@@ -1724,20 +1725,27 @@ export function InstancedBattlefield() {
     }
     const doors = grid.getAllDoors();
     return {
-      low0,
-      high0,
-      pillar0,
-      kegs0,
-      low1,
-      high1,
-      pillar1,
-      low2,
-      high2,
-      pillar2,
-      stairs,
-      doors,
+      groundFloorTiles,
+      waterFloorTiles,
+      escapeTile,
+      upperFloorTiles,
+      watchtowerFloorTiles,
+      obstacles: {
+        low0,
+        high0,
+        pillar0,
+        kegs0,
+        low1,
+        high1,
+        pillar1,
+        low2,
+        high2,
+        pillar2,
+        stairs,
+        doors,
+      },
     };
-  }, [grid, gridVersion]);
+  }, [grid, gridVersion, scenario]);
 
   // Diegetické ikony krytu přilepené přímo na stěnách a překážkách (Pillar 3 - XCOM 2 Wall Shields)
   const contextualCoverObstacles = useMemo(() => {
@@ -2012,8 +2020,10 @@ export function InstancedBattlefield() {
       colorFn: (tile: TileData, dmg: number) => number,
     ) => {
       if (!mesh) return;
-      mesh.count = list.length;
-      list.forEach((tile, i) => {
+      const cap = mesh.instanceMatrix.count;
+      const clamped = list.length > cap ? list.slice(0, cap) : list;
+      mesh.count = clamped.length;
+      clamped.forEach((tile, i) => {
         const [wx, wy, wz] = gridToWorld(tile.coord);
         _dummy.position.set(wx, wy + heightOffset, wz);
         _dummy.rotation.set(0, 0, 0);
@@ -2044,7 +2054,7 @@ export function InstancedBattlefield() {
       });
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-      if (list.length > 0) mesh.computeBoundingSphere();
+      if (clamped.length > 0) mesh.computeBoundingSphere();
     };
 
     // Smart Wall Culling & Wall Stubs (ADR-0010 Ticket 06 + Action Camera Corridor Culling)
@@ -2170,9 +2180,13 @@ export function InstancedBattlefield() {
       trimMesh?: THREE.InstancedMesh | null,
     ) => {
       if (!mesh) return;
-      mesh.count = list.length;
-      if (trimMesh) trimMesh.count = list.length * 2;
-      list.forEach((tile, i) => {
+      const wallCap = mesh.instanceMatrix.count;
+      const trimCap = trimMesh ? Math.floor(trimMesh.instanceMatrix.count / 2) : wallCap;
+      const cap = Math.min(wallCap, trimCap);
+      const clamped = list.length > cap ? list.slice(0, cap) : list;
+      mesh.count = clamped.length;
+      if (trimMesh) trimMesh.count = clamped.length * 2;
+      clamped.forEach((tile, i) => {
         const [wx, wy, wz] = gridToWorld(tile.coord);
         const front = isFrontWall(tile.coord);
         if (front) {
@@ -2376,6 +2390,8 @@ export function InstancedBattlefield() {
       ...(effectiveViewFloor >= 2 ? watchtowerFloorTiles : []),
     ];
 
+    const veilCap = veilMesh.instanceMatrix.count;
+    const rimCap = rimMesh.instanceMatrix.count;
     let veilIdx = 0;
     let rimIdx = 0;
 
@@ -2400,7 +2416,7 @@ export function InstancedBattlefield() {
           tile.coord.y === effectiveViewFloor &&
           reachableTiles.has(coordKey(tile.coord));
 
-        if (!isShroudedPalaceInterior && (!isReachableOnViewFloor || vis === "unexplored")) {
+        if (!isShroudedPalaceInterior && (!isReachableOnViewFloor || vis === "unexplored") && veilIdx < veilCap) {
           _dummy.position.set(
             wx,
             wy + (vis === "unexplored" ? 0.08 : 0.045),
@@ -2425,7 +2441,7 @@ export function InstancedBattlefield() {
           veilMesh.setColorAt(veilIdx, _color);
           veilIdx++;
         }
-      } else if (vis === "visible" && tile.coord.y === effectiveViewFloor) {
+      } else if (vis === "visible" && tile.coord.y === effectiveViewFloor && rimIdx < rimCap) {
         // Zkontrolujeme, zda toto nasvícené pole sousedí s šerosvitem — pokud ano, vykreslíme jemný jantarový lem pochodně
         const neighbors = [
           { x: tile.coord.x + 1, y: tile.coord.y, z: tile.coord.z },
@@ -2533,8 +2549,11 @@ export function InstancedBattlefield() {
       return Boolean(t?.isLadder || (t?.stairType && t.stairType !== "none"));
     });
 
-    mesh.count = filtered.length;
-    filtered.forEach((item, i) => {
+    const zoneCap = mesh.instanceMatrix.count;
+    const clampedFiltered =
+      filtered.length > zoneCap ? filtered.slice(0, zoneCap) : filtered;
+    mesh.count = clampedFiltered.length;
+    clampedFiltered.forEach((item, i) => {
       const [wx, wy, wz] = gridToWorld(item.coord);
       _dummy.position.set(wx, wy + 0.028, wz);
       _dummy.rotation.set(-Math.PI * 0.5, 0, 0);
@@ -2564,7 +2583,7 @@ export function InstancedBattlefield() {
     });
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    if (filtered.length > 0) mesh.computeBoundingSphere();
+    if (clampedFiltered.length > 0) mesh.computeBoundingSphere();
   }, [reachableList, actionMode, effectiveViewFloor, grid, cordLayPreview]);
 
   // Pointer handlers for Instanced Floor Meshes — s vysokou preferencí aktivního patra (activeFloor)
@@ -3118,7 +3137,7 @@ export function InstancedBattlefield() {
       {/* 6c. Nocturnal Fog of War Shroud Veil & Chiaroscuro Torchlight Frontier Rim */}
       <instancedMesh
         ref={fogVeilMeshRef}
-        args={[undefined, undefined, 1024]}
+        args={[undefined, undefined, 2048]}
         raycast={() => null}
       >
         <planeGeometry args={[TILE_SIZE * 0.98, TILE_SIZE * 0.98]} />
@@ -3132,7 +3151,7 @@ export function InstancedBattlefield() {
 
       <instancedMesh
         ref={frontierRimMeshRef}
-        args={[undefined, undefined, 512]}
+        args={[undefined, undefined, 1024]}
         raycast={() => null}
       >
         <ringGeometry args={[TILE_SIZE * 0.43, TILE_SIZE * 0.49, 4]} />

@@ -43,6 +43,7 @@ import {
   WEAPON_CATALOG,
 } from "./GridSystem";
 import { findPathAStar } from "./Pathfinding";
+import { makeScenarioUnit, paintScenarioTile } from "./missionHelpers";
 import type { FloorLevel, GridCoord, UnitData, WeatherType } from "./types";
 
 export const PLACHY_ID = "player-plachy";
@@ -99,16 +100,6 @@ export interface Mission2Judgement {
   loss: Mission2Loss;
 }
 
-let readBoundClock: (() => Mission2Clock | null) | null = null;
-
-export function bindMission2Clock(fn: () => Mission2Clock | null): void {
-  readBoundClock = fn;
-}
-
-export function readMission2Clock(): Mission2Clock | null {
-  return readBoundClock ? readBoundClock() : null;
-}
-
 /** Bridge side of the gate, including the threshold. The ward stops here. */
 export function harrierMayStand(coord: GridCoord): boolean {
   return coord.y === 0 && coord.x <= THRESHOLD_X;
@@ -128,21 +119,7 @@ export function isBridgeTowerRoofed(x: number, y: number, z: number): boolean {
   return false;
 }
 
-function paint(
-  grid: GridSystem,
-  x: number,
-  y: FloorLevel,
-  z: number,
-  surface: "cobble" | "stone_floor" | "water",
-  walkable: boolean,
-): void {
-  const coord: GridCoord = { x, y, z };
-  grid.setFloor(coord, true, surface);
-  const tile = grid.getTile(coord);
-  if (!tile) return;
-  tile.surface = surface;
-  tile.walkable = walkable && tile.obstacle === "none";
-}
+const paint = paintScenarioTile;
 
 export function createMission2Grid(): GridSystem {
   const grid = new GridSystem();
@@ -271,40 +248,7 @@ export function createMission2Explored(grid: GridSystem): Set<string> {
   return explored;
 }
 
-function blankUnit(partial: Pick<UnitData, "id" | "name" | "roleTitle" | "faction" | "archetype" | "pos" | "facing" | "hp" | "armor" | "movePerAp"> & {
-  weapon: UnitData["weapon"];
-  melee?: UnitData["meleeWeapon"];
-  isVip?: boolean;
-}): UnitData {
-  return {
-    id: partial.id,
-    name: partial.name,
-    roleTitle: partial.roleTitle,
-    faction: partial.faction,
-    archetype: partial.archetype,
-    isVip: partial.isVip,
-    pos: partial.pos,
-    facing: partial.facing,
-    hp: partial.hp,
-    maxHp: partial.hp,
-    armor: partial.armor,
-    maxArmor: partial.armor,
-    ap: 2,
-    maxAp: 2,
-    marksmanship: partial.faction === "player" ? 70 : 48,
-    movePerAp: partial.movePerAp,
-    weapon: partial.weapon,
-    meleeWeapon: partial.melee,
-    pistolLoaded: true,
-    firearmLoaded: true,
-    reloadProgress: 0,
-    grenades: 0,
-    isOverwatch: false,
-    movedThisTurn: false,
-    isShaken: false,
-    alive: true,
-  };
-}
+const blankUnit = makeScenarioUnit;
 
 export function createMission2Units(): UnitData[] {
   const pistol = WEAPON_CATALOG.plachy_pistol!;
@@ -437,8 +381,6 @@ function livingAt(units: UnitData[], id: string, coord: GridCoord): UnitData | u
 export function unpinPawlTurnsNeeded(unitId: string): number {
   return unitId === ONDREJ_ID ? 1 : 2;
 }
-
-export const windlassTurnsNeeded = unpinPawlTurnsNeeded;
 
 export function applyUnpinAction(clock: Mission2Clock, worker: UnitData): Mission2Clock | null {
   if (

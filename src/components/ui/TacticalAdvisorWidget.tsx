@@ -22,6 +22,7 @@ import type { UnitArchetype } from "../../core/types";
 import { text, unitName, useLocale, type MessageId } from "../../i18n";
 import { useGameStore } from "../../store/useGameStore";
 import { UnitPortrait } from "./UnitPortrait";
+import { useIsCinematicHudHidden } from "./hudUtils";
 import { useDraggableHud } from "./useDraggableHud";
 
 interface TutorialStepData {
@@ -84,10 +85,6 @@ export function TacticalAdvisorWidget() {
   const tutorialStep = useGameStore((s) => s.tutorialStep);
   const tutorialDismissed = useGameStore((s) => s.tutorialDismissed);
   const scenario = useGameStore((s) => s.scenario);
-  const actionMode = useGameStore((s) => s.actionMode);
-  const activeProjectile = useGameStore((s) => s.activeProjectile);
-  const isBusy = useGameStore((s) => s.isBusy);
-  const activeMovement = useGameStore((s) => s.activeMovement);
 
   const setTutorialStep = useGameStore((s) => s.setTutorialStep);
   const advanceTutorialStep = useGameStore((s) => s.advanceTutorialStep);
@@ -97,13 +94,7 @@ export function TacticalAdvisorWidget() {
   // Kontextové vrstvení (Pillar 1): Ve výchozím stavu kompaktní jednořádková stužka, rozbalí se na kliknutí
   const [expanded, setExpanded] = useState(false);
   const { dragStyle, onPointerDown, hasMoved, resetOffset } = useDraggableHud();
-
-  // Stavový automat HUDu (Pillar 4): Skrýt v akční kameře přes rameno, při střelbě a mimo Misi 1
-  const isHiddenInActionCam =
-    actionMode === "shoot" ||
-    actionMode === "melee" ||
-    activeProjectile !== null ||
-    Boolean(isBusy && activeMovement?.isActionCam);
+  const isHiddenInActionCam = useIsCinematicHudHidden(true);
 
   if (scenario !== "mission1" || isHiddenInActionCam || tutorialDismissed || tutorialStep === null) {
     return null;

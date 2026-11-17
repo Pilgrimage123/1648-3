@@ -1,7 +1,7 @@
 # 0005. Diegetic Floating Tutorial Architecture
 
 Date: 2026-11-08
-Status: Accepted
+Status: Superseded by ADR-0013 (guided banner and `guidedTutorial` state are canonical; `tutorialStep` / `tutorialDismissed` remain derived compatibility mirrors)
 
 ## Context
 

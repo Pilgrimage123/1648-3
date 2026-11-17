@@ -16,9 +16,7 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import {
   getMission1EscapeTile,
-  GRID_DEPTH,
-  GRID_WIDTH,
-  isEnclosedRoofedCoord,
+  type GridSystem,
 } from "../../core/GridSystem";
 import { useGameStore } from "../../store/useGameStore";
 import {
@@ -29,28 +27,21 @@ import {
   matchcordCandidates,
   rainGlintStrength,
 } from "./diegeticLights";
-import { gridToWorld, TILE_SIZE } from "./worldCoords";
+import { gridToWorld, TILE_SIZE, worldToContinuousGridXZ } from "./worldCoords";
 
 const RAIN_COUNT = 360;
 const ASH_COUNT = 140;
 const EMBER_COUNT = 72;
 
-// World-to-grid inverse helper matching worldCoords.ts dynamically for GRID_WIDTH × GRID_DEPTH
-function worldToGridXZ(wx: number, wz: number): [number, number] {
-  const gx = wx / TILE_SIZE + (GRID_WIDTH - 1) * 0.5;
-  const gz = wz / TILE_SIZE + (GRID_DEPTH - 1) * 0.5;
-  return [gx, gz];
-}
-
 // Pick an outdoor world coordinate for rain (never inside enclosed interiors or under roofs)
-function randomOutdoorRainXZ(): [number, number] {
+function randomOutdoorRainXZ(grid: GridSystem): [number, number] {
   for (let attempt = 0; attempt < 8; attempt++) {
     const wx = (Math.random() - 0.5) * 34;
     const wz = (Math.random() - 0.5) * 38;
-    const [gx, gz] = worldToGridXZ(wx, wz);
+    const [gx, gz] = worldToContinuousGridXZ(wx, wz);
     const rx = Math.round(gx);
     const rz = Math.round(gz);
-    if (!isEnclosedRoofedCoord(rx, 1, rz) && !isEnclosedRoofedCoord(rx, 0, rz)) {
+    if (!grid.isEnclosedRoofed(rx, 1, rz) && !grid.isEnclosedRoofed(rx, 0, rz)) {
       return [wx, wz];
     }
   }
@@ -85,7 +76,7 @@ export function RainParticles() {
   const rainData = useMemo(() => {
     const data: { x: number; y: number; z: number; speed: number; scaleY: number }[] = [];
     for (let i = 0; i < RAIN_COUNT; i++) {
-      const [rx, rz] = randomOutdoorRainXZ();
+      const [rx, rz] = randomOutdoorRainXZ(grid);
       data.push({
         x: rx,
         y: Math.random() * 18,
@@ -95,7 +86,7 @@ export function RainParticles() {
       });
     }
     return data;
-  }, []);
+  }, [grid]);
 
   // 2. Pre-generate combat-driven ash & plaster dust flakes
   const ashData = useMemo(() => {
@@ -181,6 +172,7 @@ export function RainParticles() {
       fogOfWarEnabled,
       fogSnapshot.visibleEnemyIds,
       fogSnapshot.soundContacts,
+      grid,
     );
     const glintSources = [
       ...litTorches.map((torch) => ({
@@ -202,7 +194,7 @@ export function RainParticles() {
         .filter((flash) => nowMs - flash.createdAt < flash.durationMs)
         .filter(
           (flash) =>
-            !isEnclosedRoofedCoord(flash.coord.x, flash.coord.y, flash.coord.z),
+            !grid.isEnclosedRoofed(flash.coord.x, flash.coord.y, flash.coord.z),
         )
         .map((flash) => {
           const [gx, gy, gz] = gridToWorld(flash.coord);
@@ -223,7 +215,7 @@ export function RainParticles() {
         drop.x -= dt * 2.2;
         drop.z += dt * 0.9;
 
-        const [gx, gz] = worldToGridXZ(drop.x, drop.z);
+        const [gx, gz] = worldToContinuousGridXZ(drop.x, drop.z);
         const rx = Math.round(gx);
         const rz = Math.round(gz);
         const floorCheck: 0 | 1 = drop.y < 2.25 ? 0 : 1;
@@ -232,9 +224,9 @@ export function RainParticles() {
           (drop.y < 2.75 && grid.isEnclosedRoofed(rx, 0, rz));
 
         if (drop.y < -0.2 || hitRoofOrPalace) {
-          const [rx, rz] = randomOutdoorRainXZ();
-          drop.x = rx;
-          drop.z = rz;
+          const [nrx, nrz] = randomOutdoorRainXZ(grid);
+          drop.x = nrx;
+          drop.z = nrz;
           drop.y = 15 + Math.random() * 4;
         }
 
@@ -283,7 +275,7 @@ export function RainParticles() {
         // Organic outward diffusion radius (in world meters): starts compact, expands smoothly over time
         const currentRadius =
           Math.min(zone.maxRadius, zone.baseRadius + ageSec * 0.42) * TILE_SIZE;
-        const indoor = isEnclosedRoofedCoord(
+        const indoor = grid.isEnclosedRoofed(
           zone.coord.x,
           zone.coord.y,
           zone.coord.z,
@@ -392,7 +384,7 @@ export function RainParticles() {
           const currentRadius =
             Math.min(zone.maxRadius, zone.baseRadius + ageSec * 0.38) *
             TILE_SIZE;
-          const maxH = isEnclosedRoofedCoord(
+          const maxH = grid.isEnclosedRoofed(
             zone.coord.x,
             zone.coord.y,
             zone.coord.z,

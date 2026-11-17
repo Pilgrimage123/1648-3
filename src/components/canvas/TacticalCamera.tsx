@@ -31,14 +31,8 @@ import {
   FLOOR_HEIGHT,
   gridToWorld,
   TILE_SIZE,
+  worldToGridXZ,
 } from "./worldCoords";
-
-function worldToGridXZ(wx: number, wz: number): { x: number; z: number } {
-  return {
-    x: Math.round(wx / TILE_SIZE + (GRID_WIDTH - 1) * 0.5),
-    z: Math.round(wz / TILE_SIZE + (GRID_DEPTH - 1) * 0.5),
-  };
-}
 
 function isWorldPointBlockedByWall(
   grid: GridSystem,

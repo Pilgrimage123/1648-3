@@ -10,6 +10,8 @@
 
 This document is the implementation spec for the whole playable mission. It does not reopen ADR-0019 or the glossary. Where the current code disagrees with those locks, the code changes. Names above are not renamed.
 
+> **Implementation note**: Lines below written during the pre-implementation design phase (`"Nothing in the repo implements Mission 3"`, `"Not implementing in this task"`, `"in-memory without refresh"`) reflect historical draft state. Mission 3 is now implemented, roof masks are owned per `GridSystem` instance via `setInstanceRoofMask` (eliminating global `setRoofMask`), and `campaign` persists per browser tab in `sessionStorage` (ADR-0021).
+
 ---
 
 ## Overview

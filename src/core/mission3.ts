@@ -6,15 +6,16 @@
  * One tile is 1.6 m, same as Mission 2. The bridge is not a path.
  */
 import {
+  applyDamageToUnit,
   bresenham3D,
   checkLineOfSight3D,
   computeEnemyAiDecision,
   isAdjacentForMelee,
-  isInstantOverkill,
   isUnitFighting,
   type EnemyAiDecision,
 } from "./CombatSystem";
 import { applyPowderBlast } from "./explosions";
+import { makeScenarioUnit, paintScenarioTile } from "./missionHelpers";
 import {
   coordKey,
   GridSystem,
@@ -154,16 +155,6 @@ const HOLD: EnemyAiDecision = {
   isCaptureAction: false,
 };
 
-let readBoundClock: (() => Mission3Clock | null) | null = null;
-
-export function bindMission3Clock(fn: () => Mission3Clock | null): void {
-  readBoundClock = fn;
-}
-
-export function readMission3Clock(): Mission3Clock | null {
-  return readBoundClock ? readBoundClock() : null;
-}
-
 export function isPowderYardRoofed(x: number, y: number, z: number): boolean {
   const store = y <= 1 && x >= 13 && x <= 15 && z >= 8 && z <= 9;
   const lodge = y === 1 && x >= 8 && x <= 15 && z >= 12 && z <= 14;
@@ -242,23 +233,14 @@ export function freshClock(): Mission3Clock {
   };
 }
 
-function paint(
+const paint = (
   grid: GridSystem,
   x: number,
   y: FloorLevel,
   z: number,
   surface: "cobble" | "stone_floor" | "water" | "wood_dock",
   walkable: boolean,
-): void {
-  const coord: GridCoord = { x, y, z };
-  grid.setFloor(coord, true, surface);
-  const tile = grid.getTile(coord);
-  if (!tile) return;
-  tile.surface = surface;
-  tile.walkable = walkable;
-  tile.obstacle = "none";
-  tile.isEscapeZone = false;
-}
+): void => paintScenarioTile(grid, x, y, z, surface, walkable, true);
 
 function wall(grid: GridSystem, x: number, z: number): void {
   paint(grid, x, 0, z, "cobble", false);
@@ -362,56 +344,7 @@ export function createMission3Grid(): GridSystem {
   return grid;
 }
 
-function blankUnit(
-  partial: Pick<
-    UnitData,
-    | "id"
-    | "name"
-    | "roleTitle"
-    | "faction"
-    | "archetype"
-    | "pos"
-    | "facing"
-    | "hp"
-    | "armor"
-    | "movePerAp"
-  > & {
-    weapon: UnitData["weapon"];
-    melee?: UnitData["meleeWeapon"];
-    isVip?: boolean;
-    attachedToCart?: boolean;
-  },
-): UnitData {
-  return {
-    id: partial.id,
-    name: partial.name,
-    roleTitle: partial.roleTitle,
-    faction: partial.faction,
-    archetype: partial.archetype,
-    isVip: partial.isVip,
-    pos: partial.pos,
-    facing: partial.facing,
-    hp: partial.hp,
-    maxHp: partial.hp,
-    armor: partial.armor,
-    maxArmor: partial.armor,
-    ap: 2,
-    maxAp: 2,
-    marksmanship: partial.faction === "player" ? 70 : 48,
-    movePerAp: partial.movePerAp,
-    weapon: partial.weapon,
-    meleeWeapon: partial.melee,
-    pistolLoaded: true,
-    firearmLoaded: true,
-    reloadProgress: 0,
-    grenades: 0,
-    isOverwatch: false,
-    movedThisTurn: false,
-    isShaken: false,
-    alive: true,
-    attachedToCart: partial.attachedToCart,
-  };
-}
+const blankUnit = makeScenarioUnit;
 
 function makeBearer(id: string, pos: GridCoord): UnitData {
   const gun = WEAPON_CATALOG.swedish_musket!;
@@ -1006,19 +939,10 @@ export function applyCanister(
   const nextUnits = units.map((unit) => {
     if (!isUnitFighting(unit) || unit.pos.y >= 1) return unit;
     if (!hitTiles.some((tile) => sameCoord(tile, unit.pos))) return unit;
-    const nextHp = unit.hp - CANISTER_DAMAGE;
-    const instant = isInstantOverkill(nextHp, unit.maxHp);
-    const inThroes = !instant && nextHp <= 0;
-    return {
-      ...unit,
-      hp: nextHp,
-      armor: Math.max(0, unit.armor - CANISTER_SHRED),
-      alive: !instant,
-      inDeathThroes: inThroes,
-      deathThroesTurns: inThroes ? (unit.inDeathThroes ? (unit.deathThroesTurns ?? 1) : 1) : 0,
-      isShaken: nextHp > 0,
-      isOverwatch: nextHp > 0 ? unit.isOverwatch : false,
-    };
+    return applyDamageToUnit(unit, CANISTER_DAMAGE, {
+      armorShred: CANISTER_SHRED,
+      shaken: true,
+    });
   });
   for (const tile of hitTiles) {
     const found = grid.getTile(tile);

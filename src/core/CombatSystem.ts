@@ -9,7 +9,6 @@ import {
   bestTileCover,
   GridSystem,
   sameCoord,
-  soldierMovePerAp,
 } from "./GridSystem";
 import { computeReachableTiles, findPathAStar } from "./Pathfinding";
 import { statMod } from "../i18n/statMod";
@@ -540,6 +539,12 @@ export class CombatCalculator {
     // E) Černý prach a dým (Black Powder Smoke):
     // - Střelba z políčka zahaleného dýmem má postih -10 % Aim
     // - Cíl v oblaku dýmu má +15 % Obranu (-15 % k zásahu; při střelbě shora přes nízký dým -20 %)
+    const los = checkLineOfSight3D(
+      grid,
+      fromPos,
+      target.pos,
+      Boolean(shooter.abilityBuffActive && shooter.ability?.id === "klementinum_verdict"),
+    );
     const shooterInSmoke = (shooterTile?.smokeTurns ?? 0) > 0;
     const targetInSmoke = (targetTile?.smokeTurns ?? 0) > 0;
     let smokeModifier = 0;
@@ -568,12 +573,14 @@ export class CombatCalculator {
         );
       }
     } else {
-      // Clona dýmu mezi střelcem a cílem (ADR-0011)
+      // Clona dýmu podél skutečného paprsku LoS (včetně step-out peek a přízemního dýmu pod vyvýšeným letem)
       let rayHasIntermediateSmoke = false;
-      const ray = bresenham3D(fromPos, target.pos);
-      for (let i = 1; i < ray.length - 1; i++) {
-        const stepTile = grid.getTile(ray[i]!);
-        if (stepTile && stepTile.smokeTurns > 0) {
+      for (let i = 1; i < los.ray.length - 1; i++) {
+        const cell = los.ray[i]!;
+        const stepTile = grid.getTile(cell);
+        const groundTile =
+          cell.y > 0 ? grid.getTile({ x: cell.x, y: 0, z: cell.z }) : undefined;
+        if ((stepTile?.smokeTurns ?? 0) > 0 || (groundTile?.smokeTurns ?? 0) > 0) {
           rayHasIntermediateSmoke = true;
           break;
         }
@@ -602,9 +609,7 @@ export class CombatCalculator {
     const shotFullyRoofed =
       shooterRoofed &&
       grid.isEnclosedRoofed(target.pos.x, target.pos.y, target.pos.z) &&
-      bresenham3D(fromPos, target.pos).every((cell) =>
-        grid.isEnclosedRoofed(cell.x, cell.y, cell.z),
-      );
+      los.ray.every((cell) => grid.isEnclosedRoofed(cell.x, cell.y, cell.z));
     let weatherHitModifier = 0;
     if (!shotFullyRoofed && weather === "fog") {
       weatherHitModifier = -10;
@@ -797,11 +802,11 @@ export class CombatCalculator {
       abilityCritModifier;
     const critChance = Math.max(0, Math.min(100, Math.round(rawCritChance)));
 
-    const effectiveArmorPierce =
-      weapon.armorPierce +
-      (shooter.abilityBuffActive && shooter.ability?.id === "klementinum_verdict"
-        ? 2
-        : 0);
+    const isVerdict =
+      Boolean(shooter.abilityBuffActive && shooter.ability?.id === "klementinum_verdict");
+    const effectiveArmorPierce = weapon.armorPierce + (isVerdict ? 2 : 0);
+    const effectiveArmorShred = weapon.armorShred + (isVerdict ? 1 : 0);
+    const verdictDamageBonus = isVerdict ? 3 : 0;
 
     // E) Informace o průrazu a zničení zbroje (Armor Pierce / Armor Shred) v pravém křídle
     if (effectiveArmorPierce > 0) {
@@ -812,9 +817,9 @@ export class CombatCalculator {
       );
     }
 
-    if (weapon.armorShred > 0) {
+    if (effectiveArmorShred > 0) {
       critModifiers.push(
-        statMod("weapon-armor-shred", "mod.shred", weapon.armorShred, "armor", "bonus", {
+        statMod("weapon-armor-shred", "mod.shred", effectiveArmorShred, "armor", "bonus", {
           detail: "mod.shred.detail",
         }),
       );
@@ -830,23 +835,22 @@ export class CombatCalculator {
       weatherMisfireAdd = weapon.lockType === "matchlock" ? 5 : 2;
     }
     const smokeMisfireAdd = shooterInSmoke ? 3 : 0;
-    const misfireChance =
-      shooter.abilityBuffActive && shooter.ability?.id === "klementinum_verdict"
-        ? 0
-        : Math.max(
-            0,
-            Math.min(
-              60,
-              Math.round(
-                weapon.baseMisfireChance + weatherMisfireAdd + smokeMisfireAdd,
-              ),
+    const misfireChance = isVerdict
+      ? 0
+      : Math.max(
+          0,
+          Math.min(
+            60,
+            Math.round(
+              weapon.baseMisfireChance + weatherMisfireAdd + smokeMisfireAdd,
             ),
-          );
+          ),
+        );
 
     // =========================================================================
     // 4. NÁHLED POŠKOZENÍ NA UKAZATELI ZDRAVÍ A ZBROJE (HP & Armor Preview)
     // =========================================================================
-    const expectedArmorLoss = Math.min(target.armor, weapon.armorShred);
+    const expectedArmorLoss = Math.min(target.armor, effectiveArmorShred);
     const remainingArmorAfterShred = Math.max(
       0,
       target.armor - expectedArmorLoss,
@@ -858,11 +862,11 @@ export class CombatCalculator {
 
     const expectedHpLossMin = Math.max(
       1,
-      weapon.minDamage - effectiveArmorAbsorption,
+      weapon.minDamage + verdictDamageBonus - effectiveArmorAbsorption,
     );
     const expectedHpLossMax = Math.max(
       expectedHpLossMin,
-      weapon.maxDamage - effectiveArmorAbsorption,
+      weapon.maxDamage + verdictDamageBonus - effectiveArmorAbsorption,
     );
 
     // =========================================================================
@@ -894,14 +898,14 @@ export class CombatCalculator {
       hitChance,
       critChance,
       misfireChance,
-      minDamage: weapon.minDamage,
-      maxDamage: weapon.maxDamage,
+      minDamage: weapon.minDamage + verdictDamageBonus,
+      maxDamage: weapon.maxDamage + verdictDamageBonus,
       critBonusDamage: weapon.critBonusDamage,
       critBonusMaxDamage: weapon.critBonusMaxDamage,
       fireApCost,
       isHipFire,
       armorPierce: effectiveArmorPierce,
-      armorShred: weapon.armorShred,
+      armorShred: effectiveArmorShred,
       expectedArmorLoss,
       expectedHpLossMin,
       expectedHpLossMax,
@@ -1004,6 +1008,49 @@ export function resolveUnitDamageResolution(
     deathThroesTurns: 0,
     instantKilled: false,
     enteredDeathThroes: false,
+  };
+}
+
+export interface ApplyUnitDamageOptions {
+  armorShred?: number;
+  shaken?: boolean;
+  clearOverwatch?: boolean;
+  apDelta?: number;
+}
+
+/**
+ * Single authoritative reducer applying HP damage, armor shred, Poslední vzepětí
+ * (Death Throes), and overkill resolution to a unit.
+ */
+export function applyDamageToUnit(
+  unit: UnitData,
+  damage: number,
+  options: ApplyUnitDamageOptions = {},
+): UnitData {
+  const res = resolveUnitDamageResolution(unit, damage);
+  const nextArmor = Math.max(0, unit.armor - (options.armorShred ?? 0));
+  const nextShaken =
+    res.nextHp > 0 ? (options.shaken ?? unit.isShaken) : false;
+  const nextOverwatch = options.clearOverwatch
+    ? false
+    : res.nextHp > 0
+      ? unit.isOverwatch
+      : false;
+  const nextAp =
+    options.apDelta !== undefined
+      ? Math.max(0, unit.ap + options.apDelta)
+      : unit.ap;
+
+  return {
+    ...unit,
+    armor: nextArmor,
+    hp: res.nextHp,
+    alive: res.alive,
+    inDeathThroes: res.inDeathThroes,
+    deathThroesTurns: res.deathThroesTurns,
+    isShaken: nextShaken,
+    isOverwatch: nextOverwatch,
+    ap: nextAp,
   };
 }
 
@@ -1881,11 +1928,7 @@ export function applyBlackPowderChoking(
     const isChoking = inIndoorSmoke && !hasRespiratoryResistance;
 
     const basePace =
-      u.id === "player-colloredo"
-        ? 3
-        : u.id === "player-havel"
-          ? 6
-          : soldierMovePerAp(u.weapon);
+      u.baseMovePerAp ?? (u.isChoking ? u.movePerAp + 1 : u.movePerAp);
 
     const nextMovePerAp = isChoking ? Math.max(1, basePace - 1) : basePace;
 
@@ -1903,6 +1946,7 @@ export function applyBlackPowderChoking(
 
     return {
       ...u,
+      baseMovePerAp: basePace,
       isChoking,
       movePerAp: (u.detainedTurns ?? 0) > 0 ? 0 : nextMovePerAp,
       buffId,

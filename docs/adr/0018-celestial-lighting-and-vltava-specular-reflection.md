@@ -12,7 +12,7 @@ V dosavadní architektuře docházelo k prolínání pojmů „dynamické osvět
 
 Rozhodli jsme se:
 1. **Explicitně rozčlenit světelnou hierarchii do 3 samostatných vrstev**:
-   - **Nebeský světelný zdroj (*Celestial Directional Light*)**: globální směrové světlo vrhající stíny a určující denní dobu (chladný půlnoční měsíc v Misi 1 `[14, 28, 13]` vs. autentické ranní slunce v Misi 2 `[22, 24, 8]` vycházející na východě nad Starým Městem).
+   - **Nebeský světelný zdroj (*Celestial Directional Light*)**: globální směrové světlo vrhající stíny a určující denní dobu (chladný půlnoční měsíc v Misi 1 `[14, 28, 13]` a nočním výsadku v Misi 3 vs. autentické ranní slunce v Misi 2 `[22, 24, 8]` vycházející na východě nad Starým Městem, bez ranního slunce a Vltavských odlesků v Misi 3).
    - **Praktická diegetická světla (*Diegetic Practical Lights*, ADR-0015)**: stabilní rozpočtovaná světla viditelných těles (svícny, pochodně, lucerna, doutnáky) s fyzikálním zhasínáním deštěm a útlumem při detonaci.
    - **Bojový zábleskový fond (*Combat Flash Pool*, ADR-0011)**: transientní bodové záblesky z hlavní a explozí sudu/granátů prosvěcující částice kouře.
 2. **Přidat směrový sluneční odlesk Vltavy (*Vltava Morning Sun Specular Reflection*) v Misi 2**:

@@ -21,11 +21,7 @@ Bojový systém Malé Strany 1648 původně uplatňoval klasické pravidlo okam�
 
 3. **Práh okamžité smrti (*Instant Overkill Threshold*)**:
    - Jednotka padne okamžitě mrtev bez Posledního vzepětí pouze tehdy, pokud její zdraví klesne na hodnotu rovnou zápornému maximálnímu zdraví a nižší: `hp <= -(maxHp + 1)`.
-     - Švédský mušketýr (max 8 HP): $\le -9$ HP.
-     - Arnošt Odowalsky (max 10 HP): $\le -11$ HP.
-     - Václav z Michalovic (max 12 HP): $\le -13$ HP.
-     - Jan Matěj a hrabě Colloredo (max 14 HP): $\le -15$ HP.
-     - Bratr Bartoloměj (max 16 HP): $\le -17$ HP.
+   - Pravidlo platí univerzálně napříč všemi misemi (pro císařské hrdiny i švédské vojáky v Misi 1, obránce mostecké věže, harcovníky a okultistu v Misi 2, i výsadkáře a posádku dvora v Misi 3).
    - Poškození se kumuluje do záporných hodnot i při dalších zásazích do již umírající jednotky.
 
 4. **Časování a zánik**:

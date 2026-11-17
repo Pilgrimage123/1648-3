@@ -1,8 +1,11 @@
-import type { MessageFn } from "./types";
+import type { FormatContext, MessageFn } from "./types";
+
+const nom = (ctx: FormatContext, id?: string) => ctx.unit(id, "nom");
+const acc = (ctx: FormatContext, id?: string) => ctx.unit(id, "acc");
 
 /**
- * HUD copy that does not belong to the simulation catalog.
- * Add keys here while wiring components. A new language implements the same keys.
+ * HUD copy and guided-tutorial strings outside the core battle-log catalog.
+ * A new locale implements these keys alongside `csMessages`.
  */
 export const csUiMessages = {
   "ui.sacrifice.matej.perkName": () => "Ocelová věrnost",
@@ -88,7 +91,7 @@ export const csUiMessages = {
   "ui.chronicle.heading": (p) => `Diarium Belli (${p.count ?? 0})`,
 
   "ui.portrait.named": (p) => `Portrét postavy ${p.names ?? ""}`,
-  "ui.portrait.archetype": (p) => `Portrét archetype ${p.names ?? ""}`,
+  "ui.portrait.archetype": (p) => `Portrét typu ${p.names ?? ""}`,
   "ui.portrait.vip": () => "VIP Hrdina (Vyžaduje ochranu)",
 
   "ui.cover.full": () => "Plný kryt (−40 % k šanci nepřítele na zásah)",
@@ -123,7 +126,7 @@ export const csUiMessages = {
   "ui.advisor.1.t1": () =>
     "Levé tlačítko (LKM): Kliknutím na vojáka jej aktivujete a ovládáte ikony schopností ve spodní liště.",
   "ui.advisor.1.t2": () =>
-    "Pravé tlačítko (PKM — Move / Dash): Umístěte kurzor na políčko v modré (1 AP) nebo žluté (2 AP) zóně a klikněte pravým tlačítkem — voják se okamžitě vydá na cestu.",
+    "Pravé tlačítko (PKM — Move / Dash): Umístěte kurzor na políčko v modré (1 AP) nebo zlaté (2 AP) zóně a klikněte pravým tlačítkem — voják se okamžitě vydá na cestu.",
   "ui.advisor.1.t3": () =>
     "Postih „Těžké kulhání“: Zraněný maršál Colloredo ujde kvůli starým zraněním z Lützenu jen 3 pole za 1 AP.",
   "ui.advisor.1.t4": () =>
@@ -138,14 +141,14 @@ export const csUiMessages = {
   "ui.advisor.2.t2": () =>
     "Útok zblízka (XCOM 2 — PKM): Pravým kliknutím přímo na nepřítele v dosahu provedete okamžitý přesun spojený se seknutím — samotný útok už nestojí další AP navíc!",
   "ui.advisor.2.t3": () =>
-    "Zrušení akce (PKM): Pravé tlačítko v menu střelby či granátu akci zruší a vrátí vás na bojiště.",
+    "Zrušení akce (PKM): Pravé tlačítko v menu střelby či petardy akci zruší a vrátí vás na bojiště.",
   "ui.advisor.3.title": () => "Fázové nabíjení, Petardy (LKM) & Sudy",
   "ui.advisor.3.dialogue": () =>
     "Moje těžká mušketa potřebuje na nabití 4 AP, švédská s papírovými patronami jen 2 AP — nabíjet však můžeme postupně po 1 AP mezi přesuny!",
   "ui.advisor.3.t1": () =>
     "Fázové nabíjení po 1 AP [R]: Investujte 1 AP do kroku nabíjení a za druhý AP ustupte pravým tlačítkem do krytu.",
   "ui.advisor.3.t2": () =>
-    "Házení granátů / petard [4]: Po zvolení petardy v liště zamíříte a levým kliknutím (LKM) hod potvrdíte (pravým kliknutím zrušíte).",
+    "Házení petard [4]: Po zvolení petardy v liště zamíříte a levým kliknutím (LKM) hod potvrdíte (pravým kliknutím zrušíte).",
   "ui.advisor.3.t3": () =>
     "Prachové sudy: Trefa nebo petarda odpálí sud na ploše 3×3. Maják označuje nejbližší sud u paláce.",
   "ui.advisor.4.title": () => "Schodiště, Patra paláce & Pramice",
@@ -180,7 +183,7 @@ export const csUiMessages = {
   "ui.loss.throesBadge": (p) => `VZEPĚTÍ (${p.hp ?? 0} HP)`,
   "ui.loss.cuirass": (p) => `KYRYS (${p.count ?? 0})`,
   "ui.loss.shaken": () => "OTŘESEN",
-  "ui.overwatch.active": () => "Hlídka (Overwatch) aktivní",
+  "ui.overwatch.active": () => "Střelecká hlídka aktivní",
 
   "ui.inspect.hidden": () =>
     "Jméno, zbraň a schopnosti zůstávají skryté, dokud postavu neuvidíte.",
@@ -213,7 +216,7 @@ export const csUiMessages = {
   "ui.ribbon.targetTip": (p) =>
     `${p.names ?? ""} · ${p.chance ?? 0}% zásah (LKM: Zaměřit cíl)`,
   "ui.ribbon.barAria": () => "Taktická akční lišta",
-  "ui.ribbon.noLos": () => "Žádný cíl v přímém dohledu (3D LoS)",
+  "ui.ribbon.noLos": () => "Žádný cíl v přímém dohledu",
   "ui.ribbon.backAim": () => "Zpět (PKM / Esc)",
   "ui.ribbon.hitBreak": () => "Rozpad zásahu",
   "ui.ribbon.breakdown": () => "Rozpad",
@@ -227,7 +230,7 @@ export const csUiMessages = {
   "ui.ribbon.meleeHead": (p, ctx) => `Zblízka · ${ctx.melee(p.meleeId)}`,
   "ui.ribbon.strike": () => "ÚDER!",
   "ui.ribbon.strikeCost": () => "1 AP · [⎵]",
-  "ui.ribbon.dockDrag": () => "Tažením lze dok schopností odsunout",
+  "ui.ribbon.dockDrag": () => "Tažením lze lištu akcí odsunout",
   "ui.ribbon.resetLayout": () => "Obnovit rozložení lišty",
   "ui.ribbon.move.title": () => "Taktický přesun & Sprint",
   "ui.ribbon.move.cost": () => "1–2 AP",
@@ -251,7 +254,7 @@ export const csUiMessages = {
   "ui.ribbon.shoot.empty": (p) =>
     `Hlaveň je prázdná — nejprve nabijte [R] (${p.progress ?? 0}/${p.required ?? 0} AP)`,
   "ui.ribbon.shoot.noLos": () =>
-    "Žádný nepřítel není v přímé viditelnosti (3D LoS) z této dlaždice",
+    "Žádný nepřítel není v přímé viditelnosti z této dlaždice",
   "ui.ribbon.shoot.aria": () => "Střelba [2]",
   "ui.ribbon.reload.title": () => "Fázové nabíjení hlavně",
   "ui.ribbon.reload.cost": () => "1 AP / krok",
@@ -278,16 +281,16 @@ export const csUiMessages = {
     "Žádný nepřítel nestojí na sousední dlaždici (použijte PKM zteč z dálky)",
   "ui.ribbon.melee.aria": () => "Útok zblízka [B]",
   "ui.ribbon.overwatch.cone": () => "Připravená salva (90° kužel)",
-  "ui.ribbon.overwatch.ring": () => "Hlídka — Overwatch (360°)",
+  "ui.ribbon.overwatch.ring": () => "Střelecká hlídka (360°)",
   "ui.ribbon.overwatch.coneBody": (p) =>
     `Doutnáková mušketa zaměří 90° palebný sektor před střelcem (${p.facing ?? ""}) a automaticky vypálí na prvního Švéda v pohybu.`,
   "ui.ribbon.overwatch.ringBody": () =>
     "Kolečkový zámek umožňuje okamžitou reaktivní palbu v okruhu 360° na pohybujícího se nepřítele.",
-  "ui.ribbon.overwatch.blocked": () => "Nyní nelze aktivovat hlídku",
-  "ui.ribbon.overwatch.active": () => "Hlídka je již aktivní",
-  "ui.ribbon.overwatch.empty": () => "Nelze držet hlídku s vybitou hlavní (nejprve nabijte [R])",
+  "ui.ribbon.overwatch.blocked": () => "Nyní nelze aktivovat střeleckou hlídku",
+  "ui.ribbon.overwatch.active": () => "Střelecká hlídka je již aktivní",
+  "ui.ribbon.overwatch.empty": () => "Nelze držet střeleckou hlídku s vybitou hlavní (nejprve nabijte [R])",
   "ui.ribbon.overwatch.need": (p) => `Vyžaduje ${p.required ?? 0} AP`,
-  "ui.ribbon.overwatch.aria": () => "Hlídka [3]",
+  "ui.ribbon.overwatch.aria": () => "Střelecká hlídka [3]",
   "ui.ribbon.grenade.title": () => "Litinová petarda s černým prachem",
   "ui.ribbon.grenade.cost": () => "1 AP",
   "ui.ribbon.grenade.summary": () =>
@@ -320,9 +323,8 @@ export const csUiMessages = {
   "ui.title.anno": () => "Anno Salutis",
   "ui.title.company": () => "Železná vigilie",
   "ui.title.motto": () => "Fidelitas Ferrea",
-  "ui.title.date": () => "26. července 1648",
-  "ui.briefing.kicker": () => "Praha, 26. července 1648",
-  "ui.briefing.title": () => "Vyberte ráno",
+  "ui.title.date": () => "Červenec 1648",
+  "ui.briefing.title": () => "Vyberte kapitolu výpravy",
   "ui.briefing.start": () => "Zahájit",
   "ui.briefing.mission1.index": () => "Mise I",
   "ui.briefing.mission1.when": () => "Noc",
@@ -362,12 +364,12 @@ export const csUiMessages = {
   "ui.epilogue.m2.title": () => "Mříž dosedla",
   "ui.epilogue.m2.body": () =>
     "Železo sedí v ústí průjezdu a stráž věže ještě drží. V Klementinu nabídne Plachý přísahu krve a železa těm, kdo přežili. Sám neskládá noviciát.",
+  "ui.epilogue.m2.defeat": () => "Staroměstská věž padla",
   "ui.epilogue.m2.defeat.rite": () => "Obřad byl rychlejší než železo.",
   "ui.epilogue.m2.defeat.plachy": () => "Páter padl. Věž se bez něj neudrží.",
   "ui.epilogue.m2.defeat.wiped": () => "Obrana věže padla do posledního muže.",
   "ui.epilogue.m2.defeat.windlass": () => "Rumpál je zničený a mříž zůstala nahoře.",
   "ui.epilogue.other": () => "Jiná mise",
-  "ui.epilogue.m2.other": () => "Jiná mise",
   "ui.sacrifice.clause": () =>
     "Jeden z vašich věrných společníků musí zůstat u palácové branky a odpálit sudy s prachem",
   "ui.sacrifice.vigilQuote": () =>
@@ -429,10 +431,177 @@ export const csUiMessages = {
     `Katastrofa v ${p.count}. kole · Anno Salutis 1648, 26. července`,
   "ui.epilogue.m3.defeatMeta": (p) =>
     `Nezdar v ${p.count}. kole · Anno Salutis 1648, noc z 27. na 28. července`,
+  "ui.epilogue.m3.victoryMeta": (p) =>
+    `Mise splněna v ${p.count}. kole · Anno Salutis 1648, noc z 27. na 28. července`,
   "ui.floor.m3.1.title": () => "Krytá lodžie",
   "ui.floor.m3.1.sub": () => "Ochoz nad dvorem, schody a lano",
   "ui.floor.m3.0.title": () => "Prachový dvůr a sklad",
   "ui.floor.m3.0.sub": () => "Čertovka, doutnáková stopa a brána baterie",
+
+  "tutorial.step_1_matej_move.speaker": () => "Jan Matěj",
+  "tutorial.step_1_matej_move.role": () => "Osobní komorník velkopřevora",
+  "tutorial.step_1_matej_move.title": () => "KROK 1/8 · ZÁKLADNÍ POHYB A KRYT",
+  "tutorial.step_1_matej_move.order": () =>
+    "Pohněte Janem Matějem za mramorovou balustrádu [Pravé tlačítko myši na označené pole]",
+  "tutorial.step_1_matej_move.tip": () =>
+    "Modrá zóna (1 AP) vám zachová akci pro střelbu či kryt. Balustráda (−20 % šance na zásah) zachraňuje životy!",
+  "tutorial.step_1_matej_move.beacon": () => "Kryt za balustrádou [PKM Pohyb]",
+  "tutorial.step_2_colloredo_escort.speaker": () => "Jan Matěj",
+  "tutorial.step_2_colloredo_escort.role": () => "Osobní komorník velkopřevora",
+  "tutorial.step_2_colloredo_escort.title": () => "KROK 2/8 · TĚŽKÉ KULHÁNÍ & PRAVIDLO ZAJETÍ",
+  "tutorial.step_2_colloredo_escort.order": () =>
+    "Přesuňte maršála Colloreda do chráněné pozice za Janem Matějem [Pravé tlačítko myši]",
+  "tutorial.step_2_colloredo_escort.tip": () =>
+    "Maršál ujde kvůli 7 ranám z Lützenu jen 3 pole/AP. Švédové po něm nestřílí (chtějí výkupné 100 000 tolarů), ale zajmou jej při kontaktu na 1 AP!",
+  "tutorial.step_2_colloredo_escort.beacon": () => "Chráněná pozice maršála [PKM Pohyb]",
+  "tutorial.step_3_vaclav_aim.speaker": () => "Václav z Michalovic",
+  "tutorial.step_3_vaclav_aim.role": () => "Klementinský student & písař",
+  "tutorial.step_3_vaclav_aim.title": () => "KROK 3/8 · KŘÍDLENÍ A MÍŘENÍ",
+  "tutorial.step_3_vaclav_aim.order": () =>
+    "Přepněte na střelbu [Klávesa 2 nebo klik na terč] a zaměřte švédského zvěda na terase",
+  "tutorial.step_3_vaclav_aim.tip": () =>
+    "Václav z arkády Piano Nobile obchází nepřátelský kryt — žlutý štít značí Křídlení a +40 % k šanci na kritický zásah!",
+  "tutorial.step_3_vaclav_aim.beacon": () => "Nekrytý švédský střelec (Křídlení +40 % krit)",
+  "tutorial.step_4_vaclav_shoot.speaker": () => "Václav z Michalovic",
+  "tutorial.step_4_vaclav_shoot.role": () => "Klementinský student & písař",
+  "tutorial.step_4_vaclav_shoot.title": () => "KROK 4/8 · MÍŘENÍ, ROZPAD ŠANCE A VÝSTŘEL",
+  "tutorial.step_4_vaclav_shoot.order": () =>
+    "Vystřelte na zaměřeného nepřítele [Klávesa Mezerník / Enter]",
+  "tutorial.step_4_vaclav_shoot.tip": () =>
+    "Křídla rozpadu šance v liště ukazují transparentní výpočet: základní přesnost ± vzdálenost − kryt. Výstřel spustí filmovou kameru přes rameno.",
+  "tutorial.step_4_vaclav_shoot.beacon": () => "Cíl střelby [Potvrdit výstřel Mezerníkem]",
+  "tutorial.step_5_enemy_turn_react.speaker": () => "Arnošt Odowalsky",
+  "tutorial.step_5_enemy_turn_react.role": () => "Velitel švédských mušketýrů",
+  "tutorial.step_5_enemy_turn_react.title": () => "KROK 5/8 · ŠVÉDSKÁ ODVETA & ZÁCHRANA KRYTEM",
+  "tutorial.step_5_enemy_turn_react.order": () =>
+    "Sledujte odvetnou palbu Švédů z krytu za balustrádou",
+  "tutorial.step_5_enemy_turn_react.tip": () =>
+    "Švédský výstřel zasáhl balustrádu a odrazil se! Kamenný kryt zachránil Václavovi život. Na otevřeném poli by byl mrtvý.",
+  "tutorial.step_6_vaclav_reload.speaker": () => "Bratr Bartoloměj",
+  "tutorial.step_6_vaclav_reload.role": () => "Maltézský zbrojmistr",
+  "tutorial.step_6_vaclav_reload.title": () => "KROK 6/8 · FÁZOVÉ NABÍJENÍ PO 1 AP",
+  "tutorial.step_6_vaclav_reload.order": () =>
+    "Zbraň je prázdná! Investujte 1 AP do nasypání prachu a nabití [Klávesa R]",
+  "tutorial.step_6_vaclav_reload.tip": () =>
+    "Palné zbraně 17. století se nabíjejí po krocích (M1624 na 2 AP, těžká mušketa na 4 AP). Můžete nabít 1 AP a za zbývající 1 AP ustoupit do bezpečí!",
+  "tutorial.step_7_keg_explosion.speaker": () => "Bratr Bartoloměj",
+  "tutorial.step_7_keg_explosion.role": () => "Maltézský zbrojmistr",
+  "tutorial.step_7_keg_explosion.title": () => "KROK 7/8 · PRACHOVÝ SUD & ZNIČENÍ KRYTU",
+  "tutorial.step_7_keg_explosion.order": () =>
+    "Zvolte petardu [4] nebo střelu a zaměřte prachový sud vedle barikády",
+  "tutorial.step_7_keg_explosion.tip": () =>
+    "Nepřátelé za těžkým krytem mají vysokou obranu. Výbuch sudu na ploše 3×3 zničí zídky, zapálí terén a vytvoří hustý černoprachý dým!",
+  "tutorial.step_7_keg_explosion.beacon": () => "Prachový sud (Odpálit výbuchem 3×3!)",
+  "tutorial.step_8_melee_finish.speaker": () => "Jan Matěj",
+  "tutorial.step_8_melee_finish.role": () => "Osobní komorník velkopřevora",
+  "tutorial.step_8_melee_finish.title": () => "KROK 8/8 · ZTEČ ZBLÍZKA",
+  "tutorial.step_8_melee_finish.order": () =>
+    "Klikněte pravým tlačítkem (PKM) přímo na zraněného nepřítele pro zteč chladnou zbraní",
+  "tutorial.step_8_melee_finish.tip": () =>
+    "Zteč kordem či tesákem nevyžaduje žádný drahocenný střelný prach a útok je zdarma součástí pohybu k nepříteli!",
+  "tutorial.step_8_melee_finish.beacon": (p, ctx) =>
+    `Zteč chladnou zbraní na ${acc(ctx, p.unitId)} [PKM]`,
+  "tutorial.step_9_free_combat.speaker": () => "Bratr Bartoloměj",
+  "tutorial.step_9_free_combat.role": () => "Maltézský zbrojmistr",
+  "tutorial.step_9_free_combat.title": () => "VOLNÁ TAKTIKA · ÚNIK K ČERTOVCE",
+  "tutorial.step_9_free_combat.order": () =>
+    "ÚKOL MISE: Doveďte maršála Colloreda k rybářské pramici na Čertovce! [Přepínání pater V]",
+  "tutorial.step_9_free_combat.tip": () =>
+    "Základní výcvik je u konce, Vaše Excelence! Využijte schodiště a patra [V / PageDown], kryjte ústup maršála a probijte se k lodi.",
+  "tutorial.step_9_free_combat.beacon": () => "Rybářská pramice (Cíl mise)",
+  "tutorial.reject.step_1_matej_move.unit": () =>
+    "Jan Matěj: „Vaše Excelence, teď musím zajistit cestu já! Pohněte se mnou za balustrádu.“",
+  "tutorial.reject.step_1_matej_move.tile": () =>
+    "Jan Matěj: „Tam ne, Vaše Excelence! Na volném prostranství bych byl snadným terčem. Kryjme se za balustrádou!“",
+  "tutorial.reject.step_1_matej_move.action": () =>
+    "Jan Matěj: „Nejprve se musíme přesunout do krytu!“",
+  "tutorial.reject.step_2_colloredo_escort.unit": () =>
+    "Jan Matěj: „Pomohu vám, milostivý pane! Nyní musíme vyvést maršála.“",
+  "tutorial.reject.step_2_colloredo_escort.tile": () =>
+    "Jan Matěj: „Držte se těsně v mém závěsu za zdí, pane! Švédové nesmí maršála obklíčit.“",
+  "tutorial.reject.step_2_colloredo_escort.action": () =>
+    "Jan Matěj: „Musíme maršála dostat do bezpečí!“",
+  "tutorial.reject.step_3_vaclav_aim.unit": () =>
+    "Václav z Michalovic: „Mám výbornou pozici na arkádě, nechte mě zamířit!“",
+  "tutorial.reject.step_3_vaclav_aim.action": () =>
+    "Václav z Michalovic: „Stiskněte [2] pro míření a [Mezerník] pro výstřel!“",
+  "tutorial.reject.step_6_vaclav_reload.action": () =>
+    "Bratr Bartoloměj: „Prázdná hlaveň nestřílí! Stiskněte [R] a nabijte prach.“",
+  "tutorial.reject.step_7_keg_explosion.action": () =>
+    "Bratr Bartoloměj: „Ten Švéd je v plném krytu! Odpalte petardou [4] prachový sud!“",
+  "tutorial.reject.default": () => "Rádce: „Soustřeďte se na rozkaz velení.“",
+  "tutorial.keg": () => "Prachový sud (Odpálit!)",
+  "tutorial.dock": () => "Rybářská pramice (Cíl)",
+
+  "ui.document.title": () => "Praha 1648",
+  "ui.document.description": () =>
+    "Praha 1648: Víra v časech olova. Tahová taktická hra z obléhání Prahy roku 1648.",
+  "ui.locale.switch": (p) => `Jazyk: ${p.names ?? ""}`,
+  "ui.weather.rain": () => "Noční liják: -10 % k zásahu, doutnáky v dešti selhávají",
+  "ui.weather.fog": () => "Ranní vltavská mlha: -10 % k zásahu",
+  "ui.weather.clear": () => "Jasná noc: optimální podmínky pro střelbu",
+  "ui.epilogue.boatTitle": () => "Útěk na Vltavě dokonán & Zrod Železné vigilie",
+  "ui.epilogue.wipeTitle": () => "Přepadový oddíl zničen!",
+  "ui.epilogue.defeatTitle": () => "Vrchní velitel padl do zajetí",
+  "ui.epilogue.victoryMeta": (p) =>
+    `Mise splněna v ${p.count}. kole · Anno Salutis 1648, 26. července`,
+  "ui.epilogue.defeatMeta": (p) =>
+    `Katastrofa v ${p.count}. kole · Maršál Colloredo zadržen po 2 kola`,
+  "ui.epilogue.boat.1.title": () => "1. Smrt v loďce a záchrana maršála:",
+  "ui.epilogue.boat.1.body": () =>
+    "Když pramice odrazila do temného proudu Vltavy, švédští mušketýři spustili ze břehu prudkou palbu. Dva věrní společníci v loďce vlastním tělem zakryli maršála Colloreda v noční košili. Na staroměstském břehu u křižovnického kláštera předali zraněného velitele strážím a v kalužích krve a nočního deště vydechli naposledy. Stráž na Staroměstské mostecké věži spustila železnou mříž doslova před nosem švédských dragounů!",
+  "ui.epilogue.boat.2.title": () => "2. Zázrak u palácové branky (Paradoxní oběť):",
+  "ui.epilogue.boat.2.body": (p, ctx) =>
+    `Mezitím u palácové branky ${nom(ctx, p.heroId) || "obětovaný hrdina"} odpálil sudy s prachem. Ohlušující detonace smetla švédský předvoj a tlaková vlna jej odmrštila do rozvodněné Čertovky. Zraněný, popálený, ale živý se v temnotě proplížil podél Kampy a přeplaval řeku na Staré Město!`,
+  "ui.epilogue.boat.3.title": () => "3. Přijetí do ŽELEZNÉ VIGILIE Klementinských jezuitů:",
+  "ui.epilogue.boat.3.body": () =>
+    "Polomrtvého hrdinu na schodech Klementina zvedl sám Pater Jiří Plachý. Když spatřil jeho odvahu, vtiskl mu do rukou posvěcenou zbraň a zahalil jej černým pláštěm: „Tvá oběť z tebe smyla strach. Od této chvíle jsi mečem Železné vigilie.“",
+  "ui.epilogue.perk.member": (p, ctx) =>
+    `Nový člen Železné vigilie: ${nom(ctx, p.heroId)}`,
+  "ui.epilogue.perk.name": (p) => `Trvalý perk: ${p.names ?? ""}`,
+  "ui.sacrifice.title": () => "Dilema oběti: Kdo zadrží Švédy u palácové branky?",
+  "ui.sacrifice.when": () => "Anno Salutis 1648, 26. července, 02:45 · Rameno Čertovky u Velkopřevorství",
+  "ui.sacrifice.body": () =>
+    "Švédští dragouni generála Königsmarcka vpadli do zahrady a střílejí ze všech stran! Rozvodněná Vltava a malá rybářská pramice neunesou všechny. Jeden z vašich věrných společníků musí zůstat u palácové branky a odpálit sudy s prachem, aby maršál Colloredo mohl bezpečně odrazit do proudu řeky. Koho pověříte tímto osudovým úkolem?",
+  "ui.sacrifice.matej.role": () => "Osobní komorník",
+  "ui.sacrifice.matej.line": () => "„Můj život už patří minulosti, milostivý pane. Odražte s maršálem!“",
+  "ui.sacrifice.matej.perk": () => "+20 % odolnost proti šoku, +1 AP při záchraně raněného",
+  "ui.sacrifice.bart.role": () => "Maltézský zbrojmistr",
+  "ui.sacrifice.bart.line": () => "„Zasypu branku olovem a odpálím zbrojnici i se Švédy!“",
+  "ui.sacrifice.bart.perk": () => "+2 dosah petard, výbuchy prachu o +1 silnější",
+  "ui.sacrifice.vaclav.role": () => "Klementinský klerik & písař",
+  "ui.sacrifice.vaclav.line": () => "„Bůh mě ochraňuj, zdržím je s křížem a karabinou!“",
+  "ui.sacrifice.vaclav.perk": () => "+10 % k zásahu z výšky, spolehlivost v dešti",
+  "ui.sacrifice.perkLabel": (p) => `Perk: ${p.names ?? ""}`,
+  "ui.floor.2.title": () => "Maltézská věž",
+  "ui.floor.2.sub": () => "Střešní ochoz (+15 % zásah, +5.5 dohled)",
+  "ui.floor.1.title": () => "Piano Nobile & Belveder",
+  "ui.floor.1.sub": () => "1. patro paláce a terasa (+2.2 dohled)",
+  "ui.floor.0.title": () => "Přízemí & Zahrada",
+  "ui.floor.0.sub": () => "Nádvoří, Sala Terrena, Čertovka",
+  "ui.tools.aria": () => "Taktické nástroje a kamera",
+  "ui.camera.left": () => "Otočit kameru o 90° vlevo [Q]",
+  "ui.camera.right": () => "Otočit kameru o 90° vpravo [E]",
+  "ui.floors.aria": () => "Výběr podlaží",
+  "ui.floors.switch": (p) => `Přepnout patro P${p.floor ?? 0} [V / PgUp / PgDn]`,
+  "ui.floors.stack": () => "Zobrazit architektonický průřez pater a pozice jednotek",
+  "ui.floors.word": () => "Patra",
+  "ui.fog.title": () => "Barokní šerosvit / Mlha války [G]",
+  "ui.chronicle.aria": () => "Kronika boje",
+  "ui.chronicle.drag": () => "Tažením lze kroniku posunout · Kliknutím rozbalíte historii boje",
+  "ui.chronicle.reset": () => "Vrátit kroniku na výchozí místo",
+  "ui.chronicle.expand": () => "Rozbalit historii boje",
+  "ui.chronicle.collapse": () => "Sbalit historii boje",
+  "ui.chronicle.empty": (p) => `Diarium (${p.count ?? 0})`,
+  "ui.door.double": (p, ctx) =>
+    `${ctx.door(p.doorId)}: Kliknutím ${p.open ? "zavřete" : "otevřete"} dvoukřídlý portál (Volná akce 0 AP)`,
+  "ui.door.single": (p, ctx) =>
+    `${ctx.door(p.doorId)}: Kliknutím ${p.open ? "zavřete" : "otevřete"} dveře (Volná akce 0 AP)`,
+  "ui.melee.now": (p, ctx) =>
+    `Pravým kliknutím okamžitý útok zblízka (${ctx.melee(p.meleeId)}, 1 AP)`,
+  "ui.melee.charge": (p, ctx) =>
+    `Zteč zblízka: Pravým kliknutím okamžitý přesun (${p.count ?? 0} AP) spojený se seknutím (${ctx.melee(p.meleeId)}, +0 AP navíc)!`,
+  "ui.smoke.title": () => "Kouř z černého prachu (−10 % střelec / −15 % cíl / −20 % z výšky)",
 } satisfies Record<string, MessageFn>;
 
 export type UiMessageId = keyof typeof csUiMessages;

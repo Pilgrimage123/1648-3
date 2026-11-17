@@ -9,6 +9,7 @@ import {
   doorLabel,
   formatPhrase,
   listLocales,
+  lossSourceLabel,
   phrase,
   projectUnit,
   setLocale,
@@ -94,6 +95,18 @@ assert(
 assert(
   text("ui.sacrifice.body").includes(text("ui.sacrifice.clause")),
   "Sacrifice body must contain sacrifice clause for splitAround highlighting",
+);
+assert.strictEqual(lossSourceLabel("powder_keg"), "Výbuch prachového sudu");
+assert.strictEqual(lossSourceLabel("grenade"), "Litinová petarda (3×3)");
+assert.strictEqual(lossSourceLabel("falconet_canister"), "Kartáčová salva z falkonetu");
+assert.strictEqual(lossSourceLabel("maltese_shrapnel"), "Maltézská pekelná salva");
+assert(
+  text("ui.epilogue.m2.defeat").includes("Staroměstská"),
+  "Mission 2 defeat title must resolve to canonical Czech",
+);
+assert(
+  text("ui.epilogue.m3.victoryMeta", { count: 4 }).includes("července"),
+  "Mission 3 victory meta must use July 1648 historical date",
 );
 
 console.log("✓ Czech pack declines names, pluralizes, and projects unit copy.");

@@ -8,7 +8,6 @@ import { computeFogOfWar, getTileVisibility } from "../src/core/FogOfWar.ts";
 import {
   coordKey,
   createInitialGrid,
-  isEnclosedRoofedCoord,
   WEAPON_CATALOG,
 } from "../src/core/GridSystem.ts";
 import { computeReachableTiles, findPathAStar } from "../src/core/Pathfinding.ts";
@@ -146,11 +145,11 @@ assert.equal(
   "a man on the keystone can see the windlass",
 );
 
-assert.equal(isEnclosedRoofedCoord(5, 0, 14), false, "rain on the bridge");
-assert.equal(isEnclosedRoofedCoord(20, 0, 14), false, "rain on the square");
-assert.equal(isEnclosedRoofedCoord(14, 0, 14), true, "dry under the vault");
-assert.equal(isEnclosedRoofedCoord(11, 1, 14), true);
-assert.equal(isEnclosedRoofedCoord(16, 2, 14), true);
+assert.equal(grid.isEnclosedRoofed(5, 0, 14), false, "rain on the bridge");
+assert.equal(grid.isEnclosedRoofed(20, 0, 14), false, "rain on the square");
+assert.equal(grid.isEnclosedRoofed(14, 0, 14), true, "dry under the vault");
+assert.equal(grid.isEnclosedRoofed(11, 1, 14), true);
+assert.equal(grid.isEnclosedRoofed(16, 2, 14), true);
 
 function withPos(unit: UnitData, pos: GridCoord, hp = unit.hp): UnitData {
   return { ...unit, pos, hp, alive: hp > 0 };
@@ -323,7 +322,7 @@ const outdoorMatchlock = {
   pos: { x: 5, y: 0 as const, z: 14 },
   weapon: WEAPON_CATALOG.swedish_musket!,
 };
-assert.equal(isEnclosedRoofedCoord(5, 0, 14), false, "open bridge is not roofed");
+assert.equal(grid.isEnclosedRoofed(5, 0, 14), false, "open bridge is not roofed");
 assert.equal(
   calculateShot(grid, outdoorMatchlock, plachy, "rain").misfireChance,
   20,
@@ -336,8 +335,9 @@ assert.equal(
 );
 
 const palace = createInitialGrid();
-assert.equal(isEnclosedRoofedCoord(5, 1, 23), true, "palace bedroom stays roofed");
-assert.equal(isEnclosedRoofedCoord(11, 1, 14), false, "tower mask does not leak");
+assert.equal(palace.isEnclosedRoofed(5, 1, 23), true, "palace bedroom stays roofed");
+assert.equal(grid.isEnclosedRoofed(11, 1, 14), true, "tower P1 windlass hall is roofed");
+assert.equal(palace.isEnclosedRoofed(11, 1, 14), false, "palace mask does not roof tower");
 assert.ok(palace.getTile({ x: 5, y: 1, z: 23 })?.hasFloor);
 
 // Morning daylight visibility on Charles Bridge (x: 1..9, y: 0, z: 11..16)
@@ -391,6 +391,36 @@ assert.equal(
   null,
   "severing requires a bladed melee weapon (dagger or sword)",
 );
+
+// M2 choking preserves bespoke baseMovePerAp (Occultist = 1, Harrier = 8 -> 7 -> 8)
+const m2SmokeGrid = createMission2Grid();
+const m2Harrier: UnitData = {
+  ...units.find((u) => u.id.startsWith("enemy-harrier"))!,
+  pos: { x: 14, y: 0, z: 14 }, // Roofed bridge tower gateway
+  hp: 4,
+};
+const m2Occultist: UnitData = {
+  ...units.find((u) => u.id === OCCULTIST_ID)!,
+  pos: { x: 13, y: 0, z: 14 },
+  armor: 0,
+};
+assert.equal(m2Harrier.movePerAp, 8, "Harrier starts at movePerAp 8");
+assert.equal(m2Occultist.movePerAp, 1, "Occultist starts at movePerAp 1");
+m2SmokeGrid.addSmoke(m2Harrier.pos, 0, 2);
+m2SmokeGrid.addSmoke(m2Occultist.pos, 0, 2);
+const chokedM2Units = applyBlackPowderChoking([m2Harrier, m2Occultist], m2SmokeGrid);
+const chokedHarrier = chokedM2Units.find((u) => u.id === m2Harrier.id)!;
+const chokedOccultist = chokedM2Units.find((u) => u.id === OCCULTIST_ID)!;
+assert.equal(chokedHarrier.isChoking, true);
+assert.equal(chokedHarrier.movePerAp, 7, "Harrier choked in smoke slows from 8 to 7");
+assert.equal(chokedOccultist.movePerAp, 1, "Occultist stays clamped at 1 when choking");
+m2SmokeGrid.decaySmoke("clear");
+m2SmokeGrid.decaySmoke("clear");
+const clearedM2Units = applyBlackPowderChoking(chokedM2Units, m2SmokeGrid);
+const recoveredHarrier = clearedM2Units.find((u) => u.id === m2Harrier.id)!;
+const recoveredOccultist = clearedM2Units.find((u) => u.id === OCCULTIST_ID)!;
+assert.equal(recoveredHarrier.movePerAp, 8, "Harrier recovers bespoke speed 8 after smoke clears");
+assert.equal(recoveredOccultist.movePerAp, 1, "Occultist recovers bespoke speed 1 (not overwritten to 7)");
 
 void (null as Mission2Clock | null);
 console.log("mission 2 ok");

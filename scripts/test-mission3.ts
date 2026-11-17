@@ -10,11 +10,7 @@ import {
   computeEnemyAiDecision,
 } from "../src/core/CombatSystem.ts";
 import { applyPowderBlast } from "../src/core/explosions.ts";
-import {
-  createInitialGrid,
-  getRoofParapetCover,
-  isEnclosedRoofedCoord,
-} from "../src/core/GridSystem.ts";
+import { createInitialGrid } from "../src/core/GridSystem.ts";
 import { createMission2Grid } from "../src/core/mission2.ts";
 import { computeReachableTiles, findPathAStar } from "../src/core/Pathfinding.ts";
 import { checkMissionOutcome, useGameStore } from "../src/store/useGameStore.ts";
@@ -40,7 +36,6 @@ import {
   canOfferCordLay,
   layCord,
   proposeCordLay,
-  readMission3Clock,
   lightCord,
   ONDREJ_ID,
   PLACHY_ID,
@@ -139,14 +134,14 @@ assert.equal(tile(16, 0, 12).obstacle, "low_wall");
 assert.equal(tile(15, 1, 10).hasFloor, false);
 assert.equal(tile(15, 1, 11).hasFloor, false);
 
-assert.equal(isEnclosedRoofedCoord(14, 0, 8), true);
-assert.equal(isEnclosedRoofedCoord(12, 1, 13), true);
-assert.equal(isEnclosedRoofedCoord(10, 0, 13), true);
-assert.equal(isEnclosedRoofedCoord(9, 0, 10), false);
-assert.equal(isEnclosedRoofedCoord(6, 0, 9), false);
-assert.equal(isEnclosedRoofedCoord(16, 0, 8), false);
-assert.equal(getRoofParapetCover({ x: 10, y: 1, z: 12 }, "S"), "half");
-assert.equal(getRoofParapetCover({ x: 5, y: 0, z: 11 }, "N"), "none");
+assert.equal(grid.isEnclosedRoofed(14, 0, 8), true);
+assert.equal(grid.isEnclosedRoofed(12, 1, 13), true);
+assert.equal(grid.isEnclosedRoofed(10, 0, 13), true);
+assert.equal(grid.isEnclosedRoofed(9, 0, 10), false);
+assert.equal(grid.isEnclosedRoofed(6, 0, 9), false);
+assert.equal(grid.isEnclosedRoofed(16, 0, 8), false);
+assert.equal(grid.getRoofParapetCover({ x: 10, y: 1, z: 12 }, "S"), "half");
+assert.equal(grid.getRoofParapetCover({ x: 5, y: 0, z: 11 }, "N"), "none");
 assert.equal(isTorchRing(SHOULDER), true);
 assert.equal(isTorchRing({ x: 9, y: 0, z: 10 }), false);
 assert.equal(isTorchRing({ x: 6, y: 0, z: 9 }), false);
@@ -721,15 +716,14 @@ function yard() {
 
 {
   const bridge = createMission2Grid();
-  assert.equal(isEnclosedRoofedCoord(12, 0, 14), true);
-  assert.equal(isEnclosedRoofedCoord(5, 0, 14), false);
-  assert.equal(getRoofParapetCover({ x: 5, y: 0, z: 11 }, "N"), "half");
-  createMission3Grid();
-  assert.equal(isEnclosedRoofedCoord(5, 0, 14), false);
-  assert.equal(getRoofParapetCover({ x: 5, y: 0, z: 11 }, "N"), "none");
-  createInitialGrid();
-  assert.equal(isEnclosedRoofedCoord(11, 0, 22), true);
-  void bridge;
+  assert.equal(bridge.isEnclosedRoofed(12, 0, 14), true);
+  assert.equal(bridge.isEnclosedRoofed(5, 0, 14), false);
+  assert.equal(bridge.getRoofParapetCover({ x: 5, y: 0, z: 11 }, "N"), "half");
+  const yardGrid = createMission3Grid();
+  assert.equal(yardGrid.isEnclosedRoofed(5, 0, 14), false);
+  assert.equal(yardGrid.getRoofParapetCover({ x: 5, y: 0, z: 11 }, "N"), "none");
+  const palaceGrid = createInitialGrid();
+  assert.equal(palaceGrid.isEnclosedRoofed(11, 0, 22), true);
 }
 
 async function settle(): Promise<void> {
@@ -753,7 +747,7 @@ async function storeRoundTrip(): Promise<void> {
   assert.ok(started.units.some((unit) => unit.id === HAVEL_ID));
   assert.ok(started.units.some((unit) => unit.id === ONDREJ_ID));
   assert.equal(started.combatLog.some((entry) => entry.message.id === "log.m3.watergate"), true);
-  assert.equal(checkMissionOutcome(started.grid, started.units).outcome, "ongoing");
+  assert.equal(checkMissionOutcome(started.grid, started.units, started.m2, started.m3).outcome, "ongoing");
 
   const beforeAp = started.units.find((unit) => unit.id === ONDREJ_ID)?.ap ?? 0;
   useGameStore.setState({
@@ -805,7 +799,8 @@ async function storeRoundTrip(): Promise<void> {
       unit.id === PLACHY_ID ? { ...unit, pos: { x: 6, y: 0, z: 9 }, alive: true, hp: 12 } : unit,
     ),
   }));
-  const skiff = checkMissionOutcome(useGameStore.getState().grid, useGameStore.getState().units);
+  const skiffState = useGameStore.getState();
+  const skiff = checkMissionOutcome(skiffState.grid, skiffState.units, skiffState.m2, skiffState.m3);
   assert.equal(skiff.outcome, "victory");
   assert.equal(skiff.victoryReason, "skiff");
 
@@ -822,9 +817,8 @@ async function storeRoundTrip(): Promise<void> {
   const back = useGameStore.getState();
   assert.deepEqual(back.campaign, kept);
   assert.equal(back.m3, null);
-  assert.equal(readMission3Clock(), null);
-  assert.equal(isEnclosedRoofedCoord(10, 1, 22), true);
-  assert.equal(isEnclosedRoofedCoord(5, 0, 10), false);
+  assert.equal(back.grid.isEnclosedRoofed(10, 1, 22), true);
+  assert.equal(back.grid.isEnclosedRoofed(5, 0, 10), false);
 
   const storeStep1Ap = (unitId: string, to: { x: number; y: 0 | 1 | 2; z: number }) => {
     const s = useGameStore.getState();
@@ -889,7 +883,8 @@ async function storeRoundTrip(): Promise<void> {
     ),
   }));
   {
-    const win = checkMissionOutcome(useGameStore.getState().grid, useGameStore.getState().units);
+    const s = useGameStore.getState();
+    const win = checkMissionOutcome(s.grid, s.units, s.m2, s.m3);
     assert.equal(win.outcome, "victory");
     assert.equal(win.victoryReason, "skiff");
   }
@@ -963,7 +958,8 @@ async function storeRoundTrip(): Promise<void> {
     ),
   }));
   {
-    const win = checkMissionOutcome(useGameStore.getState().grid, useGameStore.getState().units);
+    const s = useGameStore.getState();
+    const win = checkMissionOutcome(s.grid, s.units, s.m2, s.m3);
     assert.equal(win.outcome, "victory");
     assert.equal(win.victoryReason, "skiff");
   }
@@ -975,12 +971,12 @@ async function storeRoundTrip(): Promise<void> {
   useGameStore.getState().toggleFloor();
   assert.equal(useGameStore.getState().activeFloor, 0, "Mission 3 floor toggle must stay capped at P0/P1");
 
-  if (useGameStore.getState().fogOfWarEnabled) {
-    useGameStore.getState().toggleFogOfWar();
-  }
+  useGameStore.getState().setFogOfWarEnabled(false);
+  useGameStore.getState().beginScenario("mission2");
+  assert.equal(useGameStore.getState().fogOfWarEnabled, false, "preferredFogOfWar must persist across beginScenario in M1/M2");
+  useGameStore.getState().setFogOfWarEnabled(true);
   useGameStore.getState().beginScenario("mission3");
-  assert.equal(useGameStore.getState().fogOfWarEnabled, false, "preferredFogOfWar must persist across beginScenario");
-  useGameStore.getState().toggleFogOfWar();
+  assert.equal(useGameStore.getState().fogOfWarEnabled, false, "Mission 3 always initializes fogOfWarEnabled=false");
 
   useGameStore.setState((s) => ({
     turn: "player",

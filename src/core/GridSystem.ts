@@ -182,10 +182,6 @@ export function evalRoofParapetCover(
   return "none";
 }
 
-export function getRoofParapetCover(c: GridCoord, dir: CardinalDir): CoverLevel {
-  return evalRoofParapetCover(roofKind, c, dir);
-}
-
 export class GridSystem {
   public readonly width: number;
   public readonly depth: number;
@@ -203,7 +199,6 @@ export class GridSystem {
   ): void {
     this.instanceRoofMask = fn;
     this.instanceRoofKind = fn ? (kind ?? "bridge") : null;
-    setRoofMask(fn, kind);
   }
 
   public getRoofKind(): RoofKind | null {
@@ -605,7 +600,6 @@ export class GridSystem {
  * 3. Sever (z: 0..4, x: 0..23): Mlýnská stoka Čertovka s dřevěným přístavištěm a rybářskou pramicí (úniková zóna maršála).
  */
 export function createInitialGrid(): GridSystem {
-  setRoofMask(null);
   const grid = new GridSystem(GRID_WIDTH, GRID_DEPTH, GRID_FLOORS);
 
   // ===========================================================================
@@ -958,24 +952,7 @@ export function createInitialGrid(): GridSystem {
   return grid;
 }
 
-/**
- * Mission maps that are not the Grand Priory install a predicate here.
- * `createInitialGrid` clears it so the palace mask cannot leak across scenarios.
- */
-let roofMask: ((x: number, y: number, z: number) => boolean) | null = null;
-
 export type RoofKind = "bridge" | "powder-yard";
-
-/** Which parapet formula `getRoofParapetCover` uses while a mask is installed. */
-let roofKind: RoofKind | null = null;
-
-export function setRoofMask(
-  fn: ((x: number, y: number, z: number) => boolean) | null,
-  kind?: RoofKind,
-): void {
-  roofMask = fn;
-  roofKind = fn ? (kind ?? "bridge") : null;
-}
 
 export function evalEnclosedRoofedCoord(
   mask: ((x: number, y: number, z: number) => boolean) | null,
@@ -996,15 +973,6 @@ export function evalEnclosedRoofedCoord(
     return true;
   }
   return false;
-}
-
-/**
- * Určí, zda se daná pozice na mřížce nachází v zastřešeném interiéru Velkopřevorského paláce
- * nebo pod klenutým loubím zahradního belvederu.
- * V těchto krytých prostorách nikdy neprší a prach/popel se v nich objeví až po zahájení střelby či výbuchů.
- */
-export function isEnclosedRoofedCoord(x: number, y: number, z: number): boolean {
-  return evalEnclosedRoofedCoord(roofMask, x, y, z);
 }
 
 /** Unencumbered soldier pace. Weapon weight is subtracted via `soldierMovePerAp`. Colloredo's limp replaces this. */
@@ -1084,6 +1052,7 @@ export const WEAPON_CATALOG: Record<string, WeaponStats> = {
     reloadApCost: 0,
     mobilityPenalty: 0,
     overwatchMode: "full_360",
+    isPistol: true,
   },
   wheellock_carbine: {
     id: "wheellock_carbine",
@@ -1157,32 +1126,6 @@ export const WEAPON_CATALOG: Record<string, WeaponStats> = {
     mobilityPenalty: 2,
     overwatchMode: "prepared_volley_cone",
   },
-  // Ponecháno v katalogu pro zpětnou kompatibilitu odkazů (mapováno na parametry těžké muškety)
-  heavy_arquebus: {
-    id: "heavy_arquebus",
-    name: "Starší těžká mušketa (s furketou)",
-    lockType: "matchlock",
-    minDamage: 12,
-    maxDamage: 16,
-    critBonusDamage: 6,
-    critBonusMaxDamage: 8,
-    baseCritChance: 15,
-    baseAccuracy: 65,
-    falloffPerTile: 3,
-    pointBlankRange: 3,
-    optimalRange: 10,
-    maxRange: 18,
-    armorPierce: 4,
-    armorShred: 4,
-    baseMisfireChance: 6,
-    supportsRestFork: true,
-    fireApCost: 2,
-    allowEmergencyHipFire: true,
-    hipFireAimPenalty: 35,
-    reloadApCost: 4,
-    mobilityPenalty: 3,
-    overwatchMode: "prepared_volley_cone",
-  },
   plachy_pistol: {
     id: "plachy_pistol",
     name: "Plachého kolečková pistole",
@@ -1205,6 +1148,7 @@ export const WEAPON_CATALOG: Record<string, WeaponStats> = {
     reloadApCost: 2,
     mobilityPenalty: 0,
     overwatchMode: "full_360",
+    isPistol: true,
   },
   havel_pistol: {
     id: "havel_pistol",
@@ -1227,6 +1171,7 @@ export const WEAPON_CATALOG: Record<string, WeaponStats> = {
     reloadApCost: 2,
     mobilityPenalty: 0,
     overwatchMode: "full_360",
+    isPistol: true,
   },
   ondrej_pistol: {
     id: "ondrej_pistol",
@@ -1249,6 +1194,7 @@ export const WEAPON_CATALOG: Record<string, WeaponStats> = {
     reloadApCost: 2,
     mobilityPenalty: 0,
     overwatchMode: "full_360",
+    isPistol: true,
   },
   harrier_pistol: {
     id: "harrier_pistol",
@@ -1271,6 +1217,7 @@ export const WEAPON_CATALOG: Record<string, WeaponStats> = {
     reloadApCost: 2,
     mobilityPenalty: 0,
     overwatchMode: "full_360",
+    isPistol: true,
   },
   occultist_pistol: {
     id: "occultist_pistol",
@@ -1293,6 +1240,7 @@ export const WEAPON_CATALOG: Record<string, WeaponStats> = {
     reloadApCost: 2,
     mobilityPenalty: 0,
     overwatchMode: "full_360",
+    isPistol: true,
   },
 };
 
@@ -1360,48 +1308,6 @@ export const MELEE_CATALOG: Record<string, MeleeWeaponStats> = {
     armorShred: 1,
     description:
       "Ostrý lovecký tesák na černou zvěř, kterým Jan Matěj dokáže probodnout slabiny nepřátelského kyrysu.",
-  },
-  cleric_dagger: {
-    id: "cleric_dagger",
-    name: "Úder pažbou klementinské muškety",
-    kind: "musket_butt",
-    minDamage: 4,
-    maxDamage: 6,
-    critBonusDamage: 2,
-    baseCritChance: 10,
-    baseAccuracy: 82,
-    armorPierce: 1,
-    armorShred: 0,
-    description:
-      "Spolehlivý nouzový úder pažbou odlehčené muškety klementinského studenta Václava z Michalovic (4–6 HP).",
-  },
-  maltese_broadsword: {
-    id: "maltese_broadsword",
-    name: "Maltézský válečný meč & kord",
-    kind: "sword",
-    minDamage: 4,
-    maxDamage: 6,
-    critBonusDamage: 3,
-    baseCritChance: 20,
-    baseAccuracy: 85,
-    armorPierce: 1,
-    armorShred: 1,
-    description:
-      "Těžká kovaná sečná čepel ukovaná v maltézské zbrojnici.",
-  },
-  swedish_dagger: {
-    id: "swedish_dagger",
-    name: "Úder pažbou švédské muškety",
-    kind: "musket_butt",
-    minDamage: 4,
-    maxDamage: 6,
-    critBonusDamage: 2,
-    baseCritChance: 10,
-    baseAccuracy: 82,
-    armorPierce: 1,
-    armorShred: 0,
-    description:
-      "Nouzový úder pažbou odlehčené švédské muškety M1624 v boji tělo na tělo (4–6 HP).",
   },
   butcher_cleaver: {
     id: "butcher_cleaver",
@@ -1711,7 +1617,9 @@ export function createInitialUnits(): UnitData[] {
       alive: true,
     },
   ];
-  return units.map((unit) => projectUnit(unit));
+  return units.map((unit) =>
+    projectUnit({ ...unit, baseMovePerAp: unit.baseMovePerAp ?? unit.movePerAp }),
+  );
 }
 
 /**
@@ -1774,5 +1682,7 @@ export function createReinforcementUnits(): UnitData[] {
       alive: true,
     },
   ];
-  return units.map((unit) => projectUnit(unit));
+  return units.map((unit) =>
+    projectUnit({ ...unit, baseMovePerAp: unit.baseMovePerAp ?? unit.movePerAp }),
+  );
 }

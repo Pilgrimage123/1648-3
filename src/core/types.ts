@@ -60,7 +60,7 @@ export interface DoorData {
 export type WeatherType = "clear" | "fog" | "rain";
 
 /** Typ zámku palné zbraně ze 17. století */
-export type FirearmLockType = "matchlock" | "wheellock" | "artillery";
+export type FirearmLockType = "matchlock" | "wheellock";
 
 export interface TileData {
   coord: GridCoord;
@@ -156,6 +156,8 @@ export interface WeaponStats {
   mobilityPenalty?: number;
   /** Režim hlídky: plný 360° Overwatch (kolečkový zámek) nebo Připravená salva v předním kuželu (doutnáková mušketa) */
   overwatchMode?: OverwatchMode;
+  /** True for one-handed pistols/bambitkas (controls barrel length/sound/single-handed stance). */
+  isPistol?: boolean;
 }
 
 /** Důvod zadržení či zajetí polního maršála Colloreda */
@@ -222,6 +224,8 @@ export interface UnitData {
   marksmanship: number;
   /** Počet polí za 1 AP (Modrá zóna) */
   movePerAp: number;
+  /** Základní rychlost bez dočasného zadýmení (zachová individuální rychlost napříč misemi) */
+  baseMovePerAp?: number;
   weapon: WeaponStats;
   /** Chladná zbraň nebo úder pažbou muškety pro boj zblízka (1 AP) */
   meleeWeapon?: MeleeWeaponStats;

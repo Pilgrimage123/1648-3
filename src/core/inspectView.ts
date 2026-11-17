@@ -305,7 +305,7 @@ function buildUnit(ctx: InspectContext, unit: UnitData): InspectUnitView {
     isVip: Boolean(unit.isVip),
     alive: unit.alive,
     detained,
-    place: `${floorLabel(unit.pos.y)} · ${unit.pos.x}, ${unit.pos.z}`,
+    place: `${floorLabel(unit.pos.y, ctx.scenario)} · ${unit.pos.x}, ${unit.pos.z}`,
     facing: facingLabel(unit.facing),
     bestCover: tile ? bestTileCover(tile.cover) : "none",
     stats: unitStats(unit),
@@ -364,7 +364,7 @@ function unitConditions(unit: UnitData): string[] {
   if (unit.isOverwatch) chips.push(text("inspect.cond.overwatch"));
   if (unit.movedThisTurn) chips.push(text("inspect.cond.moved"));
   if (unit.buffTitle) chips.push(unit.buffTitle);
-  if (unit.id === "player-colloredo") {
+  if (unit.weapon.id === "colloredo_wheellock_pistol") {
     chips.push(
       unit.pistolLoaded === false
         ? text("inspect.cond.pistolEmpty")
@@ -419,7 +419,7 @@ function firearmLines(unit: UnitData): InspectLabeledValue[] {
     {
       label: text("inspect.weapon.mobility"),
       value:
-        unit.id === "player-colloredo"
+        unit.buffId === "limp"
           ? text("inspect.weapon.limpOverrides")
           : text("inspect.tiles", { count: weapon.mobilityPenalty ?? 0 }),
     },

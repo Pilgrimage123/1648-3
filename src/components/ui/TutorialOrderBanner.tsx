@@ -22,79 +22,10 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getGuidedStepData } from "../../core/GuidedTutorialSystem";
-import type { GuidedTutorialStep } from "../../core/types";
 import { formatPhrase, text, useLocale, type MessageId } from "../../i18n";
 import { useGameStore } from "../../store/useGameStore";
+import { useIsCinematicHudHidden } from "./hudUtils";
 import { UnitPortrait } from "./UnitPortrait";
-
-const STEP_COPY: Record<
-  GuidedTutorialStep,
-  { speaker: MessageId; role: MessageId; title: MessageId; order: MessageId; tip: MessageId }
-> = {
-  step_1_matej_move: {
-    speaker: "tutorial.step_1_matej_move.speaker",
-    role: "tutorial.step_1_matej_move.role",
-    title: "tutorial.step_1_matej_move.title",
-    order: "tutorial.step_1_matej_move.order",
-    tip: "tutorial.step_1_matej_move.tip",
-  },
-  step_2_colloredo_escort: {
-    speaker: "tutorial.step_2_colloredo_escort.speaker",
-    role: "tutorial.step_2_colloredo_escort.role",
-    title: "tutorial.step_2_colloredo_escort.title",
-    order: "tutorial.step_2_colloredo_escort.order",
-    tip: "tutorial.step_2_colloredo_escort.tip",
-  },
-  step_3_vaclav_aim: {
-    speaker: "tutorial.step_3_vaclav_aim.speaker",
-    role: "tutorial.step_3_vaclav_aim.role",
-    title: "tutorial.step_3_vaclav_aim.title",
-    order: "tutorial.step_3_vaclav_aim.order",
-    tip: "tutorial.step_3_vaclav_aim.tip",
-  },
-  step_4_vaclav_shoot: {
-    speaker: "tutorial.step_4_vaclav_shoot.speaker",
-    role: "tutorial.step_4_vaclav_shoot.role",
-    title: "tutorial.step_4_vaclav_shoot.title",
-    order: "tutorial.step_4_vaclav_shoot.order",
-    tip: "tutorial.step_4_vaclav_shoot.tip",
-  },
-  step_5_enemy_turn_react: {
-    speaker: "tutorial.step_5_enemy_turn_react.speaker",
-    role: "tutorial.step_5_enemy_turn_react.role",
-    title: "tutorial.step_5_enemy_turn_react.title",
-    order: "tutorial.step_5_enemy_turn_react.order",
-    tip: "tutorial.step_5_enemy_turn_react.tip",
-  },
-  step_6_vaclav_reload: {
-    speaker: "tutorial.step_6_vaclav_reload.speaker",
-    role: "tutorial.step_6_vaclav_reload.role",
-    title: "tutorial.step_6_vaclav_reload.title",
-    order: "tutorial.step_6_vaclav_reload.order",
-    tip: "tutorial.step_6_vaclav_reload.tip",
-  },
-  step_7_keg_explosion: {
-    speaker: "tutorial.step_7_keg_explosion.speaker",
-    role: "tutorial.step_7_keg_explosion.role",
-    title: "tutorial.step_7_keg_explosion.title",
-    order: "tutorial.step_7_keg_explosion.order",
-    tip: "tutorial.step_7_keg_explosion.tip",
-  },
-  step_8_melee_finish: {
-    speaker: "tutorial.step_8_melee_finish.speaker",
-    role: "tutorial.step_8_melee_finish.role",
-    title: "tutorial.step_8_melee_finish.title",
-    order: "tutorial.step_8_melee_finish.order",
-    tip: "tutorial.step_8_melee_finish.tip",
-  },
-  step_9_free_combat: {
-    speaker: "tutorial.step_9_free_combat.speaker",
-    role: "tutorial.step_9_free_combat.role",
-    title: "tutorial.step_9_free_combat.title",
-    order: "tutorial.step_9_free_combat.order",
-    tip: "tutorial.step_9_free_combat.tip",
-  },
-};
 
 export function TutorialOrderBanner() {
   const locale = useLocale();
@@ -103,10 +34,8 @@ export function TutorialOrderBanner() {
   const skipGuidedTutorial = useGameStore((s) => s.skipGuidedTutorial);
   const toggleGuidedTutorial = useGameStore((s) => s.toggleGuidedTutorial);
   const outcome = useGameStore((s) => s.outcome);
-  const activeProjectile = useGameStore((s) => s.activeProjectile);
-  const isBusy = useGameStore((s) => s.isBusy);
-  const activeMovement = useGameStore((s) => s.activeMovement);
   const turn = useGameStore((s) => s.turn);
+  const isCinematicHidden = useIsCinematicHudHidden(false);
 
   const [expanded, setExpanded] = useState(false);
   const [feedbackVisible, setFeedbackVisible] = useState(false);
@@ -130,14 +59,20 @@ export function TutorialOrderBanner() {
     !guidedTutorial.enabled ||
     guidedTutorial.dismissed ||
     outcome !== "ongoing" ||
-    activeProjectile !== null ||
-    Boolean(isBusy && activeMovement?.isActionCam)
+    isCinematicHidden
   ) {
     return null;
   }
 
   const stepData = getGuidedStepData(guidedTutorial.currentStep);
-  const copy = STEP_COPY[guidedTutorial.currentStep];
+  const stepKey = guidedTutorial.currentStep;
+  const copy = {
+    speaker: `tutorial.${stepKey}.speaker` as MessageId,
+    role: `tutorial.${stepKey}.role` as MessageId,
+    title: `tutorial.${stepKey}.title` as MessageId,
+    order: `tutorial.${stepKey}.order` as MessageId,
+    tip: `tutorial.${stepKey}.tip` as MessageId,
+  };
   const isFreeCombat = guidedTutorial.currentStep === "step_9_free_combat";
 
   const getStepIcon = () => {

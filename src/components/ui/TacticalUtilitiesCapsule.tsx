@@ -28,6 +28,7 @@ import { useState } from "react";
 import type { FloorLevel } from "../../core/types";
 import { listLocales, setLocale, text, useLocale, type MessageId } from "../../i18n";
 import { useGameStore } from "../../store/useGameStore";
+import { useIsCinematicHudHidden } from "./hudUtils";
 
 const PALACE_FLOORS: {
   floor: FloorLevel;
@@ -107,10 +108,6 @@ export function TacticalUtilitiesCapsule() {
   const isFullscreen = useGameStore((s) => s.isFullscreen);
   const tutorialStep = useGameStore((s) => s.tutorialStep);
   const tutorialDismissed = useGameStore((s) => s.tutorialDismissed);
-  const actionMode = useGameStore((s) => s.actionMode);
-  const activeProjectile = useGameStore((s) => s.activeProjectile);
-  const isBusy = useGameStore((s) => s.isBusy);
-  const activeMovement = useGameStore((s) => s.activeMovement);
   const fogOfWarEnabled = useGameStore((s) => s.fogOfWarEnabled);
   const fogSnapshot = useGameStore((s) => s.fogSnapshot);
   const actionCamEnabled = useGameStore((s) => s.actionCamEnabled);
@@ -131,13 +128,7 @@ export function TacticalUtilitiesCapsule() {
 
   // Kontextové vrstvení (Pillar 1): Průřez pater je ve výchozím stavu sbalený, rozbalí se na vyžádání
   const [stackExpanded, setStackExpanded] = useState(false);
-
-  // Stavový automat HUDu (Pillar 4): Skrýt při akční kameře přes rameno a střelbě
-  const isHiddenInActionCam =
-    actionMode === "shoot" ||
-    actionMode === "melee" ||
-    activeProjectile !== null ||
-    Boolean(isBusy && activeMovement?.isActionCam);
+  const isHiddenInActionCam = useIsCinematicHudHidden(true);
 
   if (isHiddenInActionCam) {
     return null;

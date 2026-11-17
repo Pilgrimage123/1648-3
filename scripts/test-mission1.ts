@@ -1,6 +1,7 @@
 import assert from "node:assert";
 import {
   applyBlackPowderChoking,
+  applyDamageToUnit,
   calculateMeleeAttack,
   calculateShot,
   checkEnemyColloredoCapture,
@@ -1599,7 +1600,7 @@ const lethalLoss = buildUnitCombatLoss(
   { ...sampleTargetBefore, hp: 0, armor: 0, alive: false },
   {
     attackerId: "player-jan-matej",
-    weaponId: "heavy_arquebus",
+    weaponId: "matchlock_musket_fork",
     hit: true,
     critical: true,
     misfired: false,
@@ -1640,7 +1641,10 @@ assert(
 );
 assert(
   postOwStore.combatLog.some(
-    (l) => l.tone === "overwatch" && formatPhrase(l.message).includes("OVERWATCH"),
+    (l) =>
+      l.tone === "overwatch" &&
+      (formatPhrase(l.message).includes("PŘIPRAVENÁ SALVA") ||
+        formatPhrase(l.message).includes("STŘELECKÁ HLÍDKA")),
   ),
   "Activating Overwatch must append an 'overwatch' tone entry to combatLog",
 );
@@ -1715,7 +1719,7 @@ const hitWatcherAfter = {
 };
 const owBreakLoss = buildUnitCombatLoss(hitWatcherBefore, hitWatcherAfter, {
   attackerId: "player-jan-matej",
-  weaponId: "heavy_arquebus",
+  weaponId: "matchlock_musket_fork",
   hit: true,
   critical: true,
   misfired: false,
@@ -1749,7 +1753,7 @@ console.log("--- 25. Melee Combat System & Count Colloredo Single-Shot Pistol Me
 
 // 25a: Melee Catalog & Unit Assignment
 assert(MELEE_CATALOG.colloredo_pistol_butt, "Pistol butt must exist in MELEE_CATALOG");
-assert(MELEE_CATALOG.maltese_broadsword, "Maltese broadsword must exist in MELEE_CATALOG");
+assert(MELEE_CATALOG.heavy_musket_butt, "Heavy musket butt must exist in MELEE_CATALOG");
 assert(MELEE_CATALOG.valet_cleaver, "Valet cleaver must exist in MELEE_CATALOG");
 
 const initialTestUnits = createInitialUnits();
@@ -2100,14 +2104,14 @@ assert(
 );
 
 // 26d: Dynamic Roof Cutaway when inside enclosed building
-const indoorCoord: GridCoord = { x: 9, y: 0, z: 14 }; // Enclosed Grand Priory Palace interior on P0
-const outdoorCoord: GridCoord = { x: 8, y: 2, z: 13 }; // Watchtower on P2
+const indoorCoord: GridCoord = { x: 9, y: 1, z: 18 }; // Enclosed Grand Priory Palace interior on P1
+const outdoorCoord: GridCoord = { x: 6, y: 2, z: 18 }; // Watchtower on P2
 assert(
-  resolveDynamicRoofCutawayFloor(indoorCoord, 2) === 0,
-  "Unit inside enclosed ground-floor palace interior must dynamically cut away upper floors (2 -> 0)",
+  resolveDynamicRoofCutawayFloor(useGameStore.getState().grid, indoorCoord, 2) === 1,
+  "Unit inside enclosed piano-nobile palace interior must dynamically cut away upper floors (2 -> 1)",
 );
 assert(
-  resolveDynamicRoofCutawayFloor(outdoorCoord, 2) === 2,
+  resolveDynamicRoofCutawayFloor(useGameStore.getState().grid, outdoorCoord, 2) === 2,
   "Unit on floor P2 keeps active floor 2",
 );
 
@@ -2589,6 +2593,56 @@ assert(
   outdoorShotCalc.hitModifiers.some((m) => m.id === "weather-rain" && m.value === -10),
   "Outdoor shot in rain must retain -10% rain aim penalty",
 );
+
+// Q2 & Q3 regressions: klementinum_verdict preview damage/shred, applyDamageToUnit, and Death Throes telemetry in melee
+const verdictBaseShooter = vaclavUnit!;
+const verdictActiveShooter: UnitData = {
+  ...verdictBaseShooter,
+  abilityBuffActive: true,
+  ability: {
+    id: "klementinum_verdict",
+    name: "Svatováclavský ortel",
+    subtitle: "",
+    description: "",
+    apCost: 0,
+    cooldownTurns: 2,
+    currentCooldown: 0,
+  },
+};
+const verdictTarget: UnitData = { ...units[4]!, faction: "enemy", alive: true, pos: { x: 8, y: 0, z: 12 } };
+const calcBaseVerdict = calculateShot(grid, verdictBaseShooter, verdictTarget, "clear");
+const calcBuffedVerdict = calculateShot(grid, verdictActiveShooter, verdictTarget, "clear");
+assert.strictEqual(
+  calcBuffedVerdict.minDamage - calcBaseVerdict.minDamage,
+  3,
+  "klementinum_verdict must reflect +3 min damage in calculateShot preview",
+);
+assert.strictEqual(
+  calcBuffedVerdict.maxDamage - calcBaseVerdict.maxDamage,
+  3,
+  "klementinum_verdict must reflect +3 max damage in calculateShot preview",
+);
+assert.strictEqual(
+  calcBuffedVerdict.armorShred - calcBaseVerdict.armorShred,
+  1,
+  "klementinum_verdict must reflect +1 shred in calculateShot preview",
+);
+
+const dmgSample: UnitData = { ...verdictTarget, hp: 3, maxHp: 10, armor: 2, isOverwatch: true };
+const damagedThroes = applyDamageToUnit(dmgSample, 5, { armorShred: 1, shaken: true });
+assert.strictEqual(damagedThroes.hp, -2);
+assert.strictEqual(damagedThroes.alive, true);
+assert.strictEqual(damagedThroes.inDeathThroes, true);
+assert.strictEqual(damagedThroes.armor, 1);
+const throesLoss = buildUnitCombatLoss(dmgSample, damagedThroes, {
+  attackerId: "player-jan-matej",
+  weaponId: "valet_cleaver",
+  hit: true,
+  critical: false,
+  misfired: false,
+});
+assert.strictEqual(throesLoss.enteredDeathThroes, true, "buildUnitCombatLoss must record enteredDeathThroes");
+assert.strictEqual(throesLoss.overwatchLost, true, "Entering Death Throes drops Overwatch");
 
 console.log("=== ALL MISSION 1 TESTS PASSED SUCCESSFULLY! ===");
 

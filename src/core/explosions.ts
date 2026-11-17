@@ -2,7 +2,7 @@
  * Powder-keg blasts shared by the store and Mission 3's cook-off.
  * The store keeps the shockwave. The cook-off turns it off and clips the yard.
  */
-import { isInstantOverkill } from "./CombatSystem";
+import { applyDamageToUnit } from "./CombatSystem";
 import { coordKey, GridSystem } from "./GridSystem";
 import type { GridCoord, TileData, UnitData, WeatherType } from "./types";
 
@@ -20,12 +20,6 @@ export interface PowderBlastResult {
   nextUnits: UnitData[];
   detonatedKegs: GridCoord[];
   victims: string[];
-}
-
-function deathThroesTurnsAfterHit(unit: UnitData, inThroes: boolean): number {
-  if (!inThroes) return 0;
-  if (unit.inDeathThroes) return unit.deathThroesTurns ?? 1;
-  return 1;
 }
 
 function clipAllows(
@@ -106,20 +100,7 @@ export function applyPowderBlast(
       }
 
       if (!victims.includes(u.id)) victims.push(u.id);
-      const nextArmor = Math.max(0, u.armor - armorShred);
-      const nextHp = u.hp - damage;
-      const instantKilled = isInstantOverkill(nextHp, u.maxHp);
-      const inThroes = !instantKilled && nextHp <= 0;
-      return {
-        ...u,
-        armor: nextArmor,
-        hp: nextHp,
-        isShaken: nextHp > 0,
-        alive: !instantKilled,
-        inDeathThroes: inThroes,
-        deathThroesTurns: deathThroesTurnsAfterHit(u, inThroes),
-        isOverwatch: nextHp > 0 ? u.isOverwatch : false,
-      };
+      return applyDamageToUnit(u, damage, { armorShred, shaken: true });
     });
   }
 

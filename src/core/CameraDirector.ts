@@ -14,7 +14,6 @@ import {
   CARDINAL_OFFSETS,
   coordKey,
   GridSystem,
-  isEnclosedRoofedCoord,
   sameCoord,
 } from "./GridSystem";
 import type {
@@ -236,10 +235,11 @@ export function shouldTriggerActionCamForMove(opts: {
  * protože sledovaná jednotka se nachází uvnitř kryté dobové budovy (palác, loubí, šance).
  */
 export function resolveDynamicRoofCutawayFloor(
+  grid: GridSystem,
   coord: GridCoord,
   currentActiveFloor: FloorLevel,
 ): FloorLevel {
-  if (isEnclosedRoofedCoord(coord.x, coord.y, coord.z)) {
+  if (grid.isEnclosedRoofed(coord.x, coord.y, coord.z)) {
     return coord.y;
   }
   if (coord.y !== currentActiveFloor) {

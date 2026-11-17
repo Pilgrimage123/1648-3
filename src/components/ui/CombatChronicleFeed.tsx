@@ -17,32 +17,23 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { formatPhrase, text, useLocale } from "../../i18n";
 import { useGameStore } from "../../store/useGameStore";
+import { useIsCinematicHudHidden } from "./hudUtils";
 import { useDraggableHud } from "./useDraggableHud";
 
 export function CombatChronicleFeed() {
   const locale = useLocale();
   const combatLog = useGameStore((s) => s.combatLog);
-  const actionMode = useGameStore((s) => s.actionMode);
-  const activeProjectile = useGameStore((s) => s.activeProjectile);
-  const isBusy = useGameStore((s) => s.isBusy);
-  const activeMovement = useGameStore((s) => s.activeMovement);
 
   const [expanded, setExpanded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { dragStyle, onPointerDown, hasMoved, resetOffset } = useDraggableHud();
+  const isHiddenInActionCam = useIsCinematicHudHidden(true);
 
   useEffect(() => {
     if (expanded && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [combatLog, expanded]);
-
-  // Stavový automat HUDu (Pillar 4): Skrýt v akční kameře přes rameno a při střelbě
-  const isHiddenInActionCam =
-    actionMode === "shoot" ||
-    actionMode === "melee" ||
-    activeProjectile !== null ||
-    Boolean(isBusy && activeMovement?.isActionCam);
 
   if (combatLog.length === 0 || isHiddenInActionCam) return null;
 

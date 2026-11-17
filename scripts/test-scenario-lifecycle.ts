@@ -7,7 +7,6 @@
  */
 
 import assert from "node:assert";
-import { isEnclosedRoofedCoord } from "../src/core/GridSystem.ts";
 import { ONDREJ_ID, PLACHY_ID, ROPE, WINDLASS } from "../src/core/mission2.ts";
 import { useGameStore } from "../src/store/useGameStore.ts";
 
@@ -19,8 +18,8 @@ const store = useGameStore.getState();
 assert.strictEqual(store.scenario, "mission1");
 assert.strictEqual(store.guidedTutorial.enabled, true);
 assert.strictEqual(store.guidedTutorial.currentStep, "step_1_matej_move");
-assert.strictEqual(isEnclosedRoofedCoord(10, 1, 22), true, "Palace interior is roofed");
-assert.strictEqual(isEnclosedRoofedCoord(5, 0, 10), false, "Garden parterre is unroofed");
+assert.strictEqual(store.grid.isEnclosedRoofed(10, 1, 22), true, "Palace interior is roofed");
+assert.strictEqual(store.grid.isEnclosedRoofed(5, 0, 10), false, "Garden parterre is unroofed");
 
 // 2. Transition to Mission 2
 store.beginScenario("mission2");
@@ -36,9 +35,9 @@ assert.strictEqual(m2Store.m2.seated, false);
 assert.strictEqual(m2Store.m2.pawlUnpinned, false);
 
 // Roof mask check for Mission 2 (Bridge Tower)
-assert.strictEqual(isEnclosedRoofedCoord(5, 0, 14), false, "Bridge deck is open to weather");
-assert.strictEqual(isEnclosedRoofedCoord(14, 0, 14), true, "Bridge tower gateway vault is roofed");
-assert.strictEqual(isEnclosedRoofedCoord(11, 1, 14), true, "Windlass hall is roofed");
+assert.strictEqual(m2Store.grid.isEnclosedRoofed(5, 0, 14), false, "Bridge deck is open to weather");
+assert.strictEqual(m2Store.grid.isEnclosedRoofed(14, 0, 14), true, "Bridge tower gateway vault is roofed");
+assert.strictEqual(m2Store.grid.isEnclosedRoofed(11, 1, 14), true, "Windlass hall is roofed");
 
 // Test pawl unpinning action guard
 const ondrej = m2Store.units.find((u) => u.id === ONDREJ_ID)!;
@@ -93,32 +92,35 @@ assert.strictEqual(m1Restored.activeFloor, 1);
 assert.strictEqual(m1Restored.outcome, "ongoing");
 
 // Roof mask check restored for Grand Priory Palace
-assert.strictEqual(isEnclosedRoofedCoord(10, 1, 22), true, "Palace interior is roofed again");
-assert.strictEqual(isEnclosedRoofedCoord(5, 0, 10), false, "Garden is unroofed again");
+assert.strictEqual(useGameStore.getState().grid.isEnclosedRoofed(10, 1, 22), true, "Palace interior is roofed again");
+assert.strictEqual(useGameStore.getState().grid.isEnclosedRoofed(5, 0, 10), false, "Garden is unroofed again");
 
 // 4. Mission 3, then back through Mission 2 to the Priory. The yard mask must not stick.
+// Also verify oath resets when transitioning out of Mission 2 -> Mission 3.
+useGameStore.setState({ oath: { havel: "accept", ondrej: "refuse" } });
 store.beginScenario("mission3");
 const yard = useGameStore.getState();
 assert.strictEqual(yard.scenario, "mission3");
 assert.strictEqual(yard.weather, "rain");
 assert.strictEqual(yard.activeFloor, 0);
 assert.strictEqual(yard.fogOfWarEnabled, false);
+assert.strictEqual(yard.oath, null, "Mission 3 reset must clear transient oath");
 assert.ok(yard.m3, "Mission 3 clock must be initialized");
 assert.ok(yard.units.some((unit) => unit.id === "player-havel"));
 assert.ok(yard.units.some((unit) => unit.id === "player-ondrej"));
-assert.strictEqual(isEnclosedRoofedCoord(14, 0, 8), true, "Powder store is roofed");
-assert.strictEqual(isEnclosedRoofedCoord(10, 1, 22), false, "Priory coordinate is not roofed by the yard mask");
+assert.strictEqual(yard.grid.isEnclosedRoofed(14, 0, 8), true, "Powder store is roofed");
+assert.strictEqual(yard.grid.isEnclosedRoofed(10, 1, 22), false, "Priory coordinate is not roofed by the yard mask");
 
 store.beginScenario("mission2");
 assert.strictEqual(useGameStore.getState().m3, null, "Mission 2 reset clears the yard clock");
-assert.strictEqual(isEnclosedRoofedCoord(14, 0, 14), true, "Bridge tower gateway is roofed again");
-assert.strictEqual(isEnclosedRoofedCoord(5, 0, 14), false, "Bridge deck is open again");
+assert.strictEqual(useGameStore.getState().grid.isEnclosedRoofed(14, 0, 14), true, "Bridge tower gateway is roofed again");
+assert.strictEqual(useGameStore.getState().grid.isEnclosedRoofed(5, 0, 14), false, "Bridge deck is open again");
 
 store.beginScenario("mission1");
 const afterYard = useGameStore.getState();
 assert.strictEqual(afterYard.scenario, "mission1");
 assert.strictEqual(afterYard.m3, null, "Mission 1 reset clears the yard clock");
-assert.strictEqual(isEnclosedRoofedCoord(10, 1, 22), true, "Palace interior survived the yard");
-assert.strictEqual(isEnclosedRoofedCoord(5, 0, 10), false, "Garden tile matches Mission 1 after the yard");
+assert.strictEqual(afterYard.grid.isEnclosedRoofed(10, 1, 22), true, "Palace interior survived the yard");
+assert.strictEqual(afterYard.grid.isEnclosedRoofed(5, 0, 10), false, "Garden tile matches Mission 1 after the yard");
 
 console.log("✓ All scenario lifecycle and transition checks passed cleanly!");

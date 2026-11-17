@@ -122,6 +122,7 @@ function DiegeticLightingRig({ weather }: { weather: WeatherType }) {
       fogOfWarEnabled,
       fogSnapshot.visibleEnemyIds,
       fogSnapshot.soundContacts,
+      grid,
     );
     const slots = selectSteadySlots(
       allFixtures,

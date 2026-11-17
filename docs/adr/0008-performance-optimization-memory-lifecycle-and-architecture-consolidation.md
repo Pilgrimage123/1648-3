@@ -23,11 +23,14 @@ Během hloubkového auditu byly identifikovány klíčové výkonnostní a konzi
    - Vytvořit statický předpočítaný šumový buffer (Noise Buffer Cache) o délce 2 sekund v `audioSystem.ts`, eliminovat alokace při každém zvuku výstřelu/exploze.
 2. **Raycasting & GPU Overhead Elimination**:
    - Všem statickým dekorativním meshům (rámy obrazů, ozdobné lišty, sloupy, světelné kužely, sutiny) nastavit `raycast={() => null}` a u nepohyblivých geometrických celků optimalizovat maticové updaty.
-3. **Sjednocení klávesových zkratek & GLOSSARY.md**:
+3. **Rozklad monolitu `useGameStore.ts` a optimalizace `InstancedBattlefield.tsx`**:
+   - Stavový store byl rozdělen na `storeTypes.ts`, `storeUtils.ts` (`sessionEpoch` rušení asynchronních smyček a sledování časovačů), `combatResolution.ts`, `scenarioLifecycle.ts`, `combatActions.ts` a `aiTurnRunner.ts`.
+   - Skenování dlaždic v `InstancedBattlefield.tsx` je sjednoceno do jednoho průchodu s pevně omezenými instanced buffery a správnými závislostmi na `scenario`.
+4. **Sjednocení klávesových zkratek & GLOSSARY.md**:
    - Kanonizovat klávesové zkratky: `[V]` a `[PageUp]` / `[PageDown]` pro patra budovy (Floor Cutaway), `[F]` pro celoobrazovkový režim (Fullscreen). Aktualizovat `GLOSSARY.md` a nápovědy v UI.
-4. **Stabilizace useDraggableHud**:
+5. **Stabilizace useDraggableHud**:
    - Přidat posluchač pro událost `pointercancel`, resetovat `isDragging` při blur/unmountu.
-5. **Zpřesnění 3D Line of Sight a Bresenham voxel traversalu**:
+6. **Zpřesnění 3D Line of Sight a Bresenham voxel traversalu**:
    - Zajistit konzistentní detekci hran podlah, dveří a překážek mezi patry P0, P1 a P2.
 
 ## Důsledky

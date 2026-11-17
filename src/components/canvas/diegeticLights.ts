@@ -12,9 +12,10 @@
  */
 
 import {
-  isEnclosedRoofedCoord,
+  evalEnclosedRoofedCoord,
   GRID_DEPTH,
   GRID_WIDTH,
+  type GridSystem,
 } from "../../core/GridSystem";
 import type {
   CardinalDir,
@@ -658,6 +659,7 @@ export function matchcordCandidates(
   fogEnabled: boolean,
   visibleEnemyIds: ReadonlySet<string>,
   contacts: readonly { unitId: string; kind: string }[],
+  grid?: Pick<GridSystem, "isEnclosedRoofed">,
 ): MatchcordCandidate[] {
   const out: MatchcordCandidate[] = [];
   for (const unit of units) {
@@ -675,7 +677,9 @@ export function matchcordCandidates(
       position: muzzleTip(unit.pos, unit.facing, true),
       shrouded: hidden,
       lockType: "matchlock",
-      roofed: isEnclosedRoofedCoord(unit.pos.x, unit.pos.y, unit.pos.z),
+      roofed: grid
+        ? grid.isEnclosedRoofed(unit.pos.x, unit.pos.y, unit.pos.z)
+        : evalEnclosedRoofedCoord(null, unit.pos.x, unit.pos.y, unit.pos.z),
     });
   }
   return out;

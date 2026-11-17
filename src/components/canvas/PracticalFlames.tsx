@@ -149,9 +149,11 @@ function TorchCresset({ state }: { state: FixtureState }) {
 
 export function PracticalFlames() {
   const grid = useGameStore((s) => s.grid);
+  const gridVersion = useGameStore((s) => s.gridVersion);
   const weather = useGameStore((s) => s.weather);
   const activeFloor = useGameStore((s) => s.activeFloor);
   const scenario = useGameStore((s) => s.scenario);
+  void gridVersion;
   const states: FixtureState[] = fixturesForScenario(scenario).map((fixture) =>
     evaluateFixture(
       fixture,

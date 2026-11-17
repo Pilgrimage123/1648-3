@@ -20,6 +20,7 @@ import type {
 import {
   csAbilities,
   csBuffs,
+  csDamageSources,
   csDoors,
   csMeasures,
   csMelee,
@@ -51,6 +52,7 @@ export interface LocalePack {
   endonym: string;
   units: Record<string, UnitLexeme>;
   weapons: typeof csWeapons;
+  damageSources: typeof csDamageSources;
   melee: typeof csMelee;
   abilities: typeof csAbilities;
   buffs: Record<BuffId, string>;
@@ -67,6 +69,7 @@ const csPack: LocalePack = {
   endonym: "Čeština",
   units: csUnits,
   weapons: csWeapons,
+  damageSources: csDamageSources,
   melee: csMelee,
   abilities: csAbilities,
   buffs: csBuffs,
@@ -123,7 +126,11 @@ export function bindDocumentLocale(): void {
 
 function lookupUnitLexeme(pack: LocalePack, id: string | undefined): UnitLexeme | undefined {
   if (!id) return undefined;
-  return pack.units[id] ?? (/^enemy-bearer-\d+$/.test(id) ? pack.units["enemy-bearer-1"] : undefined);
+  const direct = pack.units[id];
+  if (direct) return direct;
+  const numbered = /^enemy-(bearer|harrier|sentry|relief)-\d+$/.exec(id);
+  if (numbered) return pack.units[`enemy-${numbered[1]}-1`];
+  return undefined;
 }
 
 function contextFor(pack: LocalePack): FormatContext {
@@ -131,7 +138,7 @@ function contextFor(pack: LocalePack): FormatContext {
   return {
     unit: (id, gram: GramCase = "nom") => lex(id)?.[gram] ?? id ?? "",
     role: (id) => lex(id)?.roleTitle ?? "",
-    weapon: (id) => (id ? pack.weapons[id]?.name : undefined) ?? id ?? "",
+    weapon: (id) => (id ? pack.weapons[id]?.name ?? pack.damageSources[id]?.name : undefined) ?? id ?? "",
     melee: (id) => (id ? pack.melee[id]?.name : undefined) ?? id ?? "",
     meleeDesc: (id) => (id ? pack.melee[id]?.description : undefined) ?? "",
     ability: (id) => (id ? pack.abilities[id]?.name : undefined) ?? id ?? "",
@@ -165,10 +172,16 @@ export function buffLabel(id: BuffId, locale: LocaleId = current): string {
   return packs[locale].buffs[id];
 }
 
-/** Weapon, melee, ability, powder keg, or grenade id shown on a combat-loss plate. */
+/** Weapon, melee, ability, powder keg, petard, or falconet canister id shown on a combat-loss plate. */
 export function lossSourceLabel(id: string, locale: LocaleId = current): string {
   const pack = packs[locale];
-  return pack.weapons[id]?.name ?? pack.melee[id]?.name ?? pack.abilities[id]?.name ?? id;
+  return (
+    pack.weapons[id]?.name ??
+    pack.damageSources[id]?.name ??
+    pack.melee[id]?.name ??
+    pack.abilities[id]?.name ??
+    id
+  );
 }
 
 export function doorLabel(id: string, locale: LocaleId = current): string {

@@ -183,36 +183,6 @@ export const csUnits: Record<string, UnitLexeme> = {
     "Harcovníkem",
     "Harcovník (krátká čepel)",
   ),
-  "enemy-harrier-2": m(
-    "Harcovník",
-    "Harcovníka",
-    "Harcovníkovi",
-    "Harcovníka",
-    "Harcovníku",
-    "Harcovníkovi",
-    "Harcovníkem",
-    "Harcovník (krátká čepel)",
-  ),
-  "enemy-harrier-3": m(
-    "Harcovník",
-    "Harcovníka",
-    "Harcovníkovi",
-    "Harcovníka",
-    "Harcovníku",
-    "Harcovníkovi",
-    "Harcovníkem",
-    "Harcovník (krátká čepel)",
-  ),
-  "enemy-harrier-4": m(
-    "Harcovník",
-    "Harcovníka",
-    "Harcovníkovi",
-    "Harcovníka",
-    "Harcovníku",
-    "Harcovníkovi",
-    "Harcovníkem",
-    "Harcovník (krátká čepel)",
-  ),
   "enemy-reinforcement-reserve": m(
     "Záložní mušketýr",
     "Záložního mušketýra",
@@ -273,27 +243,7 @@ export const csUnits: Record<string, UnitLexeme> = {
     "Švédskou hlídkou",
     "Švédská hlídka (Odlehčená mušketa M1624)",
   ),
-  "enemy-sentry-2": m(
-    "Švédská hlídka",
-    "Švédské hlídky",
-    "Švédské hlídce",
-    "Švédskou hlídku",
-    "Švédská hlídko",
-    "Švédské hlídce",
-    "Švédskou hlídkou",
-    "Švédská hlídka (Odlehčená mušketa M1624)",
-  ),
   "enemy-relief-1": m(
-    "Švédská posila",
-    "Švédské posily",
-    "Švédské posile",
-    "Švédskou posilu",
-    "Švédská posilo",
-    "Švédské posile",
-    "Švédskou posilou",
-    "Švédská posila (Odlehčená mušketa M1624)",
-  ),
-  "enemy-relief-2": m(
     "Švédská posila",
     "Švédské posily",
     "Švédské posile",
@@ -310,14 +260,17 @@ export const csWeapons: Record<string, NamedText> = {
   wheellock_carbine: { name: "Kolečková dragounská karabina" },
   matchlock_musket_fork: { name: "Starší těžká mušketa (s furketou)" },
   swedish_musket: { name: "Švédská odlehčená mušketa (M1624)" },
-  heavy_arquebus: { name: "Starší těžká mušketa (s furketou)" },
   plachy_pistol: { name: "Plachého kolečková pistole" },
   havel_pistol: { name: "Řezníkova bambitka" },
   ondrej_pistol: { name: "Štěrbova bambitka" },
   harrier_pistol: { name: "Harcovnická pistole" },
   occultist_pistol: { name: "Okultistova pistole" },
+};
+
+export const csDamageSources: Record<string, NamedText> = {
   powder_keg: { name: "Výbuch prachového sudu" },
   grenade: { name: "Litinová petarda (3×3)" },
+  falconet_canister: { name: "Kartáčová salva z falkonetu" },
 };
 
 export const csMelee: Record<string, NamedText> = {
@@ -340,20 +293,6 @@ export const csMelee: Record<string, NamedText> = {
     name: "Lovecký tesák komorníka",
     description:
       "Ostrý lovecký tesák na černou zvěř, kterým Jan Matěj dokáže probodnout slabiny nepřátelského kyrysu.",
-  },
-  cleric_dagger: {
-    name: "Úder pažbou klementinské muškety",
-    description:
-      "Spolehlivý nouzový úder pažbou odlehčené muškety klementinského studenta Václava z Michalovic (4–6 HP).",
-  },
-  maltese_broadsword: {
-    name: "Maltézský válečný meč & kord",
-    description: "Těžká kovaná sečná čepel ukovaná v maltézské zbrojnici.",
-  },
-  swedish_dagger: {
-    name: "Úder pažbou švédské muškety",
-    description:
-      "Nouzový úder pažbou odlehčené švédské muškety M1624 v boji tělo na tělo (4–6 HP).",
   },
   butcher_cleaver: {
     name: "Řezníkův sekáček",
@@ -424,7 +363,7 @@ export const csPerks: Record<string, { name: string; desc: string }> = {
   },
   maltese_pyrotechnician: {
     name: "Maltézský pyrotechnik",
-    desc: "+2 k dosahu vrhání granátů, výbuchy prachu způsobují o +1 vyšší poškození",
+    desc: "+2 k dosahu vrhání petard, výbuchy prachu způsobují o +1 vyšší poškození",
   },
   clementine_zeal: {
     name: "Klementinský zápal",

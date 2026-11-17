@@ -13,7 +13,6 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { isEnclosedRoofedCoord } from "../../core/GridSystem";
 import type { GridCoord } from "../../core/types";
 import { useGameStore } from "../../store/useGameStore";
 import { gridToWorld } from "./worldCoords";
@@ -244,7 +243,7 @@ export function CombatAtmosphereField() {
           tempColor.multiplyScalar(0.35);
         }
 
-        const puffEnclosed = isEnclosedRoofedCoord(
+        const puffEnclosed = grid.isEnclosedRoofed(
           p.coord.x,
           p.coord.y,
           p.coord.z,

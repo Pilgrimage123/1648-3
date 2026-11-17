@@ -11,34 +11,12 @@ import type { StatModifier } from "../../core/types";
 import { formatMeasure, formatPhrase, text, useLocale } from "../../i18n";
 import { useGameStore } from "../../store/useGameStore";
 import { BaroqueCoverBadge } from "./BaroqueCoverBadge";
+import { StatModifierRow } from "./hudUtils";
 import { UnitPortrait } from "./UnitPortrait";
 import { useDraggableHud } from "./useDraggableHud";
 
 function ModifierRow({ item }: { item: StatModifier }) {
-  useLocale();
-  const isPositive = item.kind === "bonus" || (item.kind === "base" && item.value > 0);
-  const isPenalty = item.kind === "penalty" || item.value < 0;
-  const formatted = formatMeasure(item.unit, item.value);
-
-  return (
-    <div className="flex items-start justify-between gap-2 py-0.5 text-[11px]">
-      <div className="min-w-0">
-        <div className="font-cinzel font-bold text-amber-100 leading-tight">{formatPhrase(item.label)}</div>
-        {item.detail && (
-          <div className="font-literata italic text-[10px] text-amber-200/75 leading-tight">
-            {formatPhrase(item.detail)}
-          </div>
-        )}
-      </div>
-      <span
-        className={`shrink-0 font-cinzel font-black tabular-nums ${
-          isPositive ? "text-emerald-300" : isPenalty ? "text-rose-300" : "text-amber-200"
-        }`}
-      >
-        {formatted}
-      </span>
-    </div>
-  );
+  return <StatModifierRow item={item} compact />;
 }
 
 function LineList({ lines }: { lines: InspectLabeledValue[] }) {

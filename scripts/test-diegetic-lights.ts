@@ -39,7 +39,6 @@ import { gridToWorld } from "../src/components/canvas/worldCoords.ts";
 import {
   createInitialGrid,
   createInitialUnits,
-  isEnclosedRoofedCoord,
 } from "../src/core/GridSystem.ts";
 import type { CardinalDir, GridCoord } from "../src/core/types.ts";
 
@@ -68,7 +67,7 @@ for (const torch of TORCHES) {
 
 const bedroom = CANDELABRA[0]!;
 const court = TORCHES[0]!;
-assert.equal(isEnclosedRoofedCoord(court.coord.x, court.coord.y, court.coord.z), true);
+assert.equal(grid.isEnclosedRoofed(court.coord.x, court.coord.y, court.coord.z), true);
 
 const dryCandle = evaluateFixture(bedroom, "clear", 0, false);
 const wetCandle = evaluateFixture(bedroom, "rain", 0, false);

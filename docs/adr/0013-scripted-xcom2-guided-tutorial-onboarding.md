@@ -14,14 +14,15 @@ In classic turn-based strategy benchmarks such as *XCOM 2 (Operation Gatecrasher
 Implement an on-rails, scripted onboarding architecture modeled after XCOM 2:
 
 1. **Guided Tutorial State Machine (`GuidedTutorialSystem.ts`)**:
+   - Single source of truth for onboarding state (`guidedTutorial`); legacy `tutorialStep` and `tutorialDismissed` fields remain derived compatibility mirrors maintained via `mirrorTutorialFields`.
    - 9 granular micro-steps spanning Rounds 1–3:
-     - `step_1_matej_move`: Jan Matěj moves to bedroom balustrade (`[6, 1, 20]`, Blue 1 AP vs Yellow 2 AP, Half/Full Cover).
+     - `step_1_matej_move`: Jan Matěj moves to bedroom balustrade (`[6, 1, 20]`, Blue 1 AP vs Gold 2 AP, Half/Full Cover).
      - `step_2_colloredo_escort`: Count Colloredo moves to protected escort position (`[5, 1, 21]`, 3-tile limp & Swedish capture/ransom rules).
      - `step_3_vaclav_aim`: Václav z Michalovic targets flanked sentry from 1st-floor arcade (`[12, 1, 10]`, Flanking +40% Crit).
      - `step_4_vaclav_shoot`: Aim breakdown verification and cinematic over-the-shoulder shot.
      - `step_5_enemy_turn_react`: Enemy turn demo — Swedish counterfire ricochets off stone balustrade, demonstrating cover efficacy.
      - `step_6_vaclav_reload`: Segmented reloading (`[R]`, 1 AP per step) for black powder firearms.
-     - `step_7_keg_explosion`: Bratr Bartoloměj detonates powder keg (`[7, 0, 13]`) via petard `[4]`, destroying heavy cover across 3×3 tiles.
+     - `step_7_keg_explosion`: Bratr Bartoloměj detonates powder keg (`[7, 0, 13]`) via Petarda `[4]`, destroying heavy cover across 3×3 tiles.
      - `step_8_melee_finish`: Right-click Melee Rush (`PKM`) to eliminate stunned enemy with cold steel without expending powder.
      - `step_9_free_combat`: Multi-floor cutaway (`[V]`) and unconstrained tactical retreat to Čertovka dock (`[3, 0, 2]`).
 

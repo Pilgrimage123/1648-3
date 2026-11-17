@@ -19,6 +19,7 @@ import {
 import { useState } from "react";
 import { text, useLocale } from "../../i18n";
 import { useGameStore } from "../../store/useGameStore";
+import { useIsCinematicHudHidden } from "./hudUtils";
 import { useDraggableHud } from "./useDraggableHud";
 import type { Mission3Clock } from "../../core/mission3";
 
@@ -37,10 +38,6 @@ export function MissionStatusChip() {
   const turn = useGameStore((s) => s.turn);
   const weather = useGameStore((s) => s.weather);
   const units = useGameStore((s) => s.units);
-  const actionMode = useGameStore((s) => s.actionMode);
-  const activeProjectile = useGameStore((s) => s.activeProjectile);
-  const isBusy = useGameStore((s) => s.isBusy);
-  const activeMovement = useGameStore((s) => s.activeMovement);
   const fogOfWarEnabled = useGameStore((s) => s.fogOfWarEnabled);
   const fogSnapshot = useGameStore((s) => s.fogSnapshot);
   const cycleWeather = useGameStore((s) => s.cycleWeather);
@@ -52,13 +49,7 @@ export function MissionStatusChip() {
 
   const [collapsed, setCollapsed] = useState(false);
   const { dragStyle, onPointerDown, hasMoved, resetOffset } = useDraggableHud();
-
-  // Stavový automat HUDu (Pillar 4): V režimu míření přes rameno a při filmové akci se horní lišta skryje
-  const isHiddenInActionCam =
-    actionMode === "shoot" ||
-    actionMode === "melee" ||
-    activeProjectile !== null ||
-    Boolean(isBusy && activeMovement?.isActionCam);
+  const isHiddenInActionCam = useIsCinematicHudHidden(true);
 
   if (isHiddenInActionCam) {
     return null;
@@ -77,7 +68,7 @@ export function MissionStatusChip() {
   const colloredo = units.find((u) => u.id === "player-colloredo");
   const distToBoat = colloredo
     ? Math.max(
-        Math.min(Math.abs(colloredo.pos.x - 2), Math.abs(colloredo.pos.x - 3)),
+        Math.min(Math.abs(colloredo.pos.x - 3), Math.abs(colloredo.pos.x - 4)),
         Math.abs(colloredo.pos.z - 2),
       )
     : 0;

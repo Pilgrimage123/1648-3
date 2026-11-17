@@ -247,24 +247,34 @@ export function UnitActor({ unit }: UnitActorProps) {
         const c1 = waypoints.coords[segIdx + 1]!;
         group.position.lerpVectors(p0, p1, segFrac);
 
-        // Dynamické zprůhlednění střechy / přepnutí patra, pokud je voják uvnitř budovy nebo na schodišti
+        // Dynamické zprůhlednění střechy / přepnutí patra a vyražení neuzamčených dveří mimo render smyčku useFrame
         const activeStepCoord = segFrac >= 0.45 ? c1 : c0;
         const curFloor = useGameStore.getState().activeFloor;
         const desiredFloor = resolveDynamicRoofCutawayFloor(
+          grid,
           activeStepCoord,
           curFloor,
         );
-        if (desiredFloor !== curFloor) {
-          useGameStore.getState().setActiveFloor(desiredFloor);
+        const doorJustBreached =
+          segFrac >= 0.16 &&
+          grid.isDoorClosedAt(c1) &&
+          !grid.isDoorSealedAt(c1);
+        if (doorJustBreached) {
+          grid.setDoorState(c1, "open");
+          liveMovementTelemetry.interactionImpulseTs = now;
+        }
+        if (desiredFloor !== curFloor || doorJustBreached) {
+          queueMicrotask(() => {
+            const st = useGameStore.getState();
+            const patch: Partial<{ activeFloor: typeof desiredFloor; gridVersion: number }> = {};
+            if (desiredFloor !== st.activeFloor) patch.activeFloor = desiredFloor;
+            if (doorJustBreached) patch.gridVersion = st.gridVersion + 1;
+            if (Object.keys(patch).length > 0) useGameStore.setState(patch);
+          });
         }
 
         // Automatické vyražení zavřených dřevěných dveří za běhu
         const isDoorStep = !!grid.getDoor(c1);
-        if (grid.isDoorClosedAt(c1) && segFrac >= 0.16) {
-          grid.setDoorState(c1, "open");
-          liveMovementTelemetry.interactionImpulseTs = now;
-          useGameStore.setState((s) => ({ gridVersion: s.gridVersion + 1 }));
-        }
 
         const isVerticalStep = c0.y !== c1.y;
         const isVaultStep =
