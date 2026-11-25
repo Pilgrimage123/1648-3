@@ -348,13 +348,22 @@ export function UnitActor({ unit }: UnitActorProps) {
           pivot.position.set(0, kickPulse * 0.18, 0);
           pivot.rotation.set(0.28 * kickPulse, 0, -0.14 * kickPulse);
         } else {
+          const isRiggedSwedish2D =
+            renderMode === "2D_SPRITE" && unit.faction === "enemy";
           const hopPhase = segFrac * Math.PI;
-          const hopHeight = Math.sin(hopPhase) * (isSprintCam ? 0.28 : 0.22);
-          const waddleTilt =
-            Math.sin(moveProgressRef.current * Math.PI * 2) *
-            (isSprintCam ? 0.13 : 0.09);
+          const hopHeight =
+            Math.sin(hopPhase) *
+            (isRiggedSwedish2D ? 0.045 : isSprintCam ? 0.28 : 0.22);
+          const waddleTilt = isRiggedSwedish2D
+            ? Math.sin(moveProgressRef.current * Math.PI * 2) * 0.02
+            : Math.sin(moveProgressRef.current * Math.PI * 2) *
+              (isSprintCam ? 0.13 : 0.09);
           pivot.position.set(0, hopHeight, 0);
-          pivot.rotation.set(isSprintCam ? 0.15 : 0.08, 0, waddleTilt);
+          pivot.rotation.set(
+            isRiggedSwedish2D ? 0.02 : isSprintCam ? 0.15 : 0.08,
+            0,
+            waddleTilt,
+          );
         }
       }
     } else {
@@ -399,6 +408,8 @@ export function UnitActor({ unit }: UnitActorProps) {
 
     if (unitFx?.lungeTimestamp) {
       const elapsed = (now - unitFx.lungeTimestamp) / 1000;
+      const isRiggedSwedish2D =
+        renderMode === "2D_SPRITE" && unit.faction === "enemy";
       if (elapsed >= 0 && elapsed < 0.78) {
         const isMeleeLunge = unitFx.lungeKind === "melee";
         const normT = elapsed / 0.78;
@@ -406,11 +417,14 @@ export function UnitActor({ unit }: UnitActorProps) {
           normT < 0.14
             ? THREE.MathUtils.smootherstep(normT, 0, 0.14)
             : Math.pow(1 - (normT - 0.14) / 0.86, 2.1);
-        const travelDist = (isMeleeLunge ? 0.34 : -0.25) * envelope;
+        // For 2D rigged Swedish shooters, skeletal rig executes full furketa+recoil inside the 2D canvas,
+        // so keep world pivot recoil subtle to avoid double-tilting the billboard plane.
+        const recoilScale = isRiggedSwedish2D && !isMeleeLunge ? 0.35 : 1;
+        const travelDist = (isMeleeLunge ? 0.34 : -0.25) * envelope * recoilScale;
         const [faceX, faceZ] = facingForward(unit.facing);
         pivot.position.x += faceX * travelDist;
         pivot.position.z += faceZ * travelDist;
-        pivot.rotation.x = (isMeleeLunge ? 0.26 : -0.22) * envelope;
+        pivot.rotation.x = (isMeleeLunge ? 0.26 : -0.22) * envelope * recoilScale;
       }
     }
 
@@ -791,6 +805,24 @@ export function UnitActor({ unit }: UnitActorProps) {
             weather={weather}
             roofed={grid.isEnclosedRoofed(unit.pos.x, unit.pos.y, unit.pos.z)}
             unitId={unit.id}
+            isMoving={Boolean(activeMovement && activeMovement.unitId === unit.id)}
+            isOverwatch={unit.isOverwatch}
+            isReloading={
+              unit.firearmLoaded === false && (unit.reloadProgress ?? 0) > 0
+            }
+            inCover={tileMeta.cover !== "none"}
+            isDead={!unit.alive}
+            lungeTimestamp={unitFx?.lungeTimestamp ?? 0}
+            lungeKind={unitFx?.lungeKind ?? "recoil"}
+            fireMisfired={
+              Boolean(
+                activeProjectile &&
+                  activeProjectile.misfired &&
+                  sameCoord(activeProjectile.from, unit.pos),
+              )
+            }
+            collapseTimestamp={unitFx?.combatLoss?.timestamp ?? 0}
+            supportsRestFork={unit.weapon.supportsRestFork}
           />
         ) : (
           <UnitVisual3D
@@ -981,7 +1013,7 @@ export function UnitActor({ unit }: UnitActorProps) {
                     className="flex items-center gap-0.5 text-[8px] font-cinzel font-black text-slate-300"
                   >
                     <Cloud className="w-2.5 h-2.5" />
-                    <span>−20</span>
+                    <span>−15</span>
                   </span>
                 )}
 

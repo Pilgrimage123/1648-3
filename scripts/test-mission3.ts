@@ -18,12 +18,15 @@ import {
   advanceCarts,
   advanceSpark,
   applyCanister,
+  applyDisruptFalconet,
   applyStamp,
   armClimb,
   breakSilence,
+  canDisruptFalconet,
   closePlayerTurn,
   computeMission3Ai,
   cookOff,
+  COURTYARD_KEG,
   createMission3Grid,
   createMission3Units,
   cutTackle,
@@ -992,6 +995,83 @@ async function storeRoundTrip(): Promise<void> {
   await settle();
   const sentryAfterTurn = useGameStore.getState().units.find((u) => u.id === "enemy-sentry-1");
   assert.equal(sentryAfterTurn?.alive, false, "HOLD enemy in Death Throes must expire on endTurn");
+
+  // Tactical enhancements verification: COURTYARD_KEG, directional cover, Falconet disruption, gunner death, and AI spark flanking
+  {
+    const tacGrid = createMission3Grid();
+    assert.equal(tacGrid.getTile(COURTYARD_KEG)?.obstacle, "powder_keg");
+    assert.equal(tacGrid.getTile({ x: 9, y: 0, z: 11 })?.cover.S, "half");
+    assert.equal(tacGrid.getTile({ x: 8, y: 0, z: 10 })?.cover.S, "half");
+    assert.equal(tacGrid.getTile({ x: 14, y: 1, z: 12 })?.cover.N, "half");
+    assert.equal(tacGrid.getTile({ x: 14, y: 1, z: 12 })?.cover.S, "half");
+
+    const baseUnits = createMission3Units(cold);
+    const lodgeOndrej = move(baseUnits, ONDREJ_ID, { x: 14, y: 1, z: 12 });
+    const aimedClock: Mission3Clock = {
+      ...freshClock(),
+      silent: false,
+      coneWarned: true,
+      cone: "cord",
+      coneFired: false,
+    };
+    assert.equal(canDisruptFalconet(aimedClock, tacGrid, unit(lodgeOndrej, ONDREJ_ID), lodgeOndrej), true);
+    const disrupted = applyDisruptFalconet(aimedClock, tacGrid, unit(lodgeOndrej, ONDREJ_ID), lodgeOndrej);
+    assert.ok(disrupted);
+    assert.equal(disrupted!.clock.coneWarned, false);
+    assert.equal(disrupted!.clock.cone, null);
+    assert.equal(unit(disrupted!.units, GUNNER_ID).isShaken, true);
+
+    // Next Swedish turn must re-warn instead of firing canister
+    const afterDisruptTurn = resolveSwedishTurn(disrupted!.clock, tacGrid, disrupted!.units);
+    assert.equal(afterDisruptTurn.clock.coneWarned, true);
+    assert.equal(afterDisruptTurn.clock.coneFired, false);
+
+    // Dead gunner silences falconet
+    const deadGunnerUnits = lodgeOndrej.map((u) =>
+      u.id === GUNNER_ID ? { ...u, hp: 0, alive: false } : u,
+    );
+    const silencedTurn = resolveSwedishTurn(aimedClock, tacGrid, deadGunnerUnits);
+    assert.equal(silencedTurn.clock.cone, null);
+    assert.equal(silencedTurn.clock.coneWarned, false);
+    assert.equal(silencedTurn.clock.coneFired, false);
+
+    // AI spark flanking from z >= 11 without stepping onto cord corridor z = 10
+    const litClock: Mission3Clock = {
+      ...aimedClock,
+      lit: true,
+      cord: [{ x: 9, y: 0, z: 10 }],
+      sparkIndex: 0,
+    };
+    const flankSentryUnits = move(baseUnits, "enemy-sentry-1", { x: 10, y: 0, z: 13 });
+    const aiPlan = computeMission3Ai(
+      tacGrid,
+      unit(flankSentryUnits, "enemy-sentry-1"),
+      flankSentryUnits,
+      litClock,
+    );
+    assert.ok(aiPlan.movePath.length > 0);
+    const aiDest = aiPlan.movePath[aiPlan.movePath.length - 1]!;
+    assert.equal(aiDest.z >= 11, true, "AI hunter must flank from z >= 11 and never block cord corridor z = 10");
+
+    // Store round-trip for disruptMission3Falconet
+    useGameStore.getState().beginScenario("mission3");
+    useGameStore.setState((s) => ({
+      m3: s.m3 ? { ...s.m3, silent: false, coneWarned: true, cone: "court" } : s.m3,
+      selectedUnitId: ONDREJ_ID,
+      units: s.units.map((u) =>
+        u.id === ONDREJ_ID ? { ...u, pos: { x: 14, y: 1, z: 12 }, ap: 2 } : u,
+      ),
+    }));
+    useGameStore.getState().disruptMission3Falconet();
+    const afterStoreDisrupt = useGameStore.getState();
+    assert.equal(afterStoreDisrupt.m3?.coneWarned, false);
+    assert.equal(afterStoreDisrupt.m3?.cone, null);
+    assert.equal(afterStoreDisrupt.units.find((u) => u.id === ONDREJ_ID)?.ap, 1);
+    assert.equal(
+      afterStoreDisrupt.combatLog.some((e) => e.message.id === "log.m3.falconet.disrupt"),
+      true,
+    );
+  }
 }
 
 void storeRoundTrip().then(

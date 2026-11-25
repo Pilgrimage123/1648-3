@@ -119,9 +119,18 @@ export function evalRoofParapetCover(
   dir: CardinalDir,
 ): CoverLevel {
   if (kind === "powder-yard") {
-    if (c.y === 1 && c.z === 12 && c.x >= 8 && c.x <= 15 && dir === "S") return "half";
+    if (c.y === 1 && c.z === 12 && c.x >= 8 && c.x <= 15 && (dir === "S" || dir === "N")) {
+      return "half";
+    }
     if (c.y === 1 && c.x === 8 && c.z >= 12 && c.z <= 14 && dir === "W") return "half";
     if (c.y === 1 && c.x === 15 && c.z >= 12 && c.z <= 14 && dir === "E") return "half";
+    // Courtyard tactical cover (lighting alcove, cord mouth, stair newel, central stone block)
+    if (c.y === 0) {
+      if (c.x === 9 && c.z === 11 && (dir === "S" || dir === "W")) return "half";
+      if (c.x === 8 && (c.z === 10 || c.z === 11) && (dir === "S" || dir === "E")) return "half";
+      if (c.x === 10 && c.z === 12 && (dir === "S" || dir === "E")) return "half";
+      if (c.x === 13 && c.z === 12 && (dir === "S" || dir === "E")) return "half";
+    }
     return "none";
   }
 

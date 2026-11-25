@@ -122,16 +122,16 @@ export function UnitVisual3D({
     isOccultist ||
     (isPlayer && archetype === "commander");
   const coatColor = isPlachy
-    ? "#1c1917"
+    ? "#2e2a27"
     : isHavel
-      ? "#6b3a2a"
+      ? "#854935"
       : isHarrier
-        ? "#3f3f46"
+        ? "#4b5563"
         : isPlayer
           ? archetype === "commander"
             ? "#f8fafc" // White baroque nightshirt of Marshal Colloredo
             : archetype === "sniper"
-              ? "#1e3a5f" // Clementinum indigo-slate coat
+              ? "#2b4f7e" // Clementinum indigo-slate coat
               : "#b91c1c" // Rich Imperial Crimson Dragoon coat
           : archetype === "sectoid"
             ? "#1e3a8a" // Elite Carolean dark royal blue
@@ -222,15 +222,15 @@ export function UnitVisual3D({
           <meshStandardMaterial
             color={
               isPlachy
-                ? "#17171a"
+                ? "#272528"
                 : isHavel
-                  ? "#6b3a2a"
+                  ? "#7c4330"
                   : isHarrier
-                    ? "#27272a"
+                    ? "#374151"
                     : archetype === "ranger"
                       ? "#991b1b"
                       : archetype === "sniper"
-                        ? "#15253b"
+                        ? "#223e63"
                         : "#172554"
             }
             roughness={0.65}
@@ -337,30 +337,30 @@ export function UnitVisual3D({
               <group position={[0, 1.28, 0]}>
                 <mesh castShadow>
                   <boxGeometry args={[0.35, 0.085, 0.35]} />
-                  <meshStandardMaterial color="#18181b" roughness={0.72} transparent={transparent} opacity={opacity} />
+                  <meshStandardMaterial color="#2e2e33" roughness={0.68} transparent={transparent} opacity={opacity} />
                 </mesh>
                 {/* Raised biretta blades / horns */}
                 <mesh position={[0, 0.055, 0.14]} castShadow>
                   <boxGeometry args={[0.32, 0.055, 0.045]} />
-                  <meshStandardMaterial color="#18181b" roughness={0.7} transparent={transparent} opacity={opacity} />
+                  <meshStandardMaterial color="#2e2e33" roughness={0.65} transparent={transparent} opacity={opacity} />
                 </mesh>
                 <mesh position={[0, 0.055, -0.14]} castShadow>
                   <boxGeometry args={[0.32, 0.055, 0.045]} />
-                  <meshStandardMaterial color="#18181b" roughness={0.7} transparent={transparent} opacity={opacity} />
+                  <meshStandardMaterial color="#2e2e33" roughness={0.65} transparent={transparent} opacity={opacity} />
                 </mesh>
                 <mesh position={[0.14, 0.055, 0]} castShadow>
                   <boxGeometry args={[0.045, 0.055, 0.32]} />
-                  <meshStandardMaterial color="#18181b" roughness={0.7} transparent={transparent} opacity={opacity} />
+                  <meshStandardMaterial color="#2e2e33" roughness={0.65} transparent={transparent} opacity={opacity} />
                 </mesh>
                 <mesh position={[0, 0.075, 0]}>
-                  <sphereGeometry args={[0.042, 8, 6]} />
-                  <meshStandardMaterial color="#27272a" roughness={0.65} transparent={transparent} opacity={opacity} />
+                  <sphereGeometry args={[0.046, 8, 6]} />
+                  <meshStandardMaterial color="#b91c1c" roughness={0.5} transparent={transparent} opacity={opacity} />
                 </mesh>
               </group>
-              {/* Steel gorget worn over Jesuit cassock & mantle */}
-              <mesh position={[0, 1.05, 0.08]} castShadow>
-                <torusGeometry args={[0.13, 0.028, 8, 16, Math.PI]} />
-                <meshStandardMaterial color="#94a3b8" metalness={0.75} roughness={0.3} transparent={transparent} opacity={opacity} />
+              {/* Steel gorget & white Jesuit collar rim worn over cassock */}
+              <mesh position={[0, 1.07, 0.04]} castShadow>
+                <cylinderGeometry args={[0.22, 0.27, 0.06, 14]} />
+                <meshStandardMaterial color="#cbd5e1" metalness={0.75} roughness={0.28} transparent={transparent} opacity={opacity} />
               </mesh>
             </>
           ) : (
@@ -405,8 +405,8 @@ export function UnitVisual3D({
                 ]}
               />
               <meshStandardMaterial
-                color="#181310"
-                roughness={0.75}
+                color="#3d3027"
+                roughness={0.7}
                 transparent={transparent}
                 opacity={opacity}
               />
@@ -415,8 +415,8 @@ export function UnitVisual3D({
             <mesh position={[0, 0.08, 0]} castShadow>
               <cylinderGeometry args={[0.185, 0.21, 0.18, 16]} />
               <meshStandardMaterial
-                color="#261f1b"
-                roughness={0.7}
+                color="#4a3b30"
+                roughness={0.65}
                 transparent={transparent}
                 opacity={opacity}
               />

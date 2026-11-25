@@ -49,6 +49,7 @@ import {
   playRicochetSound,
 } from "../utils/audioSystem";
 import { muzzleFlashDraft } from "../components/canvas/diegeticLights";
+import { mirrorTutorialFields } from "./scenarioLifecycle";
 import {
   advanceColloredoDetentionTurn,
   appendVictoryLog,
@@ -275,7 +276,12 @@ export function createAiTurnRunner(
               outcome: afterHeroLossOutcome.outcome,
               victoryReason: afterHeroLossOutcome.victoryReason,
               defeatReason: afterHeroLossOutcome.defeatReason,
-              combatLog: appendVictoryLog(s.combatLog, s.round, afterHeroLossOutcome),
+              combatLog: appendVictoryLog(
+                s.combatLog,
+                s.round,
+                afterHeroLossOutcome,
+                s.m3?.deliveries,
+              ),
             }));
           }
           return;
@@ -410,7 +416,12 @@ export function createAiTurnRunner(
                 outcome: outcomeAfterDeath.outcome,
                 victoryReason: outcomeAfterDeath.victoryReason,
                 defeatReason: outcomeAfterDeath.defeatReason,
-                combatLog: appendVictoryLog(s.combatLog, s.round, outcomeAfterDeath),
+                combatLog: appendVictoryLog(
+                  s.combatLog,
+                  s.round,
+                  outcomeAfterDeath,
+                  s.m3?.deliveries,
+                ),
               }));
             }
             return true;
@@ -868,6 +879,21 @@ export function createAiTurnRunner(
             await delay(1250);
             if (isStaleSession(epoch)) return;
             set({ activeProjectile: null });
+            if (judged.outcome !== "ongoing") {
+              set((s) => ({
+                isBusy: false,
+                combatLog: [
+                  ...s.combatLog,
+                  makeLog(
+                    s.round,
+                    "enemy",
+                    phrase(mission2LossPhrase(judged.loss ?? "windlass")),
+                    "alert",
+                  ),
+                ],
+              }));
+              return;
+            }
           } else if (chosenTargetEval) {
             const targetUnit = get().units.find(
               (u) => u.id === chosenTargetEval.targetId && u.alive,
@@ -1519,18 +1545,6 @@ export function createAiTurnRunner(
           const nextSelectedUnit = refreshedUnits.find(
             (u) => u.id === nextSelectedId,
           );
-          const nextDerived = deriveSelectionData(
-            s.grid,
-            refreshedUnits,
-            nextSelectedId,
-            s.weather,
-            s.selectedTargetId,
-            s.fogSnapshot.exploredCoords,
-            s.blastZones,
-            s.fogOfWarEnabled,
-            s.scenario,
-          );
-
           let finalSelectedId = nextSelectedId;
           let finalFloor = nextSelectedUnit ? nextSelectedUnit.pos.y : 0;
           let nextGuidedStep = s.guidedTutorial.currentStep;
@@ -1546,6 +1560,23 @@ export function createAiTurnRunner(
             }
           }
 
+          const nextDerived = deriveSelectionData(
+            s.grid,
+            refreshedUnits,
+            finalSelectedId,
+            s.weather,
+            s.selectedTargetId,
+            s.fogSnapshot.exploredCoords,
+            s.blastZones,
+            s.fogOfWarEnabled,
+            s.scenario,
+          );
+          const tutorialPatch = mirrorTutorialFields(
+            { ...s.guidedTutorial, currentStep: nextGuidedStep },
+            s.scenario,
+            s.tutorialStep,
+          );
+
           return {
             round: nextRound,
             reinforcementsSpawned: s.reinforcementsSpawned || spawnedReinforcements,
@@ -1556,10 +1587,7 @@ export function createAiTurnRunner(
             selectedUnitId: finalSelectedId,
             activeFloor: finalFloor,
             actionMode: "move",
-            guidedTutorial: {
-              ...s.guidedTutorial,
-              currentStep: nextGuidedStep,
-            },
+            ...tutorialPatch,
             fogSnapshot: nextDerived.fogSnapshot,
             reachableTiles: nextDerived.reachableTiles,
             visibleTargets: nextDerived.visibleTargets,

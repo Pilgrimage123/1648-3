@@ -1204,7 +1204,11 @@ export function evaluateVisibleTargets(
     const inRange = dist <= attacker.weapon.maxRange;
     if (!inRange) continue;
 
-    const los = checkLineOfSight3D(grid, fromPos, unit.pos);
+    const ignoreSmoke = Boolean(
+      attacker.abilityBuffActive &&
+        attacker.ability?.id === "klementinum_verdict",
+    );
+    const los = checkLineOfSight3D(grid, fromPos, unit.pos, ignoreSmoke);
     if (!los.clear) continue;
 
     const calculation = calculateShot(

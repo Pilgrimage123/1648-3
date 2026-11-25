@@ -365,8 +365,44 @@ export function fixturesForScenario(
   return FIXTURES;
 }
 
-/** Bow lantern on the Čertovka skiff. Same yaw as the boat mesh. */
+/** Bow lantern default yaw on the Čertovka skiff. */
 export const SKIFF_YAW = 0.25;
+
+export interface SkiffPlacement {
+  boatX: number;
+  boatZ: number;
+  yaw: number;
+  mooringX: number;
+  mooringZ: number;
+}
+
+/**
+ * Computes physical water-moored position and orientation for the Čertovka skiff
+ * relative to the wooden dock escape tile in Mission 1 (E-W canal at z=0..2, dock at x=3..4, z=2)
+ * and Mission 3 (N-S canal at x=4..5, dock at x=6, z=9..10).
+ */
+export function skiffPlacement(escape: { x: number; z: number } | null): SkiffPlacement {
+  if (escape && escape.x >= 5) {
+    // Mission 3: Čertovka canal runs N-S at x=4..5; dock is at x=6, z=9..10
+    return {
+      boatX: escape.x - 1.08,
+      boatZ: escape.z + 0.5,
+      yaw: 0.14,
+      mooringX: escape.x - 0.46,
+      mooringZ: escape.z + 0.08,
+    };
+  }
+  // Mission 1: Čertovka canal runs E-W at z=0..2; dock is at x=3..4, z=2..3
+  const baseX = escape ? escape.x : 3;
+  const baseZ = escape ? escape.z : 2;
+  return {
+    boatX: baseX + 0.55,
+    boatZ: baseZ - 0.92,
+    yaw: Math.PI * 0.5 - 0.14,
+    mooringX: baseX + 0.12,
+    mooringZ: baseZ - 0.46,
+  };
+}
 
 function tileWorld(x: number, y: number, z: number): WorldPoint {
   return {
@@ -386,15 +422,14 @@ export function fixtureWorld(fixture: FixtureDef): WorldPoint {
 }
 
 export function skiffLanternWorld(escape: { x: number; z: number } | null): WorldPoint {
-  const boatX = escape ? escape.x - 0.55 : 2.45;
-  const boatZ = escape ? escape.z : 2.0;
+  const { boatX, boatZ, yaw } = skiffPlacement(escape);
   const boat = tileWorld(boatX, 0, boatZ);
   const localZ = 1.05;
-  const sin = Math.sin(SKIFF_YAW);
-  const cos = Math.cos(SKIFF_YAW);
+  const sin = Math.sin(yaw);
+  const cos = Math.cos(yaw);
   return {
     x: boat.x + localZ * sin,
-    y: boat.y - 0.05 + 0.42,
+    y: boat.y - 0.15 + 0.44,
     z: boat.z + localZ * cos,
   };
 }
@@ -698,12 +733,14 @@ export function isFixtureDucked(
 ): boolean {
   for (const flash of flashes) {
     if (flash.kind !== "blast") continue;
-    if (now - flash.createdAt >= flash.durationMs) continue;
+    const age = now - flash.createdAt;
+    if (age < 0 || age >= flash.durationMs) continue;
     if (chebyshev(coord, flash.coord) <= 1) return true;
   }
   for (const blast of blasts) {
     if (!blast.isExplosion) continue;
-    if (now - blast.createdAt > 700) continue;
+    const age = now - blast.createdAt;
+    if (age < 0 || age > 700) continue;
     if (chebyshev(coord, blast.coord) <= 1) return true;
   }
   return false;
@@ -723,7 +760,10 @@ export function retainFlashes<T extends FlashBudgetItem>(
   incomingKind: "blast" | "muzzle",
   now: number,
 ): T[] {
-  const active = existing.filter((flash) => now - flash.createdAt < flash.durationMs);
+  const active = existing.filter((flash) => {
+    const age = now - flash.createdAt;
+    return age >= 0 && age < flash.durationMs;
+  });
   let blasts = active.filter((flash) => flash.kind === "blast");
   let muzzles = active.filter((flash) => flash.kind === "muzzle");
   if (incomingKind === "blast" && blasts.length >= MAX_BLAST_LIGHTS) {

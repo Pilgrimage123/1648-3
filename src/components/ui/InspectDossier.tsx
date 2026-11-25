@@ -8,7 +8,7 @@
 import { GripHorizontal, X } from "lucide-react";
 import { buildInspectView, type InspectLabeledValue, type InspectView } from "../../core/inspectView";
 import type { StatModifier } from "../../core/types";
-import { formatMeasure, formatPhrase, text, useLocale } from "../../i18n";
+import { text, useLocale } from "../../i18n";
 import { useGameStore } from "../../store/useGameStore";
 import { BaroqueCoverBadge } from "./BaroqueCoverBadge";
 import { StatModifierRow } from "./hudUtils";

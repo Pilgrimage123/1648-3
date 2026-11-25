@@ -10,12 +10,14 @@ import {
   bresenham3D,
   checkLineOfSight3D,
   computeEnemyAiDecision,
+  evaluateVisibleTargets,
   isAdjacentForMelee,
   isUnitFighting,
   type EnemyAiDecision,
 } from "./CombatSystem";
 import { applyPowderBlast } from "./explosions";
 import { makeScenarioUnit, paintScenarioTile } from "./missionHelpers";
+import { computeReachableTiles, findPathAStar } from "./Pathfinding";
 import {
   coordKey,
   GridSystem,
@@ -45,6 +47,7 @@ export const LANE: GridCoord[] = [{ x: 16, y: 0, z: 8 }];
 export const GATE: GridCoord = { x: 17, y: 0, z: 8 };
 export const SHOULDER: GridCoord = { x: 16, y: 0, z: 9 };
 export const MUZZLE: GridCoord = { x: 17, y: 0, z: 10 };
+export const COURTYARD_KEG: GridCoord = { x: 13, y: 0, z: 14 };
 export const ROPE_FOOT: GridCoord = { x: 8, y: 0, z: 12 };
 export const ROPE_HEAD: GridCoord = { x: 8, y: 1, z: 12 };
 export const STAIR_FOOT: GridCoord = { x: 10, y: 0, z: 12 };
@@ -318,6 +321,7 @@ export function createMission3Grid(): GridSystem {
   grid.setObstacle({ x: 11, y: 0, z: 13 }, "pillar");
   grid.setObstacle({ x: 16, y: 0, z: 12 }, "low_wall");
   grid.setObstacle({ x: 17, y: 0, z: 11 }, "low_wall");
+  grid.setObstacle(COURTYARD_KEG, "powder_keg");
 
   for (let x = 8; x <= 15; x++) {
     for (let z = 12; z <= 14; z++) paint(grid, x, 1, z, "stone_floor", true);
@@ -1114,8 +1118,72 @@ export function openSwedishTurn(
 }
 
 /**
+ * Ribbon & action predicate: can a defender disrupt the falconet gunner's aimed canister cone?
+ * Available when the falconet is warning (`coneWarned && cone !== null`) and the defender is either:
+ * - adjacent on the ground (`y === 0`, Chebyshev <= 1) to `MUZZLE (17,0,10)` or the living gunner, OR
+ * - on the eastern lodge gallery (`y === 1`, `x >= 12`) or eastern courtyard (`y === 0`, `x >= 13`)
+ *   with direct 3D Line of Sight to `MUZZLE` or the living gunner.
+ */
+export function canDisruptFalconet(
+  clock: Mission3Clock,
+  grid: GridSystem,
+  unit: UnitData,
+  units: UnitData[],
+): boolean {
+  if (unit.faction !== "player" || !isUnitFighting(unit) || (unit.detainedTurns ?? 0) > 0) {
+    return false;
+  }
+  if (clock.silent || clock.cookedOff || !clock.coneWarned || clock.cone === null) {
+    return false;
+  }
+  const gunner = units.find((u) => u.id === GUNNER_ID);
+  if (gunner && !isUnitFighting(gunner)) return false;
+
+  const targetPos = gunner && isUnitFighting(gunner) ? gunner.pos : MUZZLE;
+  if (
+    unit.pos.y === 0 &&
+    (chebyshev(unit.pos, MUZZLE) <= 1 || chebyshev(unit.pos, targetPos) <= 1)
+  ) {
+    return true;
+  }
+
+  const inOverwatchZone =
+    (unit.pos.y === 1 && onLodge(unit.pos) && unit.pos.x >= 12) ||
+    (unit.pos.y === 0 && unit.pos.x >= 13);
+  if (!inOverwatchZone) return false;
+
+  const seeMuzzle = checkLineOfSight3D(grid, unit.pos, MUZZLE).clear;
+  const seeGunner = gunner ? checkLineOfSight3D(grid, unit.pos, gunner.pos).clear : false;
+  return seeMuzzle || seeGunner;
+}
+
+/**
+ * Spend 1 AP to knock the gunner's linstock / foul the falconet aim,
+ * canceling the telegraphed canister cone (`coneWarned: false, cone: null`)
+ * and shaking the gunner so he must re-aim on the next Swedish turn instead of firing.
+ */
+export function applyDisruptFalconet(
+  clock: Mission3Clock,
+  grid: GridSystem,
+  unit: UnitData,
+  units: UnitData[],
+): TurnStep | null {
+  if (unit.ap < 1 || !canDisruptFalconet(clock, grid, unit, units)) return null;
+  return {
+    clock: {
+      ...clock,
+      cone: null,
+      coneWarned: false,
+      coneFired: false,
+    },
+    units: units.map((u) => (u.id === GUNNER_ID && isUnitFighting(u) ? { ...u, isShaken: true } : u)),
+  };
+}
+
+/**
  * Swedish phase after hunters: climb ticks, stamper telegraph, cone last.
  * The first damaging cone is the cone stored on the warning turn.
+ * If the gunner (`enemy-gunner`) has been eliminated, the falconet is silenced.
  */
 export function closeSwedishTurn(
   clock: Mission3Clock,
@@ -1126,7 +1194,10 @@ export function closeSwedishTurn(
   let next = writeStamp(climbs.clock, climbs.units);
   let nextUnits = climbs.units;
 
-  if (!next.silent) {
+  const gunner = nextUnits.find((unit) => unit.id === GUNNER_ID);
+  const gunnerActive = !gunner || isUnitFighting(gunner);
+
+  if (!next.silent && !next.cookedOff && gunnerActive) {
     if (!next.coneWarned) {
       next = { ...next, cone: selectCone(grid, nextUnits), coneWarned: true };
     } else if (!next.coneFired) {
@@ -1139,6 +1210,8 @@ export function closeSwedishTurn(
       nextUnits = fired.units;
       next = { ...fired.clock, cone: chosen, coneFired: true };
     }
+  } else if (!gunnerActive) {
+    next = { ...next, cone: null, coneWarned: false, coneFired: false };
   }
 
   return { clock: next, units: nextUnits };
@@ -1160,6 +1233,10 @@ export function resolveSwedishTurn(
   return closeSwedishTurn(opened.clock, grid, opened.units);
 }
 
+function isCordCorridorTile(c: GridCoord): boolean {
+  return c.y === 0 && c.z === 10 && c.x >= 9 && c.x <= 12;
+}
+
 export function computeMission3Ai(
   grid: GridSystem,
   enemy: UnitData,
@@ -1174,7 +1251,82 @@ export function computeMission3Ai(
   ) {
     return HOLD;
   }
-  return computeEnemyAiDecision(grid, enemy, units, "rain");
+
+  const base = computeEnemyAiDecision(grid, enemy, units, "rain");
+  const reach = computeReachableTiles(grid, enemy, units);
+  const spark = clock.lit && !clock.cookedOff ? clock.cord[clock.sparkIndex] : undefined;
+
+  // 1. When the cord is lit and un-stamped, check if this hunter can step onto a 1-AP courtyard
+  //    flank tile (z >= 11, never on the cord corridor z=10) adjacent to the active spark.
+  if (spark && clock.stamperIds.length === 0 && !isAdjacentForMelee(enemy.pos, spark)) {
+    const stampCandidates = Array.from(reach.values()).filter(
+      (r) =>
+        r.apCost === 1 &&
+        r.coord.y === 0 &&
+        r.coord.z >= 11 &&
+        !isCordCorridorTile(r.coord) &&
+        isAdjacentForMelee(r.coord, spark) &&
+        !grid.isDoorSealedAt(r.coord),
+    );
+    if (stampCandidates.length > 0) {
+      stampCandidates.sort((a, b) => a.coord.x - b.coord.x || a.coord.z - b.coord.z);
+      const chosen = stampCandidates[0]!;
+      const path = findPathAStar(grid, enemy.pos, chosen.coord, units, enemy.id);
+      if (path.length > 0) {
+        const movedEnemy: UnitData = { ...enemy, pos: chosen.coord };
+        const visible = evaluateVisibleTargets(grid, movedEnemy, units, "rain");
+        return {
+          movePath: path,
+          moveApCost: chosen.apCost,
+          targetId: visible[0]?.targetId ?? base.targetId,
+          doorToOpen: null,
+          isCaptureAction: false,
+        };
+      }
+    }
+  }
+
+  // 2. Prevent hunters from ending their move directly on the cord corridor (9..12, 0, 10)
+  //    before cookOff so they flank from z >= 11 instead of blocking cord placement.
+  const baseDest = base.movePath.length > 0 ? base.movePath[base.movePath.length - 1]! : null;
+  if (!clock.cookedOff && baseDest && isCordCorridorTile(baseDest)) {
+    const flankCandidates = Array.from(reach.values()).filter(
+      (r) =>
+        r.apCost === 1 &&
+        r.coord.y === 0 &&
+        r.coord.z >= 11 &&
+        !isCordCorridorTile(r.coord) &&
+        !grid.isDoorSealedAt(r.coord),
+    );
+    if (flankCandidates.length > 0) {
+      flankCandidates.sort(
+        (a, b) =>
+          chebyshev(a.coord, baseDest) - chebyshev(b.coord, baseDest) ||
+          a.coord.z - b.coord.z ||
+          a.coord.x - b.coord.x,
+      );
+      const flank = flankCandidates[0]!;
+      const path = findPathAStar(grid, enemy.pos, flank.coord, units, enemy.id);
+      if (path.length > 0) {
+        const movedEnemy: UnitData = { ...enemy, pos: flank.coord };
+        const visible = evaluateVisibleTargets(grid, movedEnemy, units, "rain");
+        return {
+          movePath: path,
+          moveApCost: flank.apCost,
+          targetId: visible[0]?.targetId ?? base.targetId,
+          doorToOpen: null,
+          isCaptureAction: false,
+        };
+      }
+    }
+    return {
+      ...base,
+      movePath: [],
+      moveApCost: 0,
+    };
+  }
+
+  return base;
 }
 
 const SKIFF_A: GridCoord = { x: 6, y: 0, z: 9 };

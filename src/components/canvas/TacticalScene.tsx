@@ -6,12 +6,20 @@
  * 3. Bojový zábleskový fond (Dynamic Combat Flash Pool): krátkodobé záblesky hlavní a detonací.
  */
 
-import { Canvas, useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { getMission1EscapeTile } from "../../core/GridSystem";
-import type { WeatherType } from "../../core/types";
+import type { ScenarioId, WeatherType } from "../../core/types";
 import { useGameStore } from "../../store/useGameStore";
+import {
+  BAROQUE_VOLUMETRIC_FRAG,
+  BAROQUE_VOLUMETRIC_VERT,
+  getBaroqueChiaroscuroFrameStyle,
+  getBaroqueLightingProfile,
+  type VolumetricShaftSpec,
+} from "./baroqueMaterials";
 import { CombatAtmosphereField } from "./CombatAtmosphereField";
 import { CombatLines3D } from "./CombatLines3D";
 import {
@@ -38,6 +46,77 @@ import { RainParticles } from "./RainParticles";
 import { TacticalCamera } from "./TacticalCamera";
 import { UnitActor } from "./UnitActor";
 import { continuousGridToWorld, gridToWorld } from "./worldCoords";
+
+let cachedSoftwareGl: boolean | null = null;
+function isSoftwareWebGL(): boolean {
+  if (cachedSoftwareGl !== null) return cachedSoftwareGl;
+  if (typeof document === "undefined") {
+    cachedSoftwareGl = false;
+    return false;
+  }
+  try {
+    const canvas = document.createElement("canvas");
+    const gl =
+      canvas.getContext("webgl2") ??
+      canvas.getContext("webgl");
+    if (!gl) {
+      cachedSoftwareGl = false;
+      return false;
+    }
+    const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
+    const renderer = String(
+      debugInfo
+        ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL)
+        : gl.getParameter(gl.RENDERER),
+    );
+    cachedSoftwareGl = /SwiftShader|llvmpipe|Software|Mesa OffScreen/i.test(renderer);
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+  } catch {
+    cachedSoftwareGl = false;
+  }
+  return cachedSoftwareGl;
+}
+
+/**
+ * Software WebGL (SwiftShader/llvmpipe) frame pacer:
+ * Schedules the next render with a brief breathing gap after each frame finishes
+ * so CPU rasterization never starves input events or compositor frames.
+ */
+function SoftwareGlTicker() {
+  const invalidate = useThree((s) => s.invalidate);
+
+  useEffect(() => {
+    invalidate();
+    const t1 = window.setTimeout(() => invalidate(), 90);
+    const t2 = window.setTimeout(() => invalidate(), 240);
+    let followUp: number | null = null;
+    const schedule = () => {
+      invalidate();
+      if (followUp !== null) window.clearTimeout(followUp);
+      followUp = window.setTimeout(() => {
+        followUp = null;
+        invalidate();
+      }, 90);
+    };
+    const unsub = useGameStore.subscribe(schedule);
+    window.addEventListener("resize", schedule);
+    window.addEventListener("pointerup", schedule, { passive: true });
+    window.addEventListener("wheel", schedule, { passive: true });
+    window.addEventListener("keydown", schedule, { passive: true });
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      if (followUp !== null) window.clearTimeout(followUp);
+      unsub();
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("pointerup", schedule);
+      window.removeEventListener("wheel", schedule);
+      window.removeEventListener("keydown", schedule);
+    };
+  }, [invalidate]);
+
+  return null;
+}
 
 function assignSlot(
   light: THREE.PointLight | null,
@@ -69,12 +148,107 @@ function assignSlot(
   light.position.set(sample.position.x, sample.position.y, sample.position.z);
 }
 
+/**
+ * Procedural Studio PMREM Environment (`RoomEnvironment`) & ACESFilmic Tone Mapping Sync.
+ * Gives gilded Corinthian capitals, crystal chandeliers, steel cuirasses, bronze falconets,
+ * and river water genuine physically-based reflections with zero external files.
+ */
+function BaroqueEnvironmentRig({
+  scenario,
+  weather,
+}: {
+  scenario: ScenarioId;
+  weather: WeatherType;
+}) {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  const profile = useMemo(
+    () => getBaroqueLightingProfile(scenario, weather),
+    [scenario, weather],
+  );
+
+  useEffect(() => {
+    const pmrem = new THREE.PMREMGenerator(gl);
+    pmrem.compileEquirectangularShader();
+    const envRoom = new RoomEnvironment();
+    const envRT = pmrem.fromScene(envRoom, 0.04);
+    scene.environment = envRT.texture;
+    envRoom.dispose();
+    pmrem.dispose();
+    return () => {
+      if (scene.environment === envRT.texture) {
+        scene.environment = null;
+      }
+      envRT.dispose();
+    };
+  }, [gl, scene]);
+
+  useEffect(() => {
+    gl.outputColorSpace = THREE.SRGBColorSpace;
+    gl.toneMapping = THREE.ACESFilmicToneMapping;
+    gl.toneMappingExposure = profile.exposure;
+    scene.environmentIntensity = profile.envIntensity;
+  }, [gl, scene, profile.exposure, profile.envIntensity]);
+
+  return null;
+}
+
+/** Soft-edge Fresnel volumetric God-ray cone (never hard-edged translucent geometry). */
+function VolumetricGodRay({ spec }: { spec: VolumetricShaftSpec }) {
+  const matRef = useRef<THREE.ShaderMaterial>(null);
+  const pos = useMemo(
+    () => continuousGridToWorld(spec.gridX, spec.gridY, spec.gridZ),
+    [spec.gridX, spec.gridY, spec.gridZ],
+  );
+  const uniforms = useMemo(
+    () => ({
+      uColor: { value: new THREE.Color(spec.color) },
+      uOpacity: { value: spec.baseOpacity },
+    }),
+    [spec.color, spec.baseOpacity],
+  );
+
+  useFrame(({ clock }) => {
+    const mat = matRef.current;
+    if (!mat) return;
+    const t = clock.getElapsedTime();
+    mat.uniforms.uColor!.value.set(spec.color);
+    mat.uniforms.uOpacity!.value = Math.max(
+      0,
+      spec.baseOpacity + Math.sin(t * spec.pulseSpeed + spec.gridX * 0.4) * spec.pulseAmp,
+    );
+  });
+
+  if (spec.baseOpacity <= 0.002) return null;
+
+  return (
+    <mesh
+      position={[pos[0], pos[1] + spec.heightOffset, pos[2]]}
+      rotation={[spec.rotX, 0, spec.rotZ]}
+      raycast={() => null}
+      renderOrder={4}
+    >
+      <cylinderGeometry
+        args={[spec.topRadius, spec.bottomRadius, spec.height, 24, 1, true]}
+      />
+      <shaderMaterial
+        ref={matRef}
+        uniforms={uniforms}
+        vertexShader={BAROQUE_VOLUMETRIC_VERT}
+        fragmentShader={BAROQUE_VOLUMETRIC_FRAG}
+        transparent
+        depthWrite={false}
+        side={THREE.DoubleSide}
+        blending={THREE.AdditiveBlending}
+      />
+    </mesh>
+  );
+}
+
 function DiegeticLightingRig({ weather }: { weather: WeatherType }) {
   const candleRefs = useRef<(THREE.PointLight | null)[]>([]);
   const torchRefs = useRef<(THREE.PointLight | null)[]>([]);
   const cordRefs = useRef<(THREE.PointLight | null)[]>([]);
-  const beamCourtRef = useRef<THREE.Mesh>(null);
-  const beamGardenRef = useRef<THREE.Mesh>(null);
 
   const grid = useGameStore((s) => s.grid);
   const units = useGameStore((s) => s.units);
@@ -86,8 +260,10 @@ function DiegeticLightingRig({ weather }: { weather: WeatherType }) {
   const fogOfWarEnabled = useGameStore((s) => s.fogOfWarEnabled);
   const fogSnapshot = useGameStore((s) => s.fogSnapshot);
 
-  const courtBeam = useMemo(() => continuousGridToWorld(11.5, 0, 19), []);
-  const gardenBeam = useMemo(() => continuousGridToWorld(11, 0, 8), []);
+  const profile = useMemo(
+    () => getBaroqueLightingProfile(scenario, weather),
+    [scenario, weather],
+  );
 
   useFrame(({ clock, camera }) => {
     const t = clock.getElapsedTime();
@@ -150,67 +326,32 @@ function DiegeticLightingRig({ weather }: { weather: WeatherType }) {
     for (let i = 0; i < MAX_MATCHCORD_SLOTS; i++) {
       assignSlot(cordRefs.current[i] ?? null, cordSlots[i] ?? undefined, t, weather);
     }
-
-    const shaftOpacity =
-      weather === "fog" ? 0 : weather === "rain" ? 0.016 : 0.042;
-    if (beamCourtRef.current) {
-      beamCourtRef.current.visible =
-        scenario !== "mission2" && scenario !== "mission3" && shaftOpacity > 0;
-      (beamCourtRef.current.material as THREE.MeshBasicMaterial).opacity =
-        shaftOpacity + Math.sin(t * 1.3) * 0.006;
-    }
-    if (beamGardenRef.current) {
-      beamGardenRef.current.visible =
-        scenario !== "mission2" && scenario !== "mission3" && shaftOpacity > 0;
-      (beamGardenRef.current.material as THREE.MeshBasicMaterial).opacity =
-        shaftOpacity * 0.85 + Math.cos(t * 1.1) * 0.005;
-    }
   });
 
   const isMorningBridge = scenario === "mission2";
-  const keyIntensity = isMorningBridge
-    ? weather === "fog"
-      ? 0.95
-      : weather === "rain"
-        ? 1.45
-        : 1.75
-    : weather === "fog"
-      ? 0.42
-      : weather === "rain"
-        ? 0.7
-        : 0.92;
-  const ambientIntensity = isMorningBridge
-    ? weather === "fog"
-      ? 0.48
-      : 0.62
-    : weather === "fog"
-      ? 0.18
-      : 0.26;
-  const hemiIntensity = isMorningBridge ? 0.78 : 0.38;
 
   return (
     <group>
       <ambientLight
-        intensity={ambientIntensity}
-        color={isMorningBridge ? "#8fa3b8" : "#64748b"}
+        intensity={profile.ambientIntensity}
+        color={profile.ambientColor}
       />
       <hemisphereLight
-        color={isMorningBridge ? "#c7d9ec" : "#9db4c8"}
-        groundColor={isMorningBridge ? "#3d3228" : "#1c140f"}
-        intensity={hemiIntensity}
+        color={profile.hemiSkyColor}
+        groundColor={profile.hemiGroundColor}
+        intensity={profile.hemiIntensity}
       />
 
-      {/* 
+      {/*
         * 1. NEBESKÝ SVĚTELNÝ ZDROJ (Celestial Directional Light, ADR-0018):
-        * Mission 1: chladný půlnoční měsíc [14, 28, 13].
-        * Mission 2: ranní slunce vycházející na východě [22, 24, 8] nad Starým Městem,
-        * vrhající dlouhé ranní stíny mostecké věže směrem na západ na Karlův most.
+        * Mission 1 & 3: chladný půlnoční měsíc [14, 28, 13].
+        * Mission 2: teplé ranní slunce vycházející na východě [22, 24, 8] nad Starým Městem.
         */}
       <directionalLight
         position={isMorningBridge ? [...MISSION2_SUN_POSITION] : [...MISSION1_MOON_POSITION]}
-        intensity={keyIntensity}
-        color={isMorningBridge ? "#dce7f3" : "#9db4c8"}
-        castShadow
+        intensity={profile.keyIntensity}
+        color={profile.keyColor}
+        castShadow={!isSoftwareWebGL()}
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-24}
         shadow-camera-right={24}
@@ -219,6 +360,14 @@ function DiegeticLightingRig({ weather }: { weather: WeatherType }) {
         shadow-camera-near={2}
         shadow-camera-far={65}
         shadow-bias={-0.0005}
+        shadow-normalBias={0.02}
+      />
+
+      {/* Subtle Baroque Rembrandt Rim Backlight (unshadowed, sculpts silhouettes & gilded edges) */}
+      <directionalLight
+        position={profile.rimPosition}
+        intensity={profile.rimIntensity}
+        color={profile.rimColor}
       />
 
       {Array.from({ length: MAX_CANDELABRA_SLOTS }, (_, i) => (
@@ -228,7 +377,7 @@ function DiegeticLightingRig({ weather }: { weather: WeatherType }) {
             candleRefs.current[i] = el;
           }}
           color="#fde68a"
-          decay={2}
+          decay={1.25}
           intensity={0}
           visible={false}
         />
@@ -240,7 +389,7 @@ function DiegeticLightingRig({ weather }: { weather: WeatherType }) {
             torchRefs.current[i] = el;
           }}
           color="#f97316"
-          decay={2}
+          decay={1.25}
           intensity={0}
           visible={false}
         />
@@ -252,45 +401,16 @@ function DiegeticLightingRig({ weather }: { weather: WeatherType }) {
             cordRefs.current[i] = el;
           }}
           color="#ea580c"
-          decay={2}
+          decay={1.25}
           intensity={0}
           visible={false}
         />
       ))}
 
-      {/* Shafts only over the open courtyard well and the garden sky. */}
-      <mesh
-        ref={beamCourtRef}
-        position={[courtBeam[0], 7.2, courtBeam[2]]}
-        rotation={[0.08, 0, -0.12]}
-        raycast={() => null}
-      >
-        <cylinderGeometry args={[0.9, 3.4, 12, 18, 1, true]} />
-        <meshBasicMaterial
-          color="#fde68a"
-          transparent
-          opacity={0.04}
-          side={THREE.DoubleSide}
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-        />
-      </mesh>
-      <mesh
-        ref={beamGardenRef}
-        position={[gardenBeam[0], 7.4, gardenBeam[2]]}
-        rotation={[0.12, 0, -0.18]}
-        raycast={() => null}
-      >
-        <cylinderGeometry args={[1.1, 4.2, 13, 18, 1, true]} />
-        <meshBasicMaterial
-          color="#e7eef6"
-          transparent
-          opacity={0.034}
-          side={THREE.DoubleSide}
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-        />
-      </mesh>
+      {/* Soft-edge Baroque Volumetric God-Rays per Mission */}
+      {profile.shafts.map((shaft) => (
+        <VolumetricGodRay key={shaft.id} spec={shaft} />
+      ))}
 
       <mesh
         position={[0, -0.5, 0]}
@@ -300,7 +420,7 @@ function DiegeticLightingRig({ weather }: { weather: WeatherType }) {
       >
         <planeGeometry args={[200, 200]} />
         <meshStandardMaterial
-          color={isMorningBridge ? "#2e2c28" : "#0b0d11"}
+          color={profile.groundPlaneColor}
           roughness={1}
         />
       </mesh>
@@ -388,34 +508,37 @@ export function TacticalScene() {
   const units = useGameStore((s) => s.units);
   const weather = useGameStore((s) => s.weather);
   const scenario = useGameStore((s) => s.scenario);
-  const isMorningBridge = scenario === "mission2";
 
-  const fogColor = isMorningBridge
-    ? weather === "fog"
-      ? "#5a636d"
-      : weather === "rain"
-        ? "#4a545f"
-        : "#6f7378"
-    : weather === "fog"
-      ? "#161e2b"
-      : "#0a0f1a";
-  const fogFar = isMorningBridge
-    ? weather === "fog"
-      ? 60
-      : 96
-    : weather === "fog"
-      ? 52
-      : 90;
+  const lightingProfile = useMemo(
+    () => getBaroqueLightingProfile(scenario, weather),
+    [scenario, weather],
+  );
+  const frameStyle = useMemo(
+    () => getBaroqueChiaroscuroFrameStyle(scenario),
+    [scenario],
+  );
+  const softwareGl = useMemo(() => isSoftwareWebGL(), []);
 
   return (
     <div className="relative w-full h-full bg-slate-950 select-none overflow-hidden">
       <Canvas
-        shadows="percentage"
+        frameloop={softwareGl ? "demand" : "always"}
+        shadows={softwareGl ? false : "percentage"}
+        dpr={softwareGl ? 1 : [1, 2]}
         camera={{ fov: 38, near: 0.5, far: 160, position: [14, 18, 14] }}
-        gl={{ antialias: true }}
+        gl={{
+          antialias: !softwareGl,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: lightingProfile.exposure,
+        }}
       >
-        <color attach="background" args={[fogColor]} />
-        <fog attach="fog" args={[fogColor, 26, fogFar]} />
+        {softwareGl && <SoftwareGlTicker />}
+        <BaroqueEnvironmentRig scenario={scenario} weather={weather} />
+        <color attach="background" args={[lightingProfile.fogColor]} />
+        <fog
+          attach="fog"
+          args={[lightingProfile.fogColor, lightingProfile.fogNear, lightingProfile.fogFar]}
+        />
 
         <PragueSurroundings />
 
@@ -440,13 +563,11 @@ export function TacticalScene() {
         ))}
       </Canvas>
 
-      {/* Baroque Chiaroscuro Edge Vignette (Darkens non-playable periphery & camera foreground while keeping center vivid) */}
+      {/* Baroque Chiaroscuro Edge Vignette (Subtly frames extreme corners while keeping the tactical battlefield clearly legible) */}
       <div
         className="pointer-events-none absolute inset-0 z-[1]"
         style={{
-          background: isMorningBridge
-            ? "radial-gradient(ellipse 84% 76% at 50% 48%, rgba(7,11,18,0) 62%, rgba(7,11,18,0.28) 84%, rgba(3,5,9,0.58) 100%)"
-            : "radial-gradient(ellipse 72% 68% at 50% 48%, rgba(7,11,18,0) 52%, rgba(7,11,18,0.48) 80%, rgba(3,5,9,0.82) 100%)",
+          background: frameStyle.vignetteGradient,
         }}
       />
     </div>

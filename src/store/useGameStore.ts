@@ -41,6 +41,7 @@ import {
 } from "../core/FogOfWar";
 import { computeReachableTiles, findPathAStar } from "../core/Pathfinding";
 import {
+  applyDisruptKeystone,
   applyDouseAction,
   applyKneel,
   applySeverRopeAction,
@@ -54,6 +55,7 @@ import {
   type Mission2Loss,
 } from "../core/mission2";
 import {
+  applyDisruptFalconet,
   armClimb,
   breakSilence,
   canOfferCordLay,
@@ -1119,7 +1121,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             guidedTutorial: {
               ...state.guidedTutorial,
               rejectFeedback: getGuidedRejectFeedback(stepData.step, "unit"),
-              rejectTimestamp: Date.now(),
+              rejectTimestamp: performance.now(),
             },
           });
           return;
@@ -1135,6 +1137,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         state.fogSnapshot.exploredCoords,
         state.blastZones,
         state.fogOfWarEnabled,
+        state.scenario,
       );
       set({
         selectedUnitId: unitId,
@@ -1212,6 +1215,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         state.fogSnapshot.exploredCoords,
         state.blastZones,
         state.fogOfWarEnabled,
+        state.scenario,
       );
       set({
         weather,
@@ -1246,6 +1250,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         state.fogSnapshot.exploredCoords,
         state.blastZones,
         enabled,
+        state.scenario,
       );
       set({
         fogOfWarEnabled: enabled,
@@ -1272,7 +1277,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             guidedTutorial: {
               ...state.guidedTutorial,
               rejectFeedback: getGuidedRejectFeedback(step, "action"),
-              rejectTimestamp: Date.now(),
+              rejectTimestamp: performance.now(),
             },
           });
           return;
@@ -1316,6 +1321,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           state.fogSnapshot.exploredCoords,
           state.blastZones,
           state.fogOfWarEnabled,
+          state.scenario,
         );
 
         set({
@@ -2005,6 +2011,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           state.fogSnapshot.exploredCoords,
           state.blastZones,
           state.fogOfWarEnabled,
+          state.scenario,
         );
         set({
           selectedUnitId: alternateShooter.id,
@@ -2088,6 +2095,45 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         gridDistance3D(activeUnit.pos, coord) <= activeUnit.weapon.maxRange &&
         checkLineOfSight3D(state.grid, activeUnit.pos, coord).clear
       ) {
+        if (
+          state.scenario === "mission1" &&
+          state.guidedTutorial.enabled &&
+          !state.guidedTutorial.dismissed &&
+          state.guidedTutorial.currentStep !== "step_7_keg_explosion" &&
+          state.guidedTutorial.currentStep !== "step_9_free_combat"
+        ) {
+          set({
+            guidedTutorial: {
+              ...state.guidedTutorial,
+              rejectFeedback: getGuidedRejectFeedback(
+                state.guidedTutorial.currentStep,
+                "action",
+              ),
+              rejectTimestamp: performance.now(),
+            },
+          });
+          return;
+        }
+        if (activeUnit.id === "player-colloredo" && activeUnit.pistolLoaded === false) {
+          triggerUnitFx(activeUnit.id, {
+            banner: { phrase: phrase("banner.pistolEmpty"), tone: "misfire" },
+          });
+          return;
+        }
+        if (activeUnit.firearmLoaded === false) {
+          const reqAp = activeUnit.weapon.reloadApCost ?? 2;
+          const prog = activeUnit.reloadProgress ?? 0;
+          triggerUnitFx(activeUnit.id, {
+            banner: {
+              phrase: phrase("banner.barrelEmptyProgress", {
+                progress: prog,
+                required: reqAp,
+              }),
+              tone: "misfire",
+            },
+          });
+          return;
+        }
         executeKegShot(set, get, runtimeDeps, activeUnit, coord);
         return;
       }
@@ -2592,6 +2638,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               afterState.combatLog,
               afterState.round,
               outcomeCheck,
+              afterState.m3?.deliveries,
             ),
           });
           return;
@@ -2797,16 +2844,18 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         state.fogSnapshot.exploredCoords,
         state.blastZones,
         state.fogOfWarEnabled,
+        state.scenario,
       );
 
       set((s) => ({
         units: sel.units,
         selectedUnitId: nextSelId,
         activeFloor: nextFlr,
-        guidedTutorial: {
-          ...s.guidedTutorial,
-          currentStep: nextTutorialGuided,
-        },
+        ...mirrorTutorialFields(
+          { ...s.guidedTutorial, currentStep: nextTutorialGuided },
+          s.scenario,
+          nextTutorialGuided === "step_7_keg_explosion" ? 3 : s.tutorialStep,
+        ),
         actionMode: "move",
         fogSnapshot: sel.fogSnapshot,
         reachableTiles: sel.reachableTiles,
@@ -2923,6 +2972,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         state.fogSnapshot.exploredCoords,
         state.blastZones,
         state.fogOfWarEnabled,
+        state.scenario,
       );
 
       set((s) => ({
@@ -3000,6 +3050,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         state.fogSnapshot.exploredCoords,
         state.blastZones,
         state.fogOfWarEnabled,
+        state.scenario,
       );
 
       set((s) => ({
@@ -3138,6 +3189,27 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       set(mission3VerbPatch(state, armed, units, climber.id, [], false));
     },
 
+    disruptMission3Falconet: () => {
+      const state = get();
+      if (!mission3Ready(state)) return;
+      const actor = state.units.find((unit) => unit.id === state.selectedUnitId);
+      if (!actor || (actor.detainedTurns ?? 0) > 0) return;
+      const disrupted = applyDisruptFalconet(state.m3, state.grid, actor, state.units);
+      if (!disrupted) return;
+      const units = disrupted.units.map((unit) =>
+        unit.id === actor.id ? { ...unit, ap: Math.max(0, unit.ap - 1) } : unit,
+      );
+      const logs: CombatLogEntry[] = [
+        makeLog(
+          state.round,
+          "player",
+          phrase("log.m3.falconet.disrupt", { unitId: actor.id }),
+          "story",
+        ),
+      ];
+      set(mission3VerbPatch(state, disrupted.clock, units, actor.id, logs, false));
+    },
+
     kneelAtInscription: () => {
       const state = get();
       if (
@@ -3165,6 +3237,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         state.fogSnapshot.exploredCoords,
         state.blastZones,
         state.fogOfWarEnabled,
+        state.scenario,
       );
       set({
         m2: nextClock,
@@ -3209,6 +3282,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         state.fogSnapshot.exploredCoords,
         state.blastZones,
         state.fogOfWarEnabled,
+        state.scenario,
       );
       set({
         m2: nextClock,
@@ -3253,6 +3327,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         state.fogSnapshot.exploredCoords,
         state.blastZones,
         state.fogOfWarEnabled,
+        state.scenario,
       );
       playExplosionSound();
       set({
@@ -3300,6 +3375,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         state.fogSnapshot.exploredCoords,
         state.blastZones,
         state.fogOfWarEnabled,
+        state.scenario,
       );
       set({
         m2: nextClock,
@@ -3312,6 +3388,56 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         combatLog: [
           ...state.combatLog,
           makeLog(state.round, "player", phrase("log.m2.douse"), "story"),
+        ],
+      });
+    },
+
+    disruptKeystoneRite: () => {
+      const state = get();
+      if (
+        state.scenario !== "mission2" ||
+        !state.m2 ||
+        state.isBusy ||
+        state.turn !== "player" ||
+        state.outcome !== "ongoing"
+      ) {
+        return;
+      }
+      const selected = state.units.find((u) => u.id === state.selectedUnitId);
+      if (!selected) return;
+      const nextClock = applyDisruptKeystone(state.m2, selected, state.units);
+      if (!nextClock) return;
+      const units = state.units.map((unit) =>
+        unit.id === selected.id ? { ...unit, ap: Math.max(0, unit.ap - 1) } : unit,
+      );
+      const derived = deriveSelectionData(
+        state.grid,
+        units,
+        selected.id,
+        state.weather,
+        state.selectedTargetId,
+        state.fogSnapshot.exploredCoords,
+        state.blastZones,
+        state.fogOfWarEnabled,
+        state.scenario,
+      );
+      playHitSound();
+      set({
+        m2: nextClock,
+        units: derived.units,
+        reachableTiles: derived.reachableTiles,
+        visibleTargets: derived.visibleTargets,
+        visibleMeleeTargets: derived.visibleMeleeTargets,
+        selectedTargetId: derived.selectedTargetId,
+        fogSnapshot: derived.fogSnapshot,
+        combatLog: [
+          ...state.combatLog,
+          makeLog(
+            state.round,
+            "player",
+            phrase("log.m2.disrupt", { unitId: selected.id }),
+            "alert",
+          ),
         ],
       });
     },
@@ -3377,6 +3503,7 @@ subscribeLocale(() => {
       state.fogSnapshot.exploredCoords,
       state.blastZones,
       state.fogOfWarEnabled,
+      state.scenario,
     );
     return {
       units: derived.units,

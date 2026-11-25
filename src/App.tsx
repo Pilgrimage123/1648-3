@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect } from "react";
 import { TacticalScene } from "./components/canvas/TacticalScene";
+import { BaroqueViewportFrame } from "./components/ui/BaroqueViewportFrame";
 import { CombatChronicleFeed } from "./components/ui/CombatChronicleFeed";
 import { MissionStatusChip } from "./components/ui/MissionStatusChip";
 import { TacticalActionRibbon } from "./components/ui/TacticalActionRibbon";
@@ -338,6 +339,9 @@ export default function App() {
         <TacticalScene />
       </div>
 
+      {/* 1b. Periferní barokní zlaté filigránové rohy (pointer-events-none, bez zakrytí středu) */}
+      <BaroqueViewportFrame />
+
       {/* 2. Filmový středový banner změny tahu */}
       <TurnSplashBanner />
 
@@ -546,7 +550,11 @@ export default function App() {
                     ? text("ui.epilogue.m3.defeatMeta", { count: round }, locale)
                     : scenario === "mission2"
                       ? text("ui.epilogue.m2.defeatMeta", { count: round }, locale)
-                      : text("ui.epilogue.defeatMeta", { count: round }, locale)}
+                      : text(
+                          "ui.epilogue.defeatMeta",
+                          { count: round, capture: defeatReason ?? undefined },
+                          locale,
+                        )}
               </div>
             </div>
 

@@ -58,16 +58,22 @@ import {
   TILE_SIZE,
 } from "./worldCoords";
 import {
+  MISSION1_MOON_POSITION,
   MISSION2_SUN_POSITION,
+  skiffPlacement,
   VLTAVA_SUN_SPECULAR_COLOR,
 } from "./diegeticLights";
+import {
+  getBaroqueTextureSet,
+  getBaroqueWaterProfile,
+} from "./baroqueMaterials";
 
 const _dummy = new THREE.Object3D();
 const _color = new THREE.Color();
 const _trimColor = new THREE.Color();
-const _shroudTint = new THREE.Color(0x161d29);
+const _shroudTint = new THREE.Color(0x1c1917);
 const _palaceShroudTint = new THREE.Color(0x5c3d22);
-const _unexploredTint = new THREE.Color(0x06090f);
+const _unexploredTint = new THREE.Color(0x09080a);
 const SMOKE_PUFF_GEO = new THREE.SphereGeometry(1, 12, 10);
 
 interface StairSpan {
@@ -608,42 +614,44 @@ function BaroqueGrandDoublePortal3D({
   const leafWidth = TILE_SIZE * 0.94;
   const leafThickness = 0.09;
 
+  const tex = useMemo(() => getBaroqueTextureSet(), []);
+
   return (
     <group position={[centerX, wy, centerZ]} rotation={[0, isEW ? 0 : Math.PI * 0.5, 0]}>
       {/* Profilované kamenné ostění portálu */}
       <mesh position={[-portalWidth * 0.51, doorHeight * 0.5, 0]} castShadow={!isTransparent}>
         <boxGeometry args={[0.24, doorHeight + 0.16, 0.34]} />
-        <meshStandardMaterial color="#575049" roughness={0.8} transparent={isTransparent} opacity={opacity} />
+        <meshStandardMaterial color="#575049" roughness={0.78} bumpMap={tex.masonryAshlarBump} bumpScale={0.045} transparent={isTransparent} opacity={opacity} />
       </mesh>
       <mesh position={[portalWidth * 0.51, doorHeight * 0.5, 0]} castShadow={!isTransparent}>
         <boxGeometry args={[0.24, doorHeight + 0.16, 0.34]} />
-        <meshStandardMaterial color="#575049" roughness={0.8} transparent={isTransparent} opacity={opacity} />
+        <meshStandardMaterial color="#575049" roughness={0.78} bumpMap={tex.masonryAshlarBump} bumpScale={0.045} transparent={isTransparent} opacity={opacity} />
       </mesh>
       {/* Masivní profilovaný kamenný překlad */}
       <mesh position={[0, doorHeight + 0.08, 0]} castShadow={!isTransparent}>
         <boxGeometry args={[portalWidth + 0.48, 0.22, 0.36]} />
-        <meshStandardMaterial color="#695e54" roughness={0.75} transparent={isTransparent} opacity={opacity} />
+        <meshStandardMaterial color="#695e54" roughness={0.74} bumpMap={tex.masonryAshlarBump} bumpScale={0.04} transparent={isTransparent} opacity={opacity} />
       </mesh>
 
       {/* Rozeklaný barokní fronton s maltézským erbem */}
       <group position={[0, doorHeight + 0.28, 0]}>
         <mesh position={[-portalWidth * 0.28, 0.06, 0]} rotation={[0, 0, 0.16]} castShadow={!isTransparent}>
           <boxGeometry args={[portalWidth * 0.52, 0.12, 0.34]} />
-          <meshStandardMaterial color="#786c62" roughness={0.7} transparent={isTransparent} opacity={opacity} />
+          <meshStandardMaterial color="#786c62" roughness={0.68} bumpMap={tex.masonryAshlarBump} bumpScale={0.035} transparent={isTransparent} opacity={opacity} />
         </mesh>
         <mesh position={[portalWidth * 0.28, 0.06, 0]} rotation={[0, 0, -0.16]} castShadow={!isTransparent}>
           <boxGeometry args={[portalWidth * 0.52, 0.12, 0.34]} />
-          <meshStandardMaterial color="#786c62" roughness={0.7} transparent={isTransparent} opacity={opacity} />
+          <meshStandardMaterial color="#786c62" roughness={0.68} bumpMap={tex.masonryAshlarBump} bumpScale={0.035} transparent={isTransparent} opacity={opacity} />
         </mesh>
         {/* Kamenná kartuše */}
         <mesh position={[0, 0.08, 0.04]} castShadow={!isTransparent}>
           <boxGeometry args={[0.44, 0.38, 0.12]} />
-          <meshStandardMaterial color="#8a7c70" roughness={0.65} transparent={isTransparent} opacity={opacity} />
+          <meshStandardMaterial color="#8a7c70" roughness={0.62} bumpMap={tex.gildedFiligreeBump} bumpScale={0.03} transparent={isTransparent} opacity={opacity} />
         </mesh>
         {/* Zlacený maltézský kříž */}
         <mesh position={[0, 0.08, 0.11]}>
           <boxGeometry args={[0.22, 0.22, 0.04]} />
-          <meshStandardMaterial color="#d4a73f" metalness={0.85} roughness={0.25} />
+          <meshStandardMaterial color="#d4a73f" metalness={0.88} roughness={0.22} bumpMap={tex.gildedFiligreeBump} bumpScale={0.04} />
         </mesh>
       </group>
 
@@ -666,16 +674,16 @@ function BaroqueGrandDoublePortal3D({
           }}
         >
           <boxGeometry args={[leafWidth, doorHeight * 0.96, leafThickness]} />
-          <meshStandardMaterial color={isOpen ? "#453229" : "#38271e"} roughness={0.85} transparent={isTransparent} opacity={opacity} />
+          <meshStandardMaterial color={isOpen ? "#7a573d" : "#6b4c35"} roughness={0.72} bumpMap={tex.carvedWalnutBump} bumpScale={0.045} transparent={isTransparent} opacity={opacity} />
         </mesh>
         {/* Kované pásy pantů */}
         <mesh position={[leafWidth * 0.5, doorHeight * 0.25, leafThickness * 0.52]}>
           <boxGeometry args={[leafWidth * 0.85, 0.05, 0.02]} />
-          <meshStandardMaterial color="#1c1917" metalness={0.85} roughness={0.3} />
+          <meshStandardMaterial color="#292524" metalness={0.85} roughness={0.3} />
         </mesh>
         <mesh position={[leafWidth * 0.5, doorHeight * 0.75, leafThickness * 0.52]}>
           <boxGeometry args={[leafWidth * 0.85, 0.05, 0.02]} />
-          <meshStandardMaterial color="#1c1917" metalness={0.85} roughness={0.3} />
+          <meshStandardMaterial color="#292524" metalness={0.85} roughness={0.3} />
         </mesh>
         {/* Mosazné lví klepadlo */}
         <mesh position={[leafWidth * 0.82, doorHeight * 0.52, leafThickness * 0.55]}>
@@ -703,7 +711,7 @@ function BaroqueGrandDoublePortal3D({
           }}
         >
           <boxGeometry args={[leafWidth, doorHeight * 0.96, leafThickness]} />
-          <meshStandardMaterial color={isOpen ? "#453229" : "#38271e"} roughness={0.85} transparent={isTransparent} opacity={opacity} />
+          <meshStandardMaterial color={isOpen ? "#7a573d" : "#6b4c35"} roughness={0.72} bumpMap={tex.carvedWalnutBump} bumpScale={0.045} transparent={isTransparent} opacity={opacity} />
         </mesh>
         {/* Kované pásy pantů */}
         <mesh position={[-leafWidth * 0.5, doorHeight * 0.25, leafThickness * 0.52]}>
@@ -723,7 +731,7 @@ function BaroqueGrandDoublePortal3D({
 
       {/* Plovoucí interaktivní štítek portálu */}
       {isAdjacent && (
-        <WorldHtml center position={[0, doorHeight + 0.65, 0]} distanceFactor={18} zIndexRange={[12, 0]}>
+        <WorldHtml center position={[0, doorHeight + 0.85, 0]} distanceFactor={18} zIndexRange={[12, 0]}>
           <button
             type="button"
             onClick={(e) => {
@@ -731,7 +739,7 @@ function BaroqueGrandDoublePortal3D({
               onToggle(door.coord);
             }}
             title={text("ui.door.double", { doorId: door.id, open: isOpen }, locale)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg backdrop-blur-md shadow-xl border text-[10px] font-cinzel font-black tracking-wide cursor-pointer transition-all uppercase ${
+            className={`whitespace-nowrap flex items-center gap-1.5 px-2.5 py-1 rounded-lg backdrop-blur-md shadow-xl border text-[9px] font-cinzel font-black tracking-wide cursor-pointer transition-all uppercase ${
               isOpen
                 ? "bg-slate-950/90 border-amber-500/70 text-amber-200 hover:bg-amber-950/80 hover:border-amber-300"
                 : "bg-amber-500/95 border-amber-300 text-slate-950 hover:bg-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.7)]"
@@ -739,12 +747,12 @@ function BaroqueGrandDoublePortal3D({
           >
             {isOpen ? (
               <>
-                <DoorOpen className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <DoorOpen className="w-3 h-3 text-amber-400 shrink-0" />
                 <span>{text("ui.door.closePortal", undefined, locale)}</span>
               </>
             ) : (
               <>
-                <DoorClosed className="w-3.5 h-3.5 text-slate-950 shrink-0" />
+                <DoorClosed className="w-3 h-3 text-slate-950 shrink-0" />
                 <span>{text("ui.door.openPortal", undefined, locale)}</span>
               </>
             )}
@@ -782,14 +790,18 @@ function BaroqueDoor3D({
   const doorWidth = TILE_SIZE * 0.88;
   const doorHeight = FLOOR_HEIGHT * 0.82;
 
+  const tex = useMemo(() => getBaroqueTextureSet(), []);
+
   return (
     <group position={[wx, wy, wz]} rotation={[0, isEW ? 0 : Math.PI * 0.5, 0]}>
       {/* Kamenná zárubeň (Ostění) */}
       <mesh position={[-doorWidth * 0.52, doorHeight * 0.5, 0]} castShadow={!isTransparent}>
         <boxGeometry args={[0.12, doorHeight + 0.1, 0.22]} />
         <meshStandardMaterial
-          color="#575049"
-          roughness={0.8}
+          color="#7d7267"
+          roughness={0.76}
+          bumpMap={tex.masonryAshlarBump}
+          bumpScale={0.04}
           transparent={isTransparent}
           opacity={opacity}
         />
@@ -797,8 +809,10 @@ function BaroqueDoor3D({
       <mesh position={[doorWidth * 0.52, doorHeight * 0.5, 0]} castShadow={!isTransparent}>
         <boxGeometry args={[0.12, doorHeight + 0.1, 0.22]} />
         <meshStandardMaterial
-          color="#575049"
-          roughness={0.8}
+          color="#7d7267"
+          roughness={0.76}
+          bumpMap={tex.masonryAshlarBump}
+          bumpScale={0.04}
           transparent={isTransparent}
           opacity={opacity}
         />
@@ -807,8 +821,10 @@ function BaroqueDoor3D({
       <mesh position={[0, doorHeight + 0.05, 0]} castShadow={!isTransparent}>
         <boxGeometry args={[doorWidth + 0.24, 0.14, 0.24]} />
         <meshStandardMaterial
-          color="#695e54"
-          roughness={0.75}
+          color="#8f8276"
+          roughness={0.72}
+          bumpMap={tex.masonryAshlarBump}
+          bumpScale={0.035}
           transparent={isTransparent}
           opacity={opacity}
         />
@@ -834,8 +850,10 @@ function BaroqueDoor3D({
         >
           <boxGeometry args={[doorWidth * 0.92, doorHeight * 0.95, doorThickness]} />
           <meshStandardMaterial
-            color={isOpen ? "#453229" : "#38271e"}
-            roughness={0.85}
+            color={isOpen ? "#7a573d" : "#6b4c35"}
+            roughness={0.72}
+            bumpMap={tex.carvedWalnutBump}
+            bumpScale={0.045}
             transparent={isTransparent}
             opacity={opacity}
           />
@@ -873,7 +891,7 @@ function BaroqueDoor3D({
               onToggle(door.coord);
             }}
             title={text("ui.door.single", { doorId: door.id, open: isOpen }, locale)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg backdrop-blur-md shadow-lg border text-[10px] font-cinzel font-black tracking-wide cursor-pointer transition-all uppercase ${
+            className={`whitespace-nowrap flex items-center gap-1.5 px-2.5 py-1 rounded-lg backdrop-blur-md shadow-lg border text-[9px] font-cinzel font-black tracking-wide cursor-pointer transition-all uppercase ${
               isOpen
                 ? "bg-slate-950/90 border-amber-500/70 text-amber-200 hover:bg-amber-950/80 hover:border-amber-300"
                 : "bg-amber-500/90 border-amber-300 text-slate-950 hover:bg-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.6)]"
@@ -881,12 +899,12 @@ function BaroqueDoor3D({
           >
             {isOpen ? (
               <>
-                <DoorOpen className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <DoorOpen className="w-3 h-3 text-amber-400 shrink-0" />
                 <span>{text("ui.door.close", undefined, locale)}</span>
               </>
             ) : (
               <>
-                <DoorClosed className="w-3.5 h-3.5 text-slate-950 shrink-0" />
+                <DoorClosed className="w-3 h-3 text-slate-950 shrink-0" />
                 <span>{text("ui.door.open", undefined, locale)}</span>
               </>
             )}
@@ -919,6 +937,7 @@ function BaroqueLivingDecor({
   const flameRefs = useRef<(THREE.Mesh | null)[]>([]);
   const bannerRefs = useRef<(THREE.Mesh | null)[]>([]);
   const mistRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const tex = useMemo(() => getBaroqueTextureSet(), []);
 
   const decoratedPillars = useMemo(
     () => (scenario === "mission1" ? pillars.slice(0, 6) : []),
@@ -963,76 +982,6 @@ function BaroqueLivingDecor({
   );
 
   const mistPatches = useMemo(() => {
-    const baseRiverMist =
-      scenario === "mission2"
-        ? [
-            {
-              x: 4.5,
-              y: 0,
-              z: 8.5,
-              phase: 0.7,
-              baseScale: 1.45,
-              maxScale: 1.45,
-              createdAt: 0,
-              opacity: 0.11,
-            },
-            {
-              x: 4.5,
-              y: 0,
-              z: 18.5,
-              phase: 2.4,
-              baseScale: 1.55,
-              maxScale: 1.55,
-              createdAt: 0,
-              opacity: 0.11,
-            },
-          ]
-        : scenario === "mission3"
-          ? [
-              {
-                x: 4.5,
-                y: 0,
-                z: 9.5,
-                phase: 0.7,
-                baseScale: 1.45,
-                maxScale: 1.45,
-                createdAt: 0,
-                opacity: 0.11,
-              },
-              {
-                x: 4.5,
-                y: 0,
-                z: 12.5,
-                phase: 2.4,
-                baseScale: 1.55,
-                maxScale: 1.55,
-                createdAt: 0,
-                opacity: 0.11,
-              },
-            ]
-          : [
-              {
-                x: 3.2,
-                y: 0,
-                z: 1.8,
-                phase: 0.7,
-                baseScale: 1.45,
-                maxScale: 1.45,
-                createdAt: 0,
-                opacity: 0.11,
-              },
-              {
-                x: 9.5,
-                y: 0,
-                z: 1.5,
-                phase: 2.4,
-                baseScale: 1.55,
-                maxScale: 1.55,
-                createdAt: 0,
-                opacity: 0.11,
-              },
-            ];
-
     const patches: {
       x: number;
       y: number;
@@ -1042,7 +991,7 @@ function BaroqueLivingDecor({
       maxScale: number;
       createdAt: number;
       opacity: number;
-    }[] = [...baseRiverMist];
+    }[] = [];
 
     blastZones.slice(-10).forEach((bz, idx) => {
       patches.push({
@@ -1221,8 +1170,13 @@ function BaroqueLivingDecor({
                 <planeGeometry args={[0.06, TILE_SIZE * 0.96]} />
                 <meshStandardMaterial
                   color="#d4a73f"
-                  metalness={0.75}
-                  roughness={0.28}
+                  metalness={0.82}
+                  roughness={0.26}
+                  bumpMap={tex.gildedFiligreeBump}
+                  bumpScale={0.02}
+                  polygonOffset
+                  polygonOffsetFactor={-1}
+                  polygonOffsetUnits={-1}
                 />
               </mesh>
             )}
@@ -1235,8 +1189,13 @@ function BaroqueLivingDecor({
                 <planeGeometry args={[0.06, TILE_SIZE * 0.96]} />
                 <meshStandardMaterial
                   color="#d4a73f"
-                  metalness={0.75}
-                  roughness={0.28}
+                  metalness={0.82}
+                  roughness={0.26}
+                  bumpMap={tex.gildedFiligreeBump}
+                  bumpScale={0.02}
+                  polygonOffset
+                  polygonOffsetFactor={-1}
+                  polygonOffsetUnits={-1}
                 />
               </mesh>
             )}
@@ -1244,10 +1203,11 @@ function BaroqueLivingDecor({
         );
       })}
 
-      {palacePictureWalls.map((tile) => {
+      {palacePictureWalls.map((tile, pIdx) => {
         const [wx, wy, wz] = gridToWorld(tile.coord);
         const isDamaged = (tile.damageLevel ?? 0) >= 1;
         const tiltZ = isDamaged ? 0.22 : 0;
+        const artMap = tex.paintingTextures[pIdx % tex.paintingTextures.length] ?? null;
         return (
           <group
             key={`palace-art-${tile.coord.x}-${tile.coord.z}`}
@@ -1255,18 +1215,21 @@ function BaroqueLivingDecor({
             rotation={[0, 0, tiltZ]}
           >
             <mesh castShadow raycast={() => null}>
-              <boxGeometry args={[0.78, 0.58, 0.04]} />
+              <boxGeometry args={[0.8, 0.6, 0.045]} />
               <meshStandardMaterial
-                color={isDamaged ? "#57482e" : "#c89d3c"}
-                metalness={0.72}
-                roughness={0.32}
+                color={isDamaged ? "#57482e" : "#d4a73f"}
+                metalness={0.82}
+                roughness={0.28}
+                bumpMap={tex.gildedFiligreeBump}
+                bumpScale={0.04}
               />
             </mesh>
-            <mesh position={[0, 0, 0.024]} raycast={() => null}>
-              <planeGeometry args={[0.64, 0.44]} />
+            <mesh position={[0, 0, 0.025]} raycast={() => null}>
+              <planeGeometry args={[0.66, 0.46]} />
               <meshStandardMaterial
-                color={isDamaged ? "#1f1916" : "#2e1d18"}
-                roughness={0.6}
+                color={isDamaged ? "#7c7066" : "#ffffff"}
+                map={artMap}
+                roughness={0.55}
               />
             </mesh>
           </group>
@@ -1283,13 +1246,13 @@ function BaroqueLivingDecor({
         return (
           <group
             key={`ruin-debris-${tile.coord.x}-${tile.coord.z}`}
-            position={[wx, wy + 0.01, wz]}
+            position={[wx, wy + 0.011, wz]}
             rotation={[0, rotY, 0]}
           >
             {isScorched ? (
               <>
                 <mesh
-                  position={[0, 0.005, 0]}
+                  position={[0, 0.004, 0]}
                   rotation={[-Math.PI * 0.5, 0, 0]}
                   raycast={() => null}
                 >
@@ -1302,15 +1265,22 @@ function BaroqueLivingDecor({
                     opacity={0.75}
                     side={THREE.DoubleSide}
                     depthWrite={false}
+                    polygonOffset
+                    polygonOffsetFactor={-1}
                   />
                 </mesh>
                 <mesh
-                  position={[0.28, 0.02, -0.26]}
+                  position={[0.28, 0.022, -0.26]}
                   rotation={[-Math.PI * 0.5, 0, 0.4]}
                   raycast={() => null}
                 >
-                  <planeGeometry args={[0.22, 0.05]} />
-                  <meshBasicMaterial color="#ea580c" />
+                  <planeGeometry args={[0.24, 0.055]} />
+                  <meshStandardMaterial
+                    color="#f97316"
+                    emissive="#ea580c"
+                    emissiveIntensity={1.9}
+                    roughness={0.4}
+                  />
                 </mesh>
                 <mesh
                   position={[-0.36, 0.045, 0.34]}
@@ -1375,30 +1345,93 @@ function BaroqueLivingDecor({
  */
 function DynamicWaterField({ waterTiles }: { waterTiles: TileData[] }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
+  const grid = useGameStore((s) => s.grid);
+  const gridVersion = useGameStore((s) => s.gridVersion);
   const scenario = useGameStore((s) => s.scenario);
   const weather = useGameStore((s) => s.weather);
   const isMission2 = scenario === "mission2";
+  const tex = useMemo(() => getBaroqueTextureSet(), []);
+  const waterProfile = useMemo(
+    () => getBaroqueWaterProfile(scenario, weather),
+    [scenario, weather],
+  );
 
   const sunDir = useMemo(
     () => new THREE.Vector3(...MISSION2_SUN_POSITION).normalize(),
     [],
   );
+  const moonDir = useMemo(
+    () => new THREE.Vector3(...MISSION1_MOON_POSITION).normalize(),
+    [],
+  );
   const baseCol = useMemo(
-    () => new THREE.Color(isMission2 ? 0x1d5269 : 0x0c3445),
-    [isMission2],
+    () => new THREE.Color(waterProfile.baseHex),
+    [waterProfile.baseHex],
   );
   const waveCol = useMemo(
-    () => new THREE.Color(isMission2 ? 0x1f566e : 0x0d3749),
-    [isMission2],
+    () => new THREE.Color(waterProfile.waveHex),
+    [waterProfile.waveHex],
   );
   const sunGoldCol = useMemo(
     () => new THREE.Color(VLTAVA_SUN_SPECULAR_COLOR),
     [],
   );
+  const moonSilverCol = useMemo(
+    () => new THREE.Color(waterProfile.specularHex),
+    [waterProfile.specularHex],
+  );
+  const dockLanternCol = useMemo(() => new THREE.Color("#f59e0b"), []);
   const tempCol = useMemo(() => new THREE.Color(), []);
   const dummyVec = useMemo(() => new THREE.Vector3(), []);
   const normalVec = useMemo(() => new THREE.Vector3(), []);
   const halfVec = useMemo(() => new THREE.Vector3(), []);
+
+  // Automatically detect every boundary where a water tile meets ground or a wooden dock
+  // so we render a physical 3D stone quay coping curb / timber apron and waterline foam strip.
+  const shoreEdges = useMemo(() => {
+    void gridVersion;
+    const edges: {
+      key: string;
+      wx: number;
+      wy: number;
+      wz: number;
+      rotY: number;
+      isDock: boolean;
+      foamX: number;
+      foamZ: number;
+    }[] = [];
+
+    const dirs = [
+      { dx: 0, dz: -1, ox: 0, oz: -TILE_SIZE * 0.5, rotY: 0, fx: 0, fz: 0.12 },
+      { dx: 0, dz: 1, ox: 0, oz: TILE_SIZE * 0.5, rotY: 0, fx: 0, fz: -0.12 },
+      { dx: -1, dz: 0, ox: -TILE_SIZE * 0.5, oz: 0, rotY: Math.PI * 0.5, fx: 0.12, fz: 0 },
+      { dx: 1, dz: 0, ox: TILE_SIZE * 0.5, oz: 0, rotY: Math.PI * 0.5, fx: -0.12, fz: 0 },
+    ];
+
+    for (const tile of waterTiles) {
+      const [wx, wy, wz] = gridToWorld(tile.coord);
+      for (const d of dirs) {
+        const nt = grid.getTile({
+          x: tile.coord.x + d.dx,
+          y: 0,
+          z: tile.coord.z + d.dz,
+        });
+        if (nt && nt.hasFloor && nt.surface !== "water") {
+          edges.push({
+            key: `shore-${tile.coord.x}-${tile.coord.z}-${d.dx}-${d.dz}`,
+            wx: wx + d.ox,
+            wy,
+            wz: wz + d.oz,
+            rotY: d.rotY,
+            isDock: nt.surface === "wood_dock",
+            foamX: wx + d.ox + d.fx,
+            foamZ: wz + d.oz + d.fz,
+          });
+        }
+      }
+    }
+    return edges;
+  }, [waterTiles, grid, gridVersion]);
 
   useEffect(() => {
     const mesh = meshRef.current;
@@ -1406,14 +1439,16 @@ function DynamicWaterField({ waterTiles }: { waterTiles: TileData[] }) {
 
     waterTiles.forEach((tile, i) => {
       const [wx, wy, wz] = gridToWorld(tile.coord);
-      _dummy.position.set(wx, wy - 0.16, wz);
+      _dummy.position.set(wx, wy - 0.18, wz);
       _dummy.rotation.set(0, 0, 0);
       _dummy.scale.set(1, 1, 1);
       _dummy.updateMatrix();
       mesh.setMatrixAt(i, _dummy.matrix);
 
-      const checker = (tile.coord.x + tile.coord.z) % 2 === 0;
-      tempCol.copy(checker ? baseCol : waveCol);
+      // Continuous spatial wave blend (no checkerboard tile pattern on water)
+      const spatialBlend =
+        0.5 + 0.5 * Math.sin(tile.coord.x * 0.55 + tile.coord.z * 0.45);
+      tempCol.copy(baseCol).lerp(waveCol, spatialBlend);
       mesh.setColorAt(i, tempCol);
     });
     mesh.instanceMatrix.needsUpdate = true;
@@ -1421,102 +1456,171 @@ function DynamicWaterField({ waterTiles }: { waterTiles: TileData[] }) {
     mesh.computeBoundingSphere();
   }, [waterTiles, isMission2, baseCol, waveCol, tempCol]);
 
-  useFrame(({ clock, camera }) => {
+  useFrame(({ clock, camera }, delta) => {
     const mesh = meshRef.current;
     if (!mesh || waterTiles.length === 0) return;
     const t = clock.getElapsedTime();
-    const rainRipples = weather === "rain" ? 1.6 : 1.0;
+    const dt = Math.min(delta, 0.05);
+    const rainRipples = weather === "rain" ? 1.35 : 1.0;
+
+    // Smoothly scroll procedural water ripple bump map in current direction
+    if (tex.waterRippleBump) {
+      tex.waterRippleBump.offset.x =
+        (tex.waterRippleBump.offset.x + waterProfile.scrollSpeedX * dt) % 1;
+      tex.waterRippleBump.offset.y =
+        (tex.waterRippleBump.offset.y + waterProfile.scrollSpeedZ * dt) % 1;
+    }
 
     if (isMission2) {
-      // Vltava: Proud řeky na sever (-Z) + ranní sluneční odlesk (ADR-0018)
-      const weatherSpecular =
-        weather === "clear" ? 1.0 : weather === "rain" ? 0.32 : 0.04;
-
+      // Vltava: Proud řeky na sever (-Z) + klidný ranní sluneční odlesk bez blikání dlaždic (ADR-0018)
       for (let i = 0; i < waterTiles.length; i++) {
         const tile = waterTiles[i]!;
         const [wx, wy, wz] = gridToWorld(tile.coord);
 
-        // Vltava proudí k severu (-Z) s příčnou interferencí vln
-        const flowZ = t * 2.2 * rainRipples - tile.coord.z * 1.35;
-        const crossX = tile.coord.x * 0.85;
-        const wave =
-          Math.sin(flowZ + crossX) * 0.024 +
-          Math.cos(flowZ * 1.5 - crossX * 0.7) * 0.016;
+        const flowZ = t * 1.15 * rainRipples - tile.coord.z * 0.55;
+        const crossX = tile.coord.x * 0.45;
+        const swell =
+          0.5 +
+          0.5 *
+            (Math.sin(flowZ + crossX) * 0.65 +
+              Math.cos(flowZ * 0.8 - crossX * 0.6) * 0.35);
 
-        _dummy.position.set(wx, wy - 0.16 + wave * 0.45, wz);
-        _dummy.rotation.set(0, 0, 0);
-        _dummy.scale.set(1.02, 1, 1.02);
-        _dummy.updateMatrix();
-        mesh.setMatrixAt(i, _dummy.matrix);
+        const dw_dx = Math.cos(flowZ + crossX) * 0.012;
+        const dw_dz = -Math.cos(flowZ + crossX) * 0.016;
+        normalVec.set(-dw_dx * 2.4, 1.0, -dw_dz * 2.4).normalize();
 
-        // Analytický odhad normály pro Fresnelův a zrcadlový třpyt
-        const dw_dx =
-          Math.cos(flowZ + crossX) * 0.85 * 0.024 +
-          Math.sin(flowZ * 1.5 - crossX * 0.7) * 0.7 * 0.016;
-        const dw_dz =
-          -Math.cos(flowZ + crossX) * 1.35 * 0.024 -
-          Math.sin(flowZ * 1.5 - crossX * 0.7) * 2.025 * 0.016;
-        normalVec.set(-dw_dx * 3.5, 1.0, -dw_dz * 3.5).normalize();
-
-        // Pohledový vektor ke kameře
         dummyVec
           .set(camera.position.x - wx, camera.position.y - wy, camera.position.z - wz)
           .normalize();
         halfVec.copy(sunDir).add(dummyVec).normalize();
         const nDotH = Math.max(0, normalVec.dot(halfVec));
-        const specular = Math.pow(nDotH, 18);
+        const specular = Math.pow(nDotH, waterProfile.glintPower);
 
-        // Lokalizace na otevřenou Vltavu: jižní tok (z >= 17) a severní otevřený tok (z <= 9)
         const exposure = tile.coord.z >= 17 ? 1.0 : tile.coord.z <= 9 ? 0.88 : 0.62;
-        const shimmer =
-          Math.sin(t * 4.8 + tile.coord.x * 2.9 + tile.coord.z * 3.1) * 0.15 + 0.85;
-        const glint = Math.min(1.0, specular * exposure * weatherSpecular * shimmer * 1.75);
+        const glint = Math.min(
+          0.42,
+          specular * exposure * waterProfile.glintStrength * 0.55,
+        );
 
-        const checker = (tile.coord.x + tile.coord.z) % 2 === 0;
-        tempCol.copy(checker ? baseCol : waveCol);
+        tempCol.copy(baseCol).lerp(waveCol, swell);
         if (glint > 0.01) {
           tempCol.lerp(sunGoldCol, glint);
         }
         mesh.setColorAt(i, tempCol);
       }
-      mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     } else {
-      // Čertovka v Misi 1: Klidné noční vlnění bez zlatého slunečního třpytu
+      // Čertovka v Misi 1 & 3: Plynulá hluboká říční hladina s jemným odleskem měsíce a lucerny pramice
+      const skiffAnchorX = scenario === "mission3" ? 4.92 : 3.55;
+      const skiffAnchorZ = scenario === "mission3" ? 9.5 : 1.08;
       for (let i = 0; i < waterTiles.length; i++) {
         const tile = waterTiles[i]!;
         const [wx, wy, wz] = gridToWorld(tile.coord);
-        const wave =
-          Math.sin(t * 1.8 * rainRipples + tile.coord.x * 0.85 + tile.coord.z * 1.2) * 0.02 +
-          Math.cos(t * 1.4 * rainRipples + tile.coord.x * 1.2 - tile.coord.z * 0.6) * 0.012;
-        _dummy.position.set(wx, wy - 0.16 + wave, wz);
-        _dummy.rotation.set(0, 0, 0);
-        _dummy.scale.set(1.02, 1, 1.02);
-        _dummy.updateMatrix();
-        mesh.setMatrixAt(i, _dummy.matrix);
+        const swell =
+          0.5 +
+          0.5 *
+            Math.sin(
+              t * 0.95 * rainRipples + tile.coord.x * 0.5 + tile.coord.z * 0.6,
+            );
+
+        normalVec
+          .set(
+            Math.cos(t * 0.9 + tile.coord.x * 0.5) * 0.1,
+            1.0,
+            Math.sin(t * 0.8 + tile.coord.z * 0.6) * 0.1,
+          )
+          .normalize();
+        dummyVec
+          .set(camera.position.x - wx, camera.position.y - wy, camera.position.z - wz)
+          .normalize();
+        halfVec.copy(moonDir).add(dummyVec).normalize();
+        const moonGlint = Math.min(
+          0.32,
+          Math.pow(Math.max(0, normalVec.dot(halfVec)), waterProfile.glintPower) *
+            waterProfile.glintStrength *
+            0.65,
+        );
+
+        tempCol.copy(baseCol).lerp(waveCol, swell);
+        if (moonGlint > 0.01) {
+          tempCol.lerp(moonSilverCol, moonGlint);
+        }
+        const dockDist = Math.hypot(
+          tile.coord.x - skiffAnchorX,
+          tile.coord.z - skiffAnchorZ,
+        );
+        if (dockDist < 2.6) {
+          const lanternGlow =
+            (1 - dockDist / 2.6) *
+            (0.22 + Math.sin(t * 1.8 + tile.coord.x * 0.9) * 0.03);
+          tempCol.lerp(dockLanternCol, lanternGlow);
+        }
+        mesh.setColorAt(i, tempCol);
       }
-      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
   });
 
   if (waterTiles.length === 0) return null;
 
   return (
-    <instancedMesh
-      key={`water-mesh-${waterTiles.length}-${isMission2}`}
-      ref={meshRef}
-      args={[undefined, undefined, waterTiles.length]}
-      receiveShadow
-      raycast={() => null}
-    >
-      <boxGeometry args={[TILE_SIZE * 0.98, 0.12, TILE_SIZE * 0.98]} />
-      <meshStandardMaterial
-        color="#ffffff"
-        roughness={isMission2 ? 0.12 : 0.1}
-        metalness={isMission2 ? 0.32 : 0.35}
-        envMapIntensity={isMission2 ? 2.0 : 1.6}
-      />
-    </instancedMesh>
+    <group>
+      <instancedMesh
+        key={`water-mesh-${waterTiles.length}-${isMission2}`}
+        ref={meshRef}
+        args={[undefined, undefined, waterTiles.length]}
+        receiveShadow
+        raycast={() => null}
+      >
+        <boxGeometry args={[TILE_SIZE, 0.12, TILE_SIZE]} />
+        <meshStandardMaterial
+          color="#ffffff"
+          roughness={waterProfile.roughness}
+          metalness={waterProfile.metalness}
+          envMapIntensity={waterProfile.envMapIntensity}
+          bumpMap={tex.waterRippleBump}
+          bumpScale={waterProfile.bumpScale}
+        />
+      </instancedMesh>
+
+      {/* Physical 3D Sandstone Quay Coping / Oak Dock Apron & Waterline Foam along every river/canal bank */}
+      {shoreEdges.map((edge) => (
+        <group key={edge.key}>
+          <mesh
+            position={[edge.wx, edge.wy - 0.07, edge.wz]}
+            rotation={[0, edge.rotY, 0]}
+            castShadow
+            receiveShadow
+            raycast={() => null}
+          >
+            <boxGeometry args={[TILE_SIZE + 0.08, 0.24, 0.16]} />
+            <meshStandardMaterial
+              color={edge.isDock ? "#5c3d24" : "#7d7060"}
+              roughness={edge.isDock ? 0.78 : 0.82}
+              map={edge.isDock ? undefined : tex.masonryStoneAlbedo}
+              bumpMap={edge.isDock ? tex.carvedWalnutBump : tex.masonryAshlarBump}
+              bumpScale={0.055}
+            />
+          </mesh>
+          <mesh
+            position={[edge.foamX, edge.wy - 0.114, edge.foamZ]}
+            rotation={[-Math.PI * 0.5, 0, edge.rotY]}
+            raycast={() => null}
+          >
+            <planeGeometry args={[TILE_SIZE * 0.98, 0.22]} />
+            <meshBasicMaterial
+              color="#7dd3fc"
+              transparent
+              opacity={0.25}
+              depthWrite={false}
+              polygonOffset
+              polygonOffsetFactor={-1}
+              polygonOffsetUnits={-1}
+            />
+          </mesh>
+        </group>
+      ))}
+    </group>
   );
 }
 
@@ -1538,10 +1642,10 @@ function Mission3Marks() {
           <mesh
             key={`cord-${coord.x}-${coord.y}-${coord.z}`}
             position={[x, y + 0.1, z]}
-            rotation={[-Math.PI / 2, 0, 0]}
+            rotation={[-Math.PI / 2, 0, Math.PI * 0.25]}
             raycast={() => null}
           >
-            <ringGeometry args={[TILE_SIZE * 0.28, TILE_SIZE * 0.38, 4]} />
+            <ringGeometry args={[TILE_SIZE * 0.36, TILE_SIZE * 0.46, 4]} />
             <meshBasicMaterial color="#facc15" transparent opacity={0.9} side={THREE.DoubleSide} depthWrite={false} />
           </mesh>
         );
@@ -1596,6 +1700,7 @@ export function InstancedBattlefield() {
   const scenario = useGameStore((s) => s.scenario);
   const m3 = useGameStore((s) => s.m3);
   const locale = useLocale();
+  const baroqueTex = useMemo(() => getBaroqueTextureSet(), []);
 
   const selectedUnit = units.find((u) => u.id === selectedUnitId);
   const selectedTargetUnit = units.find((u) => u.id === selectedTargetId);
@@ -1841,42 +1946,43 @@ export function InstancedBattlefield() {
       : isMission1 && tile.coord.z >= 15 && tile.coord.x >= 2 && tile.coord.x <= 21;
 
     if (tile.isLadder || (tile.stairType && tHasStair(tile))) {
-      _color.setHex(inPalace ? 0x6e563f : 0x78563c);
+      _color.setHex(inPalace ? 0x80654b : 0x8a6548);
     } else if (tile.surface === "water") {
       if (isMission2) {
-        _color.setHex(checker ? 0x174559 : 0x164357);
+        _color.setHex(checker ? 0x1f566e : 0x1c4f66);
       } else {
-        _color.setHex(checker ? 0x0b3244 : 0x0a3042);
+        _color.setHex(checker ? 0x14465e : 0x123f56);
       }
     } else if (tile.surface === "wood_dock") {
-      _color.setHex(checker ? 0x4a3321 : 0x412c1c);
+      _color.setHex(checker ? 0x5c402a : 0x523824);
     } else if (tile.surface === "scorched_ruin" || dmg >= 2) {
-      _color.setHex(checker ? 0x221a17 : 0x1a1311);
+      _color.setHex(checker ? 0x2c221e : 0x241b18);
     } else if (tile.surface === "rubble" || dmg === 1) {
       if (inPalace || isMission2) {
-        _color.setHex(checker ? 0x4d433b : 0x433a33);
+        _color.setHex(checker ? 0x5c5047 : 0x52473f);
       } else {
-        _color.setHex(checker ? 0x38332f : 0x302b28);
+        _color.setHex(checker ? 0x47413c : 0x3f3935);
       }
     } else if (tile.surface === "palace_carpet") {
-      _color.setHex(checker ? 0x6b2028 : 0x5b1a21);
+      _color.setHex(checker ? 0x7d2831 : 0x6b2129);
     } else if (tile.surface === "stone_floor") {
       if (isMission2 || isMission3) {
         // Staroměstská mostecká věž & Prachový dvůr: pískovcová dlažba
-        _color.setHex(checker ? 0x594d42 : 0x4f443a);
+        _color.setHex(checker ? 0x6b5d50 : 0x5f5246);
       } else {
         // Velkopřevorský palác: teplá leštěná vápencová parketová dlažba
-        _color.setHex(checker ? 0x5c4d42 : 0x504238);
+        _color.setHex(checker ? 0x6e5d50 : 0x615145);
       }
     } else if (tile.surface === "wood_roof") {
-      _color.setHex(checker ? 0x4f3928 : 0x453122);
+      _color.setHex(checker ? 0x5e4531 : 0x543c2a);
     } else if (isMission3) {
+      // Prachový dvůr (Mission 3): teplá zemitá pískovcovo-břidlicová dlažba, jasně odlišená od tyrkysové Čertovky
       const isCordOrLane =
         tile.coord.z === 10 || (tile.coord.x >= 16 && tile.coord.x <= 17);
       if (isCordOrLane) {
-        _color.setHex(checker ? 0x2e3540 : 0x272d37);
+        _color.setHex(checker ? 0x5c5146 : 0x52483e);
       } else {
-        _color.setHex(checker ? 0x262d38 : 0x202630);
+        _color.setHex(checker ? 0x4d443b : 0x433b33);
       }
     } else if (isMission2) {
       // Karlův most (x <= 9): teplá pískovcová dlažba z roku 1648 se středovým vozovým pásem
@@ -1884,20 +1990,21 @@ export function InstancedBattlefield() {
       if (tile.coord.x <= 9) {
         const isBridgeCenterLane = tile.coord.z === 13 || tile.coord.z === 14;
         if (isBridgeCenterLane) {
-          _color.setHex(checker ? 0x756657 : 0x685a4c);
+          _color.setHex(checker ? 0x7e6e5e : 0x716254);
         } else {
-          _color.setHex(checker ? 0x6b5d4f : 0x5e5144);
+          _color.setHex(checker ? 0x746556 : 0x67594c);
         }
       } else {
-        _color.setHex(checker ? 0x544b42 : 0x4a423a);
+        _color.setHex(checker ? 0x61574d : 0x574e45);
       }
     } else {
-      // Chladná deštěm smáčená břidlicová dlažba zahrady v měsíčním svitu (kontrast k teplému paláci)
+      // Zahrada Velkopřevorského paláce (Mission 1): teplá zemitá malostranská dlažba a udusaná hlína,
+      // kontrastující s hlubokou modrozelenou hladinou Čertovky (z=0..2)
       const isCarriagePath = tile.coord.x >= 8 && tile.coord.x <= 11;
       if (isCarriagePath) {
-        _color.setHex(checker ? 0x222936 : 0x1c222e);
+        _color.setHex(checker ? 0x594f45 : 0x4f463d);
       } else {
-        _color.setHex(checker ? 0x18202c : 0x141b25);
+        _color.setHex(checker ? 0x4a4239 : 0x403931);
       }
     }
 
@@ -1908,19 +2015,19 @@ export function InstancedBattlefield() {
     if (fogVis === "shrouded") {
       if (inPalace && !isMission2) {
         // Uvnitř Velkopřevorského paláce hoří lustry a svícny: paměť pokojů si drží teplý zlatavý šerosvit
-        _color.lerp(_palaceShroudTint, 0.16);
-        _color.multiplyScalar(0.84);
+        _color.lerp(_palaceShroudTint, 0.12);
+        _color.multiplyScalar(0.9);
       } else {
-        _color.lerp(_shroudTint, 0.34);
-        _color.multiplyScalar(0.5);
+        _color.lerp(_shroudTint, 0.22);
+        _color.multiplyScalar(0.76);
       }
     } else if (fogVis === "unexplored") {
       if (tile.coord.y > 0) {
         // Floor Cutaway Fog Blackout (ADR-0010): Neprozkoumaná horní patra jsou černočerná Terra Incognita
         _color.setHex(0x020305);
       } else {
-        _color.lerp(_unexploredTint, 0.58);
-        _color.multiplyScalar(0.26);
+        _color.lerp(_unexploredTint, 0.35);
+        _color.multiplyScalar(0.52);
       }
     }
   };
@@ -2036,18 +2143,18 @@ export function InstancedBattlefield() {
         const fogVis = getTileVisibility(tile.coord, fogSnapshot, fogOfWarEnabled);
         if (fogVis === "shrouded") {
           if (tile.coord.z >= 15 && scenario === "mission1") {
-            _color.lerp(_palaceShroudTint, 0.14);
-            _color.multiplyScalar(0.84);
+            _color.lerp(_palaceShroudTint, 0.12);
+            _color.multiplyScalar(0.9);
           } else {
-            _color.lerp(_shroudTint, 0.32);
-            _color.multiplyScalar(0.5);
+            _color.lerp(_shroudTint, 0.22);
+            _color.multiplyScalar(0.76);
           }
         } else if (fogVis === "unexplored") {
           if (tile.coord.y > 0) {
             _color.setHex(0x020305);
           } else {
-            _color.lerp(_unexploredTint, 0.55);
-            _color.multiplyScalar(0.24);
+            _color.lerp(_unexploredTint, 0.35);
+            _color.multiplyScalar(0.52);
           }
         }
         mesh.setColorAt(i, _color);
@@ -2209,37 +2316,37 @@ export function InstancedBattlefield() {
         const isM3 = scenario === "mission3";
         if (front) {
           _color.setHex(
-            dmg >= 2 ? 0x2b231f : isM2 || isM3 ? 0x857865 : 0x9c8b7a,
+            dmg >= 2 ? 0x2b231f : isM2 || isM3 ? 0x8d806d : 0xa39281,
           );
         } else if (isM2) {
           _color.setHex(
-            dmg >= 2 ? 0x2b231f : dmg === 1 ? 0x5d5347 : 0x766a59,
+            dmg >= 2 ? 0x2b231f : dmg === 1 ? 0x685d50 : 0x827563,
           );
         } else if (isM3) {
           _color.setHex(
-            dmg >= 2 ? 0x2b231f : dmg === 1 ? 0x584e43 : 0x6e6254,
+            dmg >= 2 ? 0x2b231f : dmg === 1 ? 0x63584c : 0x7b6e5f,
           );
         } else {
           if (dmg >= 2) _color.setHex(0x2b231f);
-          else if (isM1 && tile.coord.z >= 15) _color.setHex(dmg === 1 ? 0x6b6057 : 0x8f8274);
-          else _color.setHex(dmg === 1 ? 0x3d3833 : 0x4e4841);
+          else if (isM1 && tile.coord.z >= 15) _color.setHex(dmg === 1 ? 0x73685e : 0x96897b);
+          else _color.setHex(dmg === 1 ? 0x504942 : 0x635b52);
         }
 
         const fogVis = getTileVisibility(tile.coord, fogSnapshot, fogOfWarEnabled);
         if (fogVis === "shrouded") {
           if (tile.coord.z >= 15 && scenario === "mission1") {
-            _color.lerp(_palaceShroudTint, 0.14);
-            _color.multiplyScalar(0.84);
+            _color.lerp(_palaceShroudTint, 0.12);
+            _color.multiplyScalar(0.9);
           } else {
-            _color.lerp(_shroudTint, 0.32);
-            _color.multiplyScalar(0.5);
+            _color.lerp(_shroudTint, 0.22);
+            _color.multiplyScalar(0.76);
           }
         } else if (fogVis === "unexplored") {
           if (tile.coord.y > 0) {
             _color.setHex(0x020305);
           } else {
-            _color.lerp(_unexploredTint, 0.55);
-            _color.multiplyScalar(0.24);
+            _color.lerp(_unexploredTint, 0.35);
+            _color.multiplyScalar(0.52);
           }
         }
         mesh.setColorAt(i, _color);
@@ -2396,6 +2503,9 @@ export function InstancedBattlefield() {
     let rimIdx = 0;
 
     for (const tile of activeTiles) {
+      // Never draw ground-level fog-of-war square tiles over recessed river/canal water
+      if (tile.surface === "water") continue;
+
       const vis = getTileVisibility(tile.coord, fogSnapshot, fogOfWarEnabled);
       const [wx, wy, wz] = gridToWorld(tile.coord);
 
@@ -2419,7 +2529,7 @@ export function InstancedBattlefield() {
         if (!isShroudedPalaceInterior && (!isReachableOnViewFloor || vis === "unexplored") && veilIdx < veilCap) {
           _dummy.position.set(
             wx,
-            wy + (vis === "unexplored" ? 0.08 : 0.045),
+            wy + (vis === "unexplored" ? 0.065 : 0.04),
             wz,
           );
           _dummy.rotation.set(-Math.PI * 0.5, 0, 0);
@@ -2434,9 +2544,9 @@ export function InstancedBattlefield() {
           veilMesh.setMatrixAt(veilIdx, _dummy.matrix);
 
           if (vis === "unexplored") {
-            _color.setHex(0x04070d);
+            _color.setHex(0x050608);
           } else {
-            _color.setHex(0x0f172a);
+            _color.setHex(0x141312);
           }
           veilMesh.setColorAt(veilIdx, _color);
           veilIdx++;
@@ -2451,13 +2561,13 @@ export function InstancedBattlefield() {
         ];
         const bordersShadow = neighbors.some((nc) => {
           const nt = grid.getTile(nc);
-          if (!nt || !nt.hasFloor) return false;
+          if (!nt || !nt.hasFloor || nt.surface === "water") return false;
           return !fogSnapshot.visibleCoords.has(coordKey(nc));
         });
 
         if (bordersShadow) {
-          _dummy.position.set(wx, wy + 0.022, wz);
-          _dummy.rotation.set(-Math.PI * 0.5, 0, 0);
+          _dummy.position.set(wx, wy + 0.024, wz);
+          _dummy.rotation.set(-Math.PI * 0.5, 0, Math.PI * 0.25);
           _dummy.scale.set(0.96, 0.96, 1);
           _dummy.updateMatrix();
           rimMesh.setMatrixAt(rimIdx, _dummy.matrix);
@@ -2513,7 +2623,7 @@ export function InstancedBattlefield() {
       mesh.count = tiles.length;
       tiles.forEach((coord, i) => {
         const [wx, wy, wz] = gridToWorld(coord);
-        _dummy.position.set(wx, wy + 0.028, wz);
+        _dummy.position.set(wx, wy + 0.032, wz);
         _dummy.rotation.set(-Math.PI * 0.5, 0, 0);
         _dummy.scale.set(0.92, 0.92, 1);
         _dummy.updateMatrix();
@@ -2555,7 +2665,7 @@ export function InstancedBattlefield() {
     mesh.count = clampedFiltered.length;
     clampedFiltered.forEach((item, i) => {
       const [wx, wy, wz] = gridToWorld(item.coord);
-      _dummy.position.set(wx, wy + 0.028, wz);
+      _dummy.position.set(wx, wy + 0.032, wz);
       _dummy.rotation.set(-Math.PI * 0.5, 0, 0);
       const isCurrentViewFloor = item.coord.y === effectiveViewFloor;
       const activeTileAtXZ = grid.getTile({
@@ -2810,7 +2920,13 @@ export function InstancedBattlefield() {
         onContextMenu={(e) => onFloorContextMenu(e, groundFloorTiles, 0)}
       >
         <boxGeometry args={[TILE_SIZE * 0.96, 0.16, TILE_SIZE * 0.96]} />
-        <meshStandardMaterial roughness={0.86} metalness={0.08} />
+        <meshStandardMaterial
+          roughness={0.86}
+          metalness={0.05}
+          map={baroqueTex.floorParquetAlbedo}
+          bumpMap={baroqueTex.floorMicroReliefBump}
+          bumpScale={0.018}
+        />
       </instancedMesh>
 
       {/* 2. 1st Floor (y = 1: Piano Nobile & Garden Belvedere) with Clean Cutaway */}
@@ -2830,7 +2946,10 @@ export function InstancedBattlefield() {
         <boxGeometry args={[TILE_SIZE * 0.96, 0.16, TILE_SIZE * 0.96]} />
         <meshStandardMaterial
           roughness={0.78}
-          metalness={0.08}
+          metalness={0.06}
+          map={baroqueTex.floorParquetAlbedo}
+          bumpMap={baroqueTex.floorMicroReliefBump}
+          bumpScale={0.018}
           transparent={upperCutaway}
           opacity={upperCutaway ? 0.04 : 1}
           depthWrite={!upperCutaway}
@@ -2855,7 +2974,10 @@ export function InstancedBattlefield() {
         <boxGeometry args={[TILE_SIZE * 0.96, 0.16, TILE_SIZE * 0.96]} />
         <meshStandardMaterial
           roughness={0.78}
-          metalness={0.08}
+          metalness={0.06}
+          map={baroqueTex.floorParquetAlbedo}
+          bumpMap={baroqueTex.floorMicroReliefBump}
+          bumpScale={0.018}
           transparent={watchtowerCutaway}
           opacity={watchtowerCutaway ? 0.04 : 1}
           depthWrite={!watchtowerCutaway}
@@ -2872,7 +2994,13 @@ export function InstancedBattlefield() {
         raycast={() => null}
       >
         <boxGeometry args={[TILE_SIZE * 0.84, 0.82, TILE_SIZE * 0.84]} />
-        <meshStandardMaterial roughness={0.72} metalness={0.14} />
+        <meshStandardMaterial
+          roughness={0.76}
+          metalness={0.1}
+          map={baroqueTex.masonryStoneAlbedo}
+          bumpMap={baroqueTex.masonryAshlarBump}
+          bumpScale={0.085}
+        />
       </instancedMesh>
       <instancedMesh
         ref={low0CapMeshRef}
@@ -2883,7 +3011,13 @@ export function InstancedBattlefield() {
         raycast={() => null}
       >
         <boxGeometry args={[TILE_SIZE * 0.92, 0.09, TILE_SIZE * 0.92]} />
-        <meshStandardMaterial roughness={0.55} metalness={0.28} />
+        <meshStandardMaterial
+          roughness={0.38}
+          metalness={0.48}
+          envMapIntensity={1.85}
+          bumpMap={baroqueTex.gildedFiligreeBump}
+          bumpScale={0.04}
+        />
       </instancedMesh>
 
       {/* 4. Ground Floor High Baroque Masonry Walls */}
@@ -2896,7 +3030,13 @@ export function InstancedBattlefield() {
         raycast={() => null}
       >
         <boxGeometry args={[TILE_SIZE * 0.96, FLOOR_HEIGHT, TILE_SIZE * 0.96]} />
-        <meshStandardMaterial roughness={0.75} metalness={0.14} />
+        <meshStandardMaterial
+          roughness={0.78}
+          metalness={0.08}
+          map={baroqueTex.masonryStoneAlbedo}
+          bumpMap={baroqueTex.masonryAshlarBump}
+          bumpScale={0.085}
+        />
       </instancedMesh>
       <instancedMesh
         ref={high0TrimRef}
@@ -2907,7 +3047,13 @@ export function InstancedBattlefield() {
         raycast={() => null}
       >
         <boxGeometry args={[TILE_SIZE * 1.03, 0.14, TILE_SIZE * 1.03]} />
-        <meshStandardMaterial roughness={0.7} metalness={0.1} />
+        <meshStandardMaterial
+          roughness={0.64}
+          metalness={0.2}
+          map={baroqueTex.masonryStoneAlbedo}
+          bumpMap={baroqueTex.masonryAshlarBump}
+          bumpScale={0.05}
+        />
       </instancedMesh>
       <instancedMesh
         ref={high1TrimRef}
@@ -2919,8 +3065,11 @@ export function InstancedBattlefield() {
       >
         <boxGeometry args={[TILE_SIZE * 1.03, 0.14, TILE_SIZE * 1.03]} />
         <meshStandardMaterial
-          roughness={0.7}
-          metalness={0.1}
+          roughness={0.64}
+          metalness={0.2}
+          map={baroqueTex.masonryStoneAlbedo}
+          bumpMap={baroqueTex.masonryAshlarBump}
+          bumpScale={0.05}
           transparent={upperCutaway}
           opacity={upperCutaway ? 0.04 : 1}
           depthWrite={!upperCutaway}
@@ -2936,15 +3085,18 @@ export function InstancedBattlefield() {
       >
         <boxGeometry args={[TILE_SIZE * 1.03, 0.14, TILE_SIZE * 1.03]} />
         <meshStandardMaterial
-          roughness={0.7}
-          metalness={0.1}
+          roughness={0.64}
+          metalness={0.2}
+          map={baroqueTex.masonryStoneAlbedo}
+          bumpMap={baroqueTex.masonryAshlarBump}
+          bumpScale={0.05}
           transparent={watchtowerCutaway}
           opacity={watchtowerCutaway ? 0.04 : 1}
           depthWrite={!watchtowerCutaway}
         />
       </instancedMesh>
 
-      {/* 5. Ground Floor Baroque Pillars + Gilded Corinthian Capitals */}
+      {/* 5. Ground Floor Fluted Baroque Pillars + Chased Gilded Corinthian Capitals */}
       <instancedMesh
         ref={pillar0MeshRef}
         args={[undefined, undefined, 64]}
@@ -2953,8 +3105,13 @@ export function InstancedBattlefield() {
         receiveShadow
         raycast={() => null}
       >
-        <cylinderGeometry args={[0.44, 0.54, FLOOR_HEIGHT, 14]} />
-        <meshStandardMaterial roughness={0.58} metalness={0.2} />
+        <cylinderGeometry args={[0.44, 0.54, FLOOR_HEIGHT, 16]} />
+        <meshStandardMaterial
+          roughness={0.56}
+          metalness={0.18}
+          bumpMap={baroqueTex.flutedColumnBump}
+          bumpScale={0.085}
+        />
       </instancedMesh>
       <instancedMesh
         ref={pillar0CapMeshRef}
@@ -2965,7 +3122,13 @@ export function InstancedBattlefield() {
         raycast={() => null}
       >
         <boxGeometry args={[1.12, 0.24, 1.12]} />
-        <meshStandardMaterial roughness={0.45} metalness={0.38} />
+        <meshStandardMaterial
+          roughness={0.26}
+          metalness={0.72}
+          envMapIntensity={2.1}
+          bumpMap={baroqueTex.gildedFiligreeBump}
+          bumpScale={0.06}
+        />
       </instancedMesh>
 
       {/* 5b. Ground Floor Explosive Powder Kegs */}
@@ -2978,7 +3141,12 @@ export function InstancedBattlefield() {
         raycast={() => null}
       >
         <cylinderGeometry args={[0.35, 0.32, 0.72, 14]} />
-        <meshStandardMaterial roughness={0.5} metalness={0.35} />
+        <meshStandardMaterial
+          roughness={0.52}
+          metalness={0.35}
+          bumpMap={baroqueTex.carvedWalnutBump}
+          bumpScale={0.05}
+        />
       </instancedMesh>
 
       {/* 6. 1st Floor (Piano Nobile) Obstacles: Balustrades, Gilded Coping, High Stucco Walls & Corinthian Pillars */}
@@ -2992,8 +3160,11 @@ export function InstancedBattlefield() {
       >
         <boxGeometry args={[TILE_SIZE * 0.85, 0.84, TILE_SIZE * 0.85]} />
         <meshStandardMaterial
-          roughness={0.72}
-          metalness={0.14}
+          roughness={0.76}
+          metalness={0.1}
+          map={baroqueTex.masonryStoneAlbedo}
+          bumpMap={baroqueTex.masonryAshlarBump}
+          bumpScale={0.08}
           transparent={upperCutaway}
           opacity={upperCutaway ? 0.04 : 1}
           depthWrite={!upperCutaway}
@@ -3009,8 +3180,11 @@ export function InstancedBattlefield() {
       >
         <boxGeometry args={[TILE_SIZE * 0.92, 0.09, TILE_SIZE * 0.92]} />
         <meshStandardMaterial
-          roughness={0.48}
-          metalness={0.35}
+          roughness={0.32}
+          metalness={0.64}
+          envMapIntensity={2.0}
+          bumpMap={baroqueTex.gildedFiligreeBump}
+          bumpScale={0.04}
           transparent={upperCutaway}
           opacity={upperCutaway ? 0.04 : 1}
           depthWrite={!upperCutaway}
@@ -3027,8 +3201,11 @@ export function InstancedBattlefield() {
       >
         <boxGeometry args={[TILE_SIZE * 0.96, FLOOR_HEIGHT, TILE_SIZE * 0.96]} />
         <meshStandardMaterial
-          roughness={0.72}
-          metalness={0.14}
+          roughness={0.76}
+          metalness={0.08}
+          map={baroqueTex.masonryStoneAlbedo}
+          bumpMap={baroqueTex.masonryAshlarBump}
+          bumpScale={0.085}
           transparent={upperCutaway}
           opacity={upperCutaway ? 0.04 : 1}
           depthWrite={!upperCutaway}
@@ -3043,10 +3220,12 @@ export function InstancedBattlefield() {
         receiveShadow
         raycast={() => null}
       >
-        <cylinderGeometry args={[0.42, 0.48, 2.0, 14]} />
+        <cylinderGeometry args={[0.42, 0.48, 2.0, 16]} />
         <meshStandardMaterial
-          roughness={0.58}
-          metalness={0.2}
+          roughness={0.56}
+          metalness={0.18}
+          bumpMap={baroqueTex.flutedColumnBump}
+          bumpScale={0.085}
           transparent={upperCutaway}
           opacity={upperCutaway ? 0.04 : 1}
           depthWrite={!upperCutaway}
@@ -3062,8 +3241,11 @@ export function InstancedBattlefield() {
       >
         <boxGeometry args={[1.06, 0.22, 1.06]} />
         <meshStandardMaterial
-          roughness={0.42}
-          metalness={0.42}
+          roughness={0.26}
+          metalness={0.74}
+          envMapIntensity={2.1}
+          bumpMap={baroqueTex.gildedFiligreeBump}
+          bumpScale={0.06}
           transparent={upperCutaway}
           opacity={upperCutaway ? 0.04 : 1}
           depthWrite={!upperCutaway}
@@ -3081,7 +3263,10 @@ export function InstancedBattlefield() {
       >
         <boxGeometry args={[TILE_SIZE * 0.85, 0.84, TILE_SIZE * 0.85]} />
         <meshStandardMaterial
-          roughness={0.75}
+          roughness={0.76}
+          map={baroqueTex.masonryStoneAlbedo}
+          bumpMap={baroqueTex.masonryAshlarBump}
+          bumpScale={0.085}
           transparent={watchtowerCutaway}
           opacity={watchtowerCutaway ? 0.04 : 1}
           depthWrite={!watchtowerCutaway}
@@ -3098,8 +3283,11 @@ export function InstancedBattlefield() {
       >
         <boxGeometry args={[TILE_SIZE * 0.96, FLOOR_HEIGHT, TILE_SIZE * 0.96]} />
         <meshStandardMaterial
-          roughness={0.72}
-          metalness={0.14}
+          roughness={0.76}
+          metalness={0.1}
+          map={baroqueTex.masonryStoneAlbedo}
+          bumpMap={baroqueTex.masonryAshlarBump}
+          bumpScale={0.085}
           transparent={watchtowerCutaway}
           opacity={watchtowerCutaway ? 0.04 : 1}
           depthWrite={!watchtowerCutaway}
@@ -3114,9 +3302,12 @@ export function InstancedBattlefield() {
         receiveShadow
         raycast={() => null}
       >
-        <cylinderGeometry args={[0.42, 0.48, 2.0, 12]} />
+        <cylinderGeometry args={[0.42, 0.48, 2.0, 14]} />
         <meshStandardMaterial
-          roughness={0.65}
+          roughness={0.6}
+          metalness={0.18}
+          bumpMap={baroqueTex.flutedColumnBump}
+          bumpScale={0.08}
           transparent={watchtowerCutaway}
           opacity={watchtowerCutaway ? 0.04 : 1}
           depthWrite={!watchtowerCutaway}
@@ -3143,9 +3334,12 @@ export function InstancedBattlefield() {
         <planeGeometry args={[TILE_SIZE * 0.98, TILE_SIZE * 0.98]} />
         <meshBasicMaterial
           transparent
-          opacity={0.44}
+          opacity={0.22}
           side={THREE.DoubleSide}
           depthWrite={false}
+          polygonOffset
+          polygonOffsetFactor={-2}
+          polygonOffsetUnits={-2}
         />
       </instancedMesh>
 
@@ -3154,12 +3348,15 @@ export function InstancedBattlefield() {
         args={[undefined, undefined, 1024]}
         raycast={() => null}
       >
-        <ringGeometry args={[TILE_SIZE * 0.43, TILE_SIZE * 0.49, 4]} />
+        <ringGeometry args={[TILE_SIZE * 0.6, TILE_SIZE * 0.66, 4]} />
         <meshBasicMaterial
           transparent
-          opacity={0.28}
+          opacity={0.26}
           side={THREE.DoubleSide}
           depthWrite={false}
+          polygonOffset
+          polygonOffsetFactor={-1}
+          polygonOffsetUnits={-1}
         />
       </instancedMesh>
 
@@ -3175,6 +3372,9 @@ export function InstancedBattlefield() {
           opacity={actionMode === "lay" ? 0.35 : 0.42}
           side={THREE.DoubleSide}
           depthWrite={false}
+          polygonOffset
+          polygonOffsetFactor={-2}
+          polygonOffsetUnits={-2}
         />
       </instancedMesh>
 
@@ -3381,73 +3581,180 @@ export function InstancedBattlefield() {
         );
       })}
 
-      {/* 8b. 3D Rybářská pramice (Fisherman's Skiff at Čertovka - bound to escape zone tile in Mission 1) */}
+      {/* 8b. 3D Rybářská pramice (Fisherman's Skiff on the Čertovka canal - moored in the water beside the wooden dock) */}
       {escapeTile && (() => {
-        const boatX = escapeTile.coord.x - 0.55;
-        const boatZ = escapeTile.coord.z;
+        const { boatX, boatZ, yaw, mooringX, mooringZ } = skiffPlacement(escapeTile.coord);
         const [bx, by, bz] = continuousGridToWorld(boatX, 0, boatZ);
+        const [mx, my, mz] = continuousGridToWorld(mooringX, 0, mooringZ);
+        const bowWorldX = bx + 1.05 * Math.sin(yaw);
+        const bowWorldZ = bz + 1.05 * Math.cos(yaw);
         return (
-          <group position={[bx, by - 0.05, bz]} rotation={[0, 0.25, 0]}>
-            <mesh position={[0, 0.12, 0]} castShadow receiveShadow>
-              <boxGeometry args={[0.9, 0.42, 2.2]} />
-              <meshStandardMaterial color="#5c3821" roughness={0.8} />
-            </mesh>
-            <mesh position={[0, 0.18, 0]}>
-              <boxGeometry args={[0.74, 0.36, 1.95]} />
-              <meshStandardMaterial color="#3d2414" roughness={0.9} />
-            </mesh>
-            <mesh position={[0, 0.22, 0.32]}>
-              <boxGeometry args={[0.74, 0.08, 0.22]} />
-              <meshStandardMaterial color="#78472a" roughness={0.7} />
-            </mesh>
-            <mesh position={[0, 0.22, -0.42]}>
-              <boxGeometry args={[0.74, 0.08, 0.22]} />
-              <meshStandardMaterial color="#78472a" roughness={0.7} />
-            </mesh>
-            <mesh position={[0.44, 0.3, 0]} rotation={[0.2, 0, -0.38]} castShadow>
-              <cylinderGeometry args={[0.025, 0.025, 1.7, 6]} />
-              <meshStandardMaterial color="#b45309" roughness={0.6} />
-            </mesh>
-            <group position={[0, 0.42, 1.05]}>
-              <mesh>
-                <boxGeometry args={[0.14, 0.2, 0.14]} />
+          <group>
+            {/* Wooden mooring bollard post on the dock edge + hemp mooring line to skiff bow */}
+            <group position={[mx, my, mz]}>
+              <mesh position={[0, 0.16, 0]} castShadow receiveShadow raycast={() => null}>
+                <cylinderGeometry args={[0.075, 0.095, 0.34, 8]} />
                 <meshStandardMaterial
-                  color="#f59e0b"
-                  emissive="#fbbf24"
-                  emissiveIntensity={
-                    (escapeTile &&
-                    (grid.getTile(escapeTile.coord)?.damageLevel ?? 0) >= 2)
-                      ? 0
-                      : 2.4
-                  }
+                  color="#4a301d"
+                  roughness={0.85}
+                  bumpMap={baroqueTex.carvedWalnutBump}
+                  bumpScale={0.04}
                 />
               </mesh>
+              <mesh position={[0, 0.24, 0]} rotation={[Math.PI * 0.5, 0, 0]} raycast={() => null}>
+                <torusGeometry args={[0.085, 0.022, 6, 12]} />
+                <meshStandardMaterial color="#b89768" roughness={0.9} />
+              </mesh>
             </group>
-            <mesh position={[0, -0.04, 0]} rotation={[-Math.PI * 0.5, 0, 0]}>
-              <ringGeometry args={[1.1, 1.35, 24]} />
-              <meshBasicMaterial
-                color="#facc15"
-                transparent
-                opacity={0.8}
-                side={THREE.DoubleSide}
-              />
-            </mesh>
-            {!isBeaconOnSkiff && (
-              <WorldHtml
-                center
-                position={[0, 1.15, 0]}
-                distanceFactor={18}
-                zIndexRange={[8, 0]}
-                style={{ pointerEvents: "none" }}
+            <Line
+              points={[
+                [mx, my + 0.22, mz],
+                [bowWorldX, by + 0.12, bowWorldZ],
+              ]}
+              color="#c2a378"
+              lineWidth={2}
+            />
+
+            {/* Skiff hull floating in the Čertovka water alongside the pier */}
+            <group position={[bx, by - 0.15, bz]} rotation={[0, yaw, 0]}>
+              {/* Main flat-bottomed oak hull */}
+              <mesh position={[0, 0.12, 0]} castShadow receiveShadow raycast={() => null}>
+                <boxGeometry args={[0.84, 0.34, 1.88]} />
+                <meshStandardMaterial
+                  color="#5c3821"
+                  roughness={0.78}
+                  bumpMap={baroqueTex.carvedWalnutBump}
+                  bumpScale={0.045}
+                />
+              </mesh>
+              {/* Tapered bow & stern prows */}
+              <mesh
+                position={[0, 0.14, 1.02]}
+                rotation={[0, Math.PI * 0.25, 0]}
+                castShadow
+                receiveShadow
+                raycast={() => null}
               >
-                <div className="pointer-events-none select-none flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-950/95 border border-amber-400 text-amber-300 font-cinzel font-black text-[11px] uppercase tracking-wider shadow-[0_0_20px_rgba(251,191,36,0.5)] backdrop-blur-md whitespace-nowrap">
-                  <span>⛵</span>
-                  <span>
-                    {text(scenario === "mission3" ? "ui.boat.m3" : "ui.boat.certovka", undefined, locale)}
-                  </span>
-                </div>
-              </WorldHtml>
-            )}
+                <boxGeometry args={[0.58, 0.34, 0.58]} />
+                <meshStandardMaterial
+                  color="#4f2f1b"
+                  roughness={0.8}
+                  bumpMap={baroqueTex.carvedWalnutBump}
+                  bumpScale={0.04}
+                />
+              </mesh>
+              <mesh
+                position={[0, 0.14, -1.02]}
+                rotation={[0, Math.PI * 0.25, 0]}
+                castShadow
+                receiveShadow
+                raycast={() => null}
+              >
+                <boxGeometry args={[0.58, 0.34, 0.58]} />
+                <meshStandardMaterial
+                  color="#4f2f1b"
+                  roughness={0.8}
+                  bumpMap={baroqueTex.carvedWalnutBump}
+                  bumpScale={0.04}
+                />
+              </mesh>
+              {/* Hollowed bilge interior */}
+              <mesh position={[0, 0.19, 0]} raycast={() => null}>
+                <boxGeometry args={[0.68, 0.26, 1.66]} />
+                <meshStandardMaterial color="#361f11" roughness={0.92} />
+              </mesh>
+              {/* Rowing thwarts (benches) */}
+              <mesh position={[0, 0.24, 0.34]} castShadow raycast={() => null}>
+                <boxGeometry args={[0.72, 0.06, 0.22]} />
+                <meshStandardMaterial
+                  color="#78472a"
+                  roughness={0.72}
+                  bumpMap={baroqueTex.carvedWalnutBump}
+                  bumpScale={0.035}
+                />
+              </mesh>
+              <mesh position={[0, 0.24, -0.38]} castShadow raycast={() => null}>
+                <boxGeometry args={[0.72, 0.06, 0.22]} />
+                <meshStandardMaterial
+                  color="#78472a"
+                  roughness={0.72}
+                  bumpMap={baroqueTex.carvedWalnutBump}
+                  bumpScale={0.035}
+                />
+              </mesh>
+              {/* Wooden oar resting across gunwale */}
+              <mesh position={[0.38, 0.28, -0.05]} rotation={[0.18, 0.08, -0.22]} castShadow raycast={() => null}>
+                <cylinderGeometry args={[0.022, 0.024, 1.65, 6]} />
+                <meshStandardMaterial color="#9a5b25" roughness={0.68} />
+              </mesh>
+              {/* Iron bow lantern post & warm amber beacon lantern */}
+              <group position={[0, 0.44, 1.05]}>
+                <mesh position={[0, -0.14, 0]} raycast={() => null}>
+                  <cylinderGeometry args={[0.02, 0.024, 0.24, 6]} />
+                  <meshStandardMaterial color="#27272a" metalness={0.82} roughness={0.35} />
+                </mesh>
+                <mesh raycast={() => null}>
+                  <boxGeometry args={[0.14, 0.2, 0.14]} />
+                  <meshStandardMaterial
+                    color="#f59e0b"
+                    emissive="#fbbf24"
+                    emissiveIntensity={
+                      escapeTile &&
+                      (grid.getTile(escapeTile.coord)?.damageLevel ?? 0) >= 2
+                        ? 0
+                        : 2.4
+                    }
+                  />
+                </mesh>
+              </group>
+              {/* Subtle natural waterline ripple rings hugging the floating hull */}
+              <mesh
+                position={[0, 0.035, 0]}
+                rotation={[-Math.PI * 0.5, 0, 0]}
+                scale={[0.68, 1.25, 1]}
+                raycast={() => null}
+              >
+                <ringGeometry args={[0.78, 0.92, 24]} />
+                <meshBasicMaterial
+                  color="#7dd3fc"
+                  transparent
+                  opacity={0.32}
+                  side={THREE.DoubleSide}
+                  depthWrite={false}
+                />
+              </mesh>
+              <mesh
+                position={[0, 0.038, 0]}
+                rotation={[-Math.PI * 0.5, 0, 0]}
+                scale={[0.8, 1.42, 1]}
+                raycast={() => null}
+              >
+                <ringGeometry args={[0.96, 1.06, 24]} />
+                <meshBasicMaterial
+                  color="#facc15"
+                  transparent
+                  opacity={0.28}
+                  side={THREE.DoubleSide}
+                  depthWrite={false}
+                />
+              </mesh>
+              {!isBeaconOnSkiff && (
+                <WorldHtml
+                  center
+                  position={[0, 1.15, 0]}
+                  distanceFactor={18}
+                  zIndexRange={[8, 0]}
+                  style={{ pointerEvents: "none" }}
+                >
+                  <div className="pointer-events-none select-none flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-950/95 border border-amber-400 text-amber-300 font-cinzel font-black text-[11px] uppercase tracking-wider shadow-[0_0_20px_rgba(251,191,36,0.5)] backdrop-blur-md whitespace-nowrap">
+                    <span>⛵</span>
+                    <span>
+                      {text(scenario === "mission3" ? "ui.boat.m3" : "ui.boat.certovka", undefined, locale)}
+                    </span>
+                  </div>
+                </WorldHtml>
+              )}
+            </group>
           </group>
         );
       })()}
@@ -3487,8 +3794,8 @@ export function InstancedBattlefield() {
             </>
           )}
 
-          <mesh position={[0, 0.04, 0]} rotation={[-Math.PI * 0.5, 0, 0]}>
-            <ringGeometry args={[TILE_SIZE * 0.38, TILE_SIZE * 0.48, 4]} />
+          <mesh position={[0, 0.048, 0]} rotation={[-Math.PI * 0.5, 0, Math.PI * 0.25]}>
+            <ringGeometry args={[TILE_SIZE * 0.54, TILE_SIZE * 0.65, 4]} />
             <meshBasicMaterial
               color={
                 actionMode === "lay"
@@ -3504,6 +3811,10 @@ export function InstancedBattlefield() {
                       : "#38bdf8"
               }
               side={THREE.DoubleSide}
+              depthWrite={false}
+              polygonOffset
+              polygonOffsetFactor={-3}
+              polygonOffsetUnits={-3}
             />
           </mesh>
 

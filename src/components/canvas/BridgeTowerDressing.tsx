@@ -13,8 +13,9 @@
  */
 
 import * as THREE from "three";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
+import { getBaroqueTextureSet } from "./baroqueMaterials";
 import {
   continuousGridToWorld,
   TILE_SIZE,
@@ -47,36 +48,49 @@ const PALETTE = {
 
 /** Carved 1370s Gothic heraldic shield triplet set above gateway arches. */
 function GatewayHeraldry({ rotationY }: { rotationY: number }) {
+  const textures = useMemo(() => getBaroqueTextureSet(), []);
   return (
     <group rotation={[0, rotationY, 0]}>
       {/* Bohemian Lion escutcheon */}
       <mesh position={[0, 0, -1.1]} raycast={NO_RAYCAST}>
         <boxGeometry args={[0.12, 0.34, 0.28]} />
-        <meshStandardMaterial color={PALETTE.heraldicCrimson} roughness={0.75} />
+        <meshStandardMaterial color={PALETTE.heraldicCrimson} roughness={0.72} />
       </mesh>
       <mesh position={[0.04, 0.02, -1.1]} raycast={NO_RAYCAST}>
         <boxGeometry args={[0.08, 0.18, 0.14]} />
-        <meshStandardMaterial color={PALETTE.sandstoneLight} roughness={0.65} />
+        <meshStandardMaterial color={PALETTE.sandstoneLight} roughness={0.62} />
       </mesh>
 
       {/* Center Imperial Eagle escutcheon */}
       <mesh position={[0, 0.06, 0]} raycast={NO_RAYCAST}>
         <boxGeometry args={[0.14, 0.4, 0.34]} />
-        <meshStandardMaterial color={PALETTE.heraldicGold} roughness={0.55} metalness={0.3} />
+        <meshStandardMaterial
+          color={PALETTE.heraldicGold}
+          roughness={0.26}
+          metalness={0.86}
+          bumpMap={textures.gildedFiligreeBump}
+          bumpScale={0.035}
+        />
       </mesh>
       <mesh position={[0.05, 0.06, 0]} raycast={NO_RAYCAST}>
         <boxGeometry args={[0.08, 0.24, 0.18]} />
-        <meshStandardMaterial color={PALETTE.wroughtIron} roughness={0.6} />
+        <meshStandardMaterial color={PALETTE.wroughtIron} roughness={0.48} metalness={0.75} />
       </mesh>
 
       {/* Old Town Prague escutcheon */}
       <mesh position={[0, 0, 1.1]} raycast={NO_RAYCAST}>
         <boxGeometry args={[0.12, 0.34, 0.28]} />
-        <meshStandardMaterial color={PALETTE.heraldicCobalt} roughness={0.75} />
+        <meshStandardMaterial color={PALETTE.heraldicCobalt} roughness={0.72} />
       </mesh>
       <mesh position={[0.04, -0.02, 1.1]} raycast={NO_RAYCAST}>
         <boxGeometry args={[0.08, 0.16, 0.18]} />
-        <meshStandardMaterial color={PALETTE.heraldicGold} roughness={0.55} />
+        <meshStandardMaterial
+          color={PALETTE.heraldicGold}
+          roughness={0.28}
+          metalness={0.84}
+          bumpMap={textures.gildedFiligreeBump}
+          bumpScale={0.03}
+        />
       </mesh>
     </group>
   );
@@ -90,6 +104,7 @@ function GothicGatewayPortal({
   gridX: number;
   facingEast: boolean;
 }) {
+  const textures = useMemo(() => getBaroqueTextureSet(), []);
   const spanZ = 8.4;
   return (
     <group position={at(gridX, 0, 14)}>
@@ -98,17 +113,35 @@ function GothicGatewayPortal({
         <group key={`jamb-${pz}`} position={[0, 0, pz]}>
           <mesh position={[0, 1.05, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
             <boxGeometry args={[0.56, 2.1, 0.72]} />
-            <meshStandardMaterial color={PALETTE.sandstone} roughness={0.85} />
+            <meshStandardMaterial
+              color={PALETTE.sandstone}
+              roughness={0.84}
+              map={textures.masonryStoneAlbedo}
+              bumpMap={textures.masonryAshlarBump}
+              bumpScale={0.075}
+            />
           </mesh>
           {/* Plinth base */}
           <mesh position={[0, 0.14, 0]} receiveShadow raycast={NO_RAYCAST}>
             <boxGeometry args={[0.68, 0.28, 0.84]} />
-            <meshStandardMaterial color={PALETTE.sandstoneDark} roughness={0.9} />
+            <meshStandardMaterial
+              color={PALETTE.sandstoneDark}
+              roughness={0.88}
+              map={textures.masonryStoneAlbedo}
+              bumpMap={textures.masonryAshlarBump}
+              bumpScale={0.06}
+            />
           </mesh>
           {/* Gothic capital & impost cornice */}
           <mesh position={[0, 1.88, 0]} castShadow raycast={NO_RAYCAST}>
             <boxGeometry args={[0.66, 0.16, 0.82]} />
-            <meshStandardMaterial color={PALETTE.sandstoneTrim} roughness={0.8} />
+            <meshStandardMaterial
+              color={PALETTE.sandstoneTrim}
+              roughness={0.78}
+              map={textures.masonryStoneAlbedo}
+              bumpMap={textures.masonryAshlarBump}
+              bumpScale={0.05}
+            />
           </mesh>
         </group>
       ))}
@@ -116,7 +149,13 @@ function GothicGatewayPortal({
       {/* Pointed Gothic Arch Spandrels & Lintel Crown (bounded strictly <= 2.34m) */}
       <mesh position={[0, 2.14, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
         <boxGeometry args={[0.52, 0.36, spanZ]} />
-        <meshStandardMaterial color={PALETTE.sandstone} roughness={0.82} />
+        <meshStandardMaterial
+          color={PALETTE.sandstone}
+          roughness={0.82}
+          map={textures.masonryStoneAlbedo}
+          bumpMap={textures.masonryAshlarBump}
+          bumpScale={0.07}
+        />
       </mesh>
       {/* Left & Right Haunch Ribs curving down to imposts */}
       <mesh
@@ -126,7 +165,13 @@ function GothicGatewayPortal({
         raycast={NO_RAYCAST}
       >
         <boxGeometry args={[0.56, 0.24, 1.55]} />
-        <meshStandardMaterial color={PALETTE.sandstoneTrim} roughness={0.8} />
+        <meshStandardMaterial
+          color={PALETTE.sandstoneTrim}
+          roughness={0.78}
+          map={textures.masonryStoneAlbedo}
+          bumpMap={textures.masonryAshlarBump}
+          bumpScale={0.055}
+        />
       </mesh>
       <mesh
         position={[0, 1.9, 3.45]}
@@ -135,13 +180,25 @@ function GothicGatewayPortal({
         raycast={NO_RAYCAST}
       >
         <boxGeometry args={[0.56, 0.24, 1.55]} />
-        <meshStandardMaterial color={PALETTE.sandstoneTrim} roughness={0.8} />
+        <meshStandardMaterial
+          color={PALETTE.sandstoneTrim}
+          roughness={0.78}
+          map={textures.masonryStoneAlbedo}
+          bumpMap={textures.masonryAshlarBump}
+          bumpScale={0.055}
+        />
       </mesh>
 
       {/* Carved Sandstone Keystone Boss at apex */}
       <mesh position={[0, 2.12, 0]} castShadow raycast={NO_RAYCAST}>
         <boxGeometry args={[0.64, 0.3, 0.36]} />
-        <meshStandardMaterial color={PALETTE.sandstoneLight} roughness={0.75} />
+        <meshStandardMaterial
+          color={PALETTE.sandstoneLight}
+          roughness={0.74}
+          map={textures.masonryStoneAlbedo}
+          bumpMap={textures.masonryAshlarBump}
+          bumpScale={0.06}
+        />
       </mesh>
 
       {/* Outer Heraldry Frieze */}
@@ -162,6 +219,7 @@ function ParlerNicheStatue({
   floorY: number;
   variant: "charles" | "vitus" | "wenceslas" | "adalbert" | "sigismund";
 }) {
+  const textures = useMemo(() => getBaroqueTextureSet(), []);
   const isVitus = variant === "vitus";
   const isSeated = variant === "charles" || variant === "wenceslas";
   const isBishop = variant === "vitus" || variant === "adalbert";
@@ -171,14 +229,24 @@ function ParlerNicheStatue({
       {/* Corbel console under niche */}
       <mesh position={[0, 0.24, 0]} castShadow raycast={NO_RAYCAST}>
         <boxGeometry args={[0.44, 0.26, 0.92]} />
-        <meshStandardMaterial color={PALETTE.sandstoneDark} roughness={0.88} />
+        <meshStandardMaterial
+          color={PALETTE.sandstoneDark}
+          roughness={0.86}
+          bumpMap={textures.masonryAshlarBump}
+          bumpScale={0.045}
+        />
       </mesh>
 
       {/* Mini Charles Bridge arch pedestal beneath St. Vitus */}
       {isVitus && (
         <mesh position={[0.04, 0.44, 0]} castShadow raycast={NO_RAYCAST}>
           <boxGeometry args={[0.4, 0.16, 0.88]} />
-          <meshStandardMaterial color={PALETTE.sandstoneLight} roughness={0.8} />
+          <meshStandardMaterial
+            color={PALETTE.sandstoneLight}
+            roughness={0.78}
+            bumpMap={textures.masonryAshlarBump}
+            bumpScale={0.04}
+          />
         </mesh>
       )}
 
@@ -186,7 +254,12 @@ function ParlerNicheStatue({
       {[-0.4, 0.4].map((nz) => (
         <mesh key={nz} position={[-0.04, 1.15, nz]} castShadow raycast={NO_RAYCAST}>
           <boxGeometry args={[0.26, 1.65, 0.14]} />
-          <meshStandardMaterial color={PALETTE.sandstoneTrim} roughness={0.82} />
+          <meshStandardMaterial
+            color={PALETTE.sandstoneTrim}
+            roughness={0.8}
+            bumpMap={textures.flutedColumnBump}
+            bumpScale={0.045}
+          />
         </mesh>
       ))}
 
@@ -197,12 +270,12 @@ function ParlerNicheStatue({
           <cylinderGeometry
             args={[0.16, 0.23, isSeated ? 0.84 : 1.0, 8]}
           />
-          <meshStandardMaterial color={PALETTE.sandstoneLight} roughness={0.78} />
+          <meshStandardMaterial color={PALETTE.sandstoneLight} roughness={0.76} />
         </mesh>
         {/* Head */}
         <mesh position={[0, isSeated ? 0.96 : 1.12, 0]} castShadow raycast={NO_RAYCAST}>
           <sphereGeometry args={[0.13, 10, 8]} />
-          <meshStandardMaterial color={PALETTE.sandstoneLight} roughness={0.75} />
+          <meshStandardMaterial color={PALETTE.sandstoneLight} roughness={0.74} />
         </mesh>
         {/* Crown or Bishop Mitre */}
         <mesh
@@ -215,12 +288,18 @@ function ParlerNicheStatue({
           ) : (
             <cylinderGeometry args={[0.12, 0.11, 0.12, 8]} />
           )}
-          <meshStandardMaterial color={PALETTE.heraldicGold} roughness={0.55} metalness={0.35} />
+          <meshStandardMaterial
+            color={PALETTE.heraldicGold}
+            roughness={0.24}
+            metalness={0.88}
+            bumpMap={textures.gildedFiligreeBump}
+            bumpScale={0.03}
+          />
         </mesh>
         {/* Sceptre / Crozier / Halberd vertical attribute */}
         <mesh position={[0.08, 0.72, 0.18]} castShadow raycast={NO_RAYCAST}>
           <cylinderGeometry args={[0.02, 0.02, 1.15, 6]} />
-          <meshStandardMaterial color={PALETTE.sandstoneTrim} roughness={0.75} />
+          <meshStandardMaterial color={PALETTE.heraldicGold} roughness={0.32} metalness={0.78} />
         </mesh>
       </group>
 
@@ -233,15 +312,24 @@ function ParlerNicheStatue({
           </mesh>
           <mesh raycast={NO_RAYCAST}>
             <boxGeometry args={[0.12, 0.1, 0.08]} />
-            <meshStandardMaterial color={PALETTE.heraldicCobalt} roughness={0.7} />
+            <meshStandardMaterial color={PALETTE.heraldicCobalt} roughness={0.68} />
           </mesh>
         </group>
       )}
 
-      {/* Pointed Gothic Baldachin Canopy above statue (<= 2.25m floor offset) */}
+      {/* Pointed Gothic Baldachin Canopy & Gilded Finial Crockets above statue (<= 2.28m floor offset) */}
       <mesh position={[0.02, 2.02, 0]} castShadow raycast={NO_RAYCAST}>
         <coneGeometry args={[0.48, 0.44, 4]} />
-        <meshStandardMaterial color={PALETTE.sandstone} roughness={0.82} />
+        <meshStandardMaterial
+          color={PALETTE.sandstone}
+          roughness={0.8}
+          bumpMap={textures.masonryAshlarBump}
+          bumpScale={0.04}
+        />
+      </mesh>
+      <mesh position={[0.02, 2.27, 0]} raycast={NO_RAYCAST}>
+        <sphereGeometry args={[0.055, 8, 6]} />
+        <meshStandardMaterial color={PALETTE.heraldicGold} metalness={0.88} roughness={0.22} />
       </mesh>
     </group>
   );
@@ -350,6 +438,7 @@ function WindlassAssembly({
   ropeSevered: boolean;
   burning: boolean;
 }) {
+  const textures = useMemo(() => getBaroqueTextureSet(), []);
   return (
     <group position={at(11, 1, 13.56)} scale={[0.78, 0.88, 0.72]}>
       {/* Heavy oak bed-sill bolted to P1 masonry floor */}
@@ -357,7 +446,9 @@ function WindlassAssembly({
         <boxGeometry args={[1.18, 0.12, 1.32]} />
         <meshStandardMaterial
           color={burning ? "#4a2414" : PALETTE.timberDark}
-          roughness={0.88}
+          roughness={0.86}
+          bumpMap={textures.carvedWalnutBump}
+          bumpScale={0.045}
         />
       </mesh>
 
@@ -371,7 +462,12 @@ function WindlassAssembly({
           raycast={NO_RAYCAST}
         >
           <boxGeometry args={[0.24, 0.96, 0.16]} />
-          <meshStandardMaterial color={PALETTE.timberOak} roughness={0.85} />
+          <meshStandardMaterial
+            color={PALETTE.timberOak}
+            roughness={0.82}
+            bumpMap={textures.carvedWalnutBump}
+            bumpScale={0.045}
+          />
         </mesh>
       ))}
 
@@ -549,8 +645,83 @@ function MarianInscriptionStela({
   );
 }
 
+/** Subtle animated river current wake halo hugging Charles Bridge pier cutwaters. */
+function PierFoamCollar({ zOffset, width }: { zOffset: number; width: number }) {
+  const matRef = useRef<THREE.MeshBasicMaterial>(null);
+  const meshRef = useRef<THREE.Mesh>(null);
+  const phase = zOffset * 0.65;
+
+  useFrame((state) => {
+    const t = state.clock.elapsedTime;
+    const pulse = 0.5 + 0.5 * Math.sin(t * 1.9 + phase);
+    if (matRef.current) {
+      matRef.current.opacity = 0.06 + pulse * 0.05;
+    }
+    if (meshRef.current) {
+      const s = 1 + pulse * 0.05;
+      meshRef.current.scale.set(s, s, 1);
+    }
+  });
+
+  return (
+    <mesh
+      ref={meshRef}
+      position={[0, -0.185, zOffset]}
+      rotation={[-Math.PI * 0.5, 0, 0]}
+      raycast={NO_RAYCAST}
+    >
+      <ringGeometry args={[width * 0.48, width * 0.62, 24]} />
+      <meshBasicMaterial
+        ref={matRef}
+        color="#8ab8cc"
+        transparent
+        opacity={0.09}
+        depthWrite={false}
+      />
+    </mesh>
+  );
+}
+
+/** Perimeter Baroque wrought-iron bridgehead beacon lantern (emissive only, zero extra pointLights). */
+function BridgeheadBeaconLantern({ x, z }: { x: number; z: number }) {
+  return (
+    <group position={at(x, 0, z)}>
+      {/* Stone & wrought-iron bracket post perched on outer parapet edge */}
+      <mesh position={[0, 0.58, 0]} castShadow raycast={NO_RAYCAST}>
+        <cylinderGeometry args={[0.045, 0.06, 0.68, 6]} />
+        <meshStandardMaterial color={PALETTE.wroughtIron} metalness={0.82} roughness={0.36} />
+      </mesh>
+      {/* Octagonal lantern cage base & cap */}
+      <mesh position={[0, 0.94, 0]} raycast={NO_RAYCAST}>
+        <cylinderGeometry args={[0.13, 0.09, 0.05, 6]} />
+        <meshStandardMaterial color={PALETTE.wroughtIron} metalness={0.84} roughness={0.34} />
+      </mesh>
+      {/* Warm amber leaded lantern glass */}
+      <mesh position={[0, 1.08, 0]} raycast={NO_RAYCAST}>
+        <cylinderGeometry args={[0.11, 0.095, 0.24, 6]} />
+        <meshStandardMaterial
+          color="#fef08a"
+          emissive="#f59e0b"
+          emissiveIntensity={1.65}
+          roughness={0.22}
+        />
+      </mesh>
+      {/* Pointed Baroque iron cupola cap + gilded finial */}
+      <mesh position={[0, 1.28, 0]} raycast={NO_RAYCAST}>
+        <coneGeometry args={[0.15, 0.18, 6]} />
+        <meshStandardMaterial color={PALETTE.wroughtIron} metalness={0.84} roughness={0.34} />
+      </mesh>
+      <mesh position={[0, 1.39, 0]} raycast={NO_RAYCAST}>
+        <sphereGeometry args={[0.036, 6, 6]} />
+        <meshStandardMaterial color={PALETTE.heraldicGold} metalness={0.9} roughness={0.2} />
+      </mesh>
+    </group>
+  );
+}
+
 /** Charles Bridge sub-deck Gothic sandstone arches, triangular cutwater piers & upstream oak ledolamy. */
 function CharlesBridgeStructure() {
+  const textures = useMemo(() => getBaroqueTextureSet(), []);
   const piers = [2.5, 5.5, 8.5];
   const archSpans = [
     { xMid: 1.4, w: 2.2 },
@@ -566,26 +737,56 @@ function CharlesBridgeStructure() {
         <group key={`parapet-${pz}`} position={at(5, 0, pz)}>
           <mesh position={[0, 0.08, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
             <boxGeometry args={[9 * TILE_SIZE + 0.4, 0.28, 0.24]} />
-            <meshStandardMaterial color={PALETTE.sandstone} roughness={0.86} />
+            <meshStandardMaterial
+              color={PALETTE.sandstone}
+              roughness={0.84}
+              map={textures.masonryStoneAlbedo}
+              bumpMap={textures.masonryAshlarBump}
+              bumpScale={0.07}
+            />
           </mesh>
           <mesh position={[0, 0.24, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
             <boxGeometry args={[9 * TILE_SIZE + 0.5, 0.06, 0.28]} />
-            <meshStandardMaterial color={PALETTE.sandstoneTrim} roughness={0.78} />
+            <meshStandardMaterial
+              color={PALETTE.sandstoneTrim}
+              roughness={0.76}
+              map={textures.masonryStoneAlbedo}
+              bumpMap={textures.masonryAshlarBump}
+              bumpScale={0.05}
+            />
           </mesh>
           {/* Under-deck ashlar stringcourse fascia */}
           <mesh position={[0, -0.18, 0]} receiveShadow raycast={NO_RAYCAST}>
             <boxGeometry args={[9 * TILE_SIZE + 0.4, 0.28, 0.34]} />
-            <meshStandardMaterial color={PALETTE.sandstoneDark} roughness={0.9} />
+            <meshStandardMaterial
+              color={PALETTE.sandstoneDark}
+              roughness={0.88}
+              map={textures.masonryStoneAlbedo}
+              bumpMap={textures.masonryAshlarBump}
+              bumpScale={0.065}
+            />
           </mesh>
         </group>
       ))}
+
+      {/* Four wrought-iron bridgehead beacon lanterns flanking tower approaches (bare 1648 bridge deck preserved) */}
+      <BridgeheadBeaconLantern x={9.35} z={10.42} />
+      <BridgeheadBeaconLantern x={9.35} z={16.58} />
+      <BridgeheadBeaconLantern x={18.65} z={10.42} />
+      <BridgeheadBeaconLantern x={18.65} z={16.58} />
 
       {/* Sub-deck Gothic ashlar bridge vault spandrels (clamped strictly <= -0.22m below deck) */}
       {archSpans.map(({ xMid, w }) => (
         <group key={`span-${xMid}`} position={at(xMid, 0, 13.5)}>
           <mesh position={[0, -0.44, 0]} receiveShadow raycast={NO_RAYCAST}>
             <boxGeometry args={[w * TILE_SIZE, 0.44, 6.2 * TILE_SIZE]} />
-            <meshStandardMaterial color={PALETTE.sandstoneDark} roughness={0.92} />
+            <meshStandardMaterial
+              color={PALETTE.sandstoneDark}
+              roughness={0.9}
+              map={textures.masonryStoneAlbedo}
+              bumpMap={textures.masonryAshlarBump}
+              bumpScale={0.065}
+            />
           </mesh>
           {/* Compressed Gothic arch soffit strictly underneath deck (maxY = -0.32) */}
           <mesh
@@ -609,35 +810,55 @@ function CharlesBridgeStructure() {
           {/* Main submerged stone pier (kept strictly <= -0.12m) */}
           <mesh position={[0, -1.25, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
             <boxGeometry args={[1.38, 2.25, 6.5 * TILE_SIZE]} />
-            <meshStandardMaterial color={PALETTE.sandstone} roughness={0.88} />
+            <meshStandardMaterial
+              color={PALETTE.sandstone}
+              roughness={0.86}
+              map={textures.masonryStoneAlbedo}
+              bumpMap={textures.masonryAshlarBump}
+              bumpScale={0.075}
+            />
           </mesh>
 
-          {/* Triangular cutwater prow upstream (South, +z) */}
+          {/* Triangular cutwater prow upstream (South, +z) anchored flush to bridge fascia */}
           <mesh
-            position={[0, -0.95, 3.65 * TILE_SIZE]}
+            position={[0, -1.0, 3.04 * TILE_SIZE]}
             rotation={[0, Math.PI * 0.25, 0]}
             castShadow
             receiveShadow
             raycast={NO_RAYCAST}
           >
-            <boxGeometry args={[1.08, 1.85, 1.08]} />
-            <meshStandardMaterial color={PALETTE.sandstoneTrim} roughness={0.84} />
+            <boxGeometry args={[1.04, 1.72, 1.04]} />
+            <meshStandardMaterial
+              color={PALETTE.sandstoneTrim}
+              roughness={0.82}
+              map={textures.masonryStoneAlbedo}
+              bumpMap={textures.masonryAshlarBump}
+              bumpScale={0.065}
+            />
           </mesh>
+          <PierFoamCollar zOffset={3.1 * TILE_SIZE} width={1.55} />
 
-          {/* Downstream cutwater nose (North, -z) */}
+          {/* Downstream cutwater nose (North, -z) anchored flush to bridge fascia */}
           <mesh
-            position={[0, -1.02, -3.55 * TILE_SIZE]}
+            position={[0, -1.04, -3.04 * TILE_SIZE]}
             rotation={[0, Math.PI * 0.25, 0]}
             castShadow
             receiveShadow
             raycast={NO_RAYCAST}
           >
-            <boxGeometry args={[0.96, 1.72, 0.96]} />
-            <meshStandardMaterial color={PALETTE.sandstoneDark} roughness={0.88} />
+            <boxGeometry args={[0.94, 1.64, 0.94]} />
+            <meshStandardMaterial
+              color={PALETTE.sandstoneDark}
+              roughness={0.86}
+              map={textures.masonryStoneAlbedo}
+              bumpMap={textures.masonryAshlarBump}
+              bumpScale={0.065}
+            />
           </mesh>
+          <PierFoamCollar zOffset={-3.1 * TILE_SIZE} width={1.38} />
 
           {/* Historic Prague Oak Timber Icebreaker (Ledolam) rising out of water upstream (South) */}
-          <group position={[0, 0.04, 4.55 * TILE_SIZE]}>
+          <group position={[0, 0.04, 3.95 * TILE_SIZE]}>
             {/* Sloped main oak breaker beam pointing into current */}
             <mesh
               position={[0, 0.08, 0.35]}
@@ -646,7 +867,12 @@ function CharlesBridgeStructure() {
               raycast={NO_RAYCAST}
             >
               <boxGeometry args={[0.34, 0.28, 2.4]} />
-              <meshStandardMaterial color={PALETTE.timberOak} roughness={0.86} />
+              <meshStandardMaterial
+                color={PALETTE.timberOak}
+                roughness={0.84}
+                bumpMap={textures.carvedWalnutBump}
+                bumpScale={0.045}
+              />
             </mesh>
             {/* Iron ice-splitting nose cap */}
             <mesh
@@ -655,13 +881,18 @@ function CharlesBridgeStructure() {
               raycast={NO_RAYCAST}
             >
               <boxGeometry args={[0.38, 0.32, 0.4]} />
-              <meshStandardMaterial color={PALETTE.wroughtIron} metalness={0.75} roughness={0.45} />
+              <meshStandardMaterial color={PALETTE.wroughtIron} metalness={0.82} roughness={0.38} />
             </mesh>
             {/* Paired vertical timber piles anchoring into riverbed */}
             {[-0.36, 0.36].map((tx) => (
               <mesh key={`pile-${tx}`} position={[tx, -0.24, -0.25]} castShadow raycast={NO_RAYCAST}>
                 <cylinderGeometry args={[0.12, 0.14, 1.25, 8]} />
-                <meshStandardMaterial color={PALETTE.timberOak} roughness={0.9} />
+                <meshStandardMaterial
+                  color={PALETTE.timberOak}
+                  roughness={0.88}
+                  bumpMap={textures.carvedWalnutBump}
+                  bumpScale={0.04}
+                />
               </mesh>
             ))}
           </group>
@@ -803,6 +1034,7 @@ function OldTownSurroundings() {
 
 /** Petr Parler alternating sandstone corner quoins for a tower storey (keeps foreground SE/SW stubbed). */
 function TowerCornerQuoins({ floorY }: { floorY: 0 | 1 | 2 }) {
+  const textures = useMemo(() => getBaroqueTextureSet(), []);
   const corners: { x: number; z: number; full: boolean }[] = [
     { x: 9.46, z: 9.96, full: true },
     { x: 18.54, z: 9.96, full: true },
@@ -821,7 +1053,10 @@ function TowerCornerQuoins({ floorY }: { floorY: 0 | 1 | 2 }) {
               />
               <meshStandardMaterial
                 color={qi % 2 === 0 ? PALETTE.sandstoneLight : PALETTE.sandstoneTrim}
-                roughness={0.8}
+                roughness={0.78}
+                map={textures.masonryStoneAlbedo}
+                bumpMap={textures.masonryAshlarBump}
+                bumpScale={0.065}
               />
             </mesh>
           ))}
@@ -833,6 +1068,7 @@ function TowerCornerQuoins({ floorY }: { floorY: 0 | 1 | 2 }) {
 
 /** Gothic sandstone vaulting shafts & net-vault springer ribs along the P0 inner North gateway wall (z=11.52). */
 function GatewayVaultRibs() {
+  const textures = useMemo(() => getBaroqueTextureSet(), []);
   return (
     <group>
       {[11, 13, 15, 17].map((gx) => (
@@ -840,12 +1076,22 @@ function GatewayVaultRibs() {
           {/* Engaged half-column vault shaft */}
           <mesh position={[0, 0.88, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
             <cylinderGeometry args={[0.11, 0.13, 1.76, 8]} />
-            <meshStandardMaterial color={PALETTE.sandstoneTrim} roughness={0.82} />
+            <meshStandardMaterial
+              color={PALETTE.sandstoneTrim}
+              roughness={0.8}
+              bumpMap={textures.flutedColumnBump}
+              bumpScale={0.045}
+            />
           </mesh>
           {/* Bell capital at springline */}
           <mesh position={[0, 1.8, 0]} raycast={NO_RAYCAST}>
             <boxGeometry args={[0.3, 0.14, 0.3]} />
-            <meshStandardMaterial color={PALETTE.sandstoneLight} roughness={0.78} />
+            <meshStandardMaterial
+              color={PALETTE.sandstoneLight}
+              roughness={0.76}
+              bumpMap={textures.masonryAshlarBump}
+              bumpScale={0.04}
+            />
           </mesh>
           {/* Transverse & diagonal net-vault springer ribs curving high (y=2.04..2.28m) */}
           <mesh
@@ -876,7 +1122,13 @@ function GatewayVaultRibs() {
           {/* Gilded Luxembourg vault boss */}
           <mesh position={[0, 2.24, 0.58]} raycast={NO_RAYCAST}>
             <cylinderGeometry args={[0.1, 0.1, 0.08, 8]} />
-            <meshStandardMaterial color={PALETTE.heraldicGold} metalness={0.5} roughness={0.4} />
+            <meshStandardMaterial
+              color={PALETTE.heraldicGold}
+              metalness={0.88}
+              roughness={0.22}
+              bumpMap={textures.gildedFiligreeBump}
+              bumpScale={0.035}
+            />
           </mesh>
         </group>
       ))}

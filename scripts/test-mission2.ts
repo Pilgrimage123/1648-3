@@ -12,11 +12,14 @@ import {
 } from "../src/core/GridSystem.ts";
 import { computeReachableTiles, findPathAStar } from "../src/core/Pathfinding.ts";
 import {
+  applyDisruptKeystone,
   applyDouseAction,
   applyKneel,
   applySeverRopeAction,
   applyThrowPitch,
   applyWindlassHit,
+  BRIDGE_KEG,
+  canDisruptKeystone,
   closeEnemyTurn,
   closePlayerTurn,
   computeMission2Ai,
@@ -31,6 +34,7 @@ import {
   OCCULTIST_ID,
   ONDREJ_ID,
   PLACHY_ID,
+  PORTCULLIS_X,
   ROPE,
   THRESHOLD_X,
   WINDLASS,
@@ -392,6 +396,57 @@ assert.equal(
   "severing requires a bladed melee weapon (dagger or sword)",
 );
 
+// Tactical additions: Bridge Powder Keg, Pier-Buttress Cover, and Threshold Keystone Disruption
+assert.equal(
+  tile(BRIDGE_KEG.x, BRIDGE_KEG.y, BRIDGE_KEG.z).obstacle,
+  "powder_keg",
+  "abandoned powder keg stands at (8,0,13) near the bridge threshold",
+);
+assert.equal(
+  tile(10, 0, 12).cover.W,
+  "half",
+  "gateway threshold flank at (10,0,12) provides West half cover",
+);
+assert.equal(
+  tile(10, 0, 16).cover.W,
+  "half",
+  "gateway threshold flank at (10,0,16) provides West half cover",
+);
+
+const havelAtThreshold = {
+  ...units.find((u) => u.id === HAVEL_ID)!,
+  pos: { x: PORTCULLIS_X, y: 0 as const, z: 14 },
+  ap: 1,
+};
+const unitsWithOccultistAtKeystone = placeOccultist(KEYSTONE);
+const activeRiteClock: Mission2Clock = {
+  ...freshClock(unitsWithOccultistAtKeystone),
+  riteProgress: 2,
+};
+assert.equal(
+  canDisruptKeystone(activeRiteClock, havelAtThreshold, unitsWithOccultistAtKeystone),
+  true,
+  "Havel at gateway threshold (10,0,14) can disrupt the Occultist's ritual on the keystone",
+);
+const disruptedClock = applyDisruptKeystone(
+  activeRiteClock,
+  havelAtThreshold,
+  unitsWithOccultistAtKeystone,
+);
+assert.ok(disruptedClock, "applyDisruptKeystone succeeds from gateway threshold");
+assert.equal(disruptedClock!.riteProgress, 1, "disruption reduces riteProgress by 1");
+assert.equal(
+  canDisruptKeystone(disruptedClock!, havelAtThreshold, unitsWithOccultistAtKeystone),
+  false,
+  "cannot disrupt keystone more than once per round",
+);
+const afterEnemyReset = closeEnemyTurn(disruptedClock!, unitsWithOccultistAtKeystone);
+assert.equal(
+  afterEnemyReset.riteDisruptedThisRound,
+  false,
+  "riteDisruptedThisRound resets after the enemy turn",
+);
+
 // M2 choking preserves bespoke baseMovePerAp (Occultist = 1, Harrier = 8 -> 7 -> 8)
 const m2SmokeGrid = createMission2Grid();
 const m2Harrier: UnitData = {
@@ -424,3 +479,4 @@ assert.equal(recoveredOccultist.movePerAp, 1, "Occultist recovers bespoke speed 
 
 void (null as Mission2Clock | null);
 console.log("mission 2 ok");
+

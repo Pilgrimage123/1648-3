@@ -112,6 +112,9 @@ export function executeKegShot(
               ap: 0,
               isOverwatch: false,
               abilityBuffActive: false,
+              firearmLoaded: false,
+              reloadProgress: 0,
+              pistolLoaded: u.id === "player-colloredo" ? false : u.pistolLoaded,
             }
           : u,
       ),
@@ -197,7 +200,10 @@ export function executeKegShot(
 
     set((s) => {
       const nextGuidedStep: GuidedTutorialStep =
-        s.guidedTutorial.enabled && s.guidedTutorial.currentStep === "step_7_keg_explosion"
+        s.scenario === "mission1" &&
+        s.guidedTutorial.enabled &&
+        !s.guidedTutorial.dismissed &&
+        s.guidedTutorial.currentStep === "step_7_keg_explosion"
           ? "step_8_melee_finish"
           : s.guidedTutorial.currentStep;
       const tutorialPatch = mirrorTutorialFields(
@@ -270,7 +276,12 @@ export function executeKegShot(
       visibleTargets: nextDerived.visibleTargets,
       visibleMeleeTargets: nextDerived.visibleMeleeTargets,
       selectedTargetId: nextDerived.selectedTargetId,
-      combatLog: appendVictoryLog(s.combatLog, s.round, outcomeCheck),
+      combatLog: appendVictoryLog(
+        s.combatLog,
+        s.round,
+        outcomeCheck,
+        s.m3?.deliveries,
+      ),
     }));
   })();
 }
@@ -679,9 +690,16 @@ export function createCombatActions(
                 : s.tutorialStep;
 
           const nextGuidedStep: GuidedTutorialStep =
-            s.guidedTutorial.enabled && s.guidedTutorial.currentStep === "step_4_vaclav_shoot"
+            s.scenario === "mission1" &&
+            s.guidedTutorial.enabled &&
+            !s.guidedTutorial.dismissed &&
+            s.guidedTutorial.currentStep === "step_4_vaclav_shoot"
               ? "step_5_enemy_turn_react"
-              : kegDetonated && s.guidedTutorial.currentStep === "step_7_keg_explosion"
+              : s.scenario === "mission1" &&
+                  s.guidedTutorial.enabled &&
+                  !s.guidedTutorial.dismissed &&
+                  kegDetonated &&
+                  s.guidedTutorial.currentStep === "step_7_keg_explosion"
                 ? "step_8_melee_finish"
                 : s.guidedTutorial.currentStep;
 
@@ -805,7 +823,12 @@ export function createCombatActions(
             visibleTargets: nextDerived.visibleTargets,
             visibleMeleeTargets: nextDerived.visibleMeleeTargets,
             selectedTargetId: nextDerived.selectedTargetId,
-            combatLog: appendVictoryLog(s.combatLog, s.round, outcomeCheck),
+            combatLog: appendVictoryLog(
+              s.combatLog,
+              s.round,
+              outcomeCheck,
+              s.m3?.deliveries,
+            ),
           };
         });
 
@@ -1132,7 +1155,12 @@ export function createCombatActions(
             visibleTargets: nextDerived.visibleTargets,
             visibleMeleeTargets: nextDerived.visibleMeleeTargets,
             selectedTargetId: nextDerived.selectedTargetId,
-            combatLog: appendVictoryLog(s.combatLog, s.round, outcomeCheck),
+            combatLog: appendVictoryLog(
+              s.combatLog,
+              s.round,
+              outcomeCheck,
+              s.m3?.deliveries,
+            ),
           };
         });
 
@@ -1552,8 +1580,16 @@ export function createCombatActions(
             ],
             s.round,
             outcomeCheck,
+            s.m3?.deliveries,
           ),
         }));
+
+        if (outcomeCheck.outcome === "defeat") {
+          void deps.playCaptureFinalAnimationAndDefeat(
+            outcomeCheck.defeatReason ?? "zero_hp",
+            freshState.round,
+          );
+        }
 
         scheduleTimer(
           () => {
@@ -1818,7 +1854,10 @@ export function createCombatActions(
             s.tutorialStep === 3 ? (4 as const) : s.tutorialStep;
 
           const nextGuidedStep: GuidedTutorialStep =
-            s.guidedTutorial.enabled && s.guidedTutorial.currentStep === "step_7_keg_explosion"
+            s.scenario === "mission1" &&
+            s.guidedTutorial.enabled &&
+            !s.guidedTutorial.dismissed &&
+            s.guidedTutorial.currentStep === "step_7_keg_explosion"
               ? "step_8_melee_finish"
               : s.guidedTutorial.currentStep;
 
@@ -1907,7 +1946,12 @@ export function createCombatActions(
             visibleTargets: nextDerived.visibleTargets,
             visibleMeleeTargets: nextDerived.visibleMeleeTargets,
             selectedTargetId: nextDerived.selectedTargetId,
-            combatLog: appendVictoryLog(s.combatLog, s.round, outcomeCheck),
+            combatLog: appendVictoryLog(
+              s.combatLog,
+              s.round,
+              outcomeCheck,
+              s.m3?.deliveries,
+            ),
           };
         });
 

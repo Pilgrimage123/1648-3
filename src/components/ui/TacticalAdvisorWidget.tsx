@@ -84,6 +84,7 @@ export function TacticalAdvisorWidget() {
   const locale = useLocale();
   const tutorialStep = useGameStore((s) => s.tutorialStep);
   const tutorialDismissed = useGameStore((s) => s.tutorialDismissed);
+  const guidedTutorial = useGameStore((s) => s.guidedTutorial);
   const scenario = useGameStore((s) => s.scenario);
 
   const setTutorialStep = useGameStore((s) => s.setTutorialStep);
@@ -95,8 +96,18 @@ export function TacticalAdvisorWidget() {
   const [expanded, setExpanded] = useState(false);
   const { dragStyle, onPointerDown, hasMoved, resetOffset } = useDraggableHud();
   const isHiddenInActionCam = useIsCinematicHudHidden(true);
+  const isGuidedBannerActive =
+    guidedTutorial.enabled &&
+    !guidedTutorial.dismissed &&
+    guidedTutorial.currentStep !== "step_9_free_combat";
 
-  if (scenario !== "mission1" || isHiddenInActionCam || tutorialDismissed || tutorialStep === null) {
+  if (
+    scenario !== "mission1" ||
+    isHiddenInActionCam ||
+    isGuidedBannerActive ||
+    tutorialDismissed ||
+    tutorialStep === null
+  ) {
     return null;
   }
 

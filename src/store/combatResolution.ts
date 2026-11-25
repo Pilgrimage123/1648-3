@@ -155,6 +155,7 @@ export function appendVictoryLog(
     outcome: "ongoing" | "victory" | "defeat";
     victoryReason: "boat_escape" | "annihilation" | "portcullis" | "skiff" | null;
   },
+  m3Deliveries?: number,
 ): CombatLogEntry[] {
   if (outcomeCheck.outcome !== "victory") return combatLog;
   const victoryMsg =
@@ -163,7 +164,7 @@ export function appendVictoryLog(
       : outcomeCheck.victoryReason === "portcullis"
         ? phrase("log.m2.victory")
         : outcomeCheck.victoryReason === "skiff"
-          ? phrase("log.m3.victory.mute")
+          ? phrase(mission3VictoryPhrase(m3Deliveries ?? 0))
           : phrase("log.victory.annihilation");
   return [...combatLog, makeLog(round, "player", victoryMsg, "story")];
 }

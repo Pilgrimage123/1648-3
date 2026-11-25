@@ -61,6 +61,7 @@ export const WINDLASS: GridCoord = { x: 11, y: 1, z: 14 };
 export const ROPE: GridCoord = { x: 12, y: 1, z: 14 };
 export const INSCRIPTION: GridCoord = { x: 16, y: 2, z: 14 };
 export const STAIR: GridCoord = { x: 14, y: 0, z: 17 };
+export const BRIDGE_KEG: GridCoord = { x: 8, y: 0, z: 13 };
 
 const BRIDGE_X0 = 1;
 const BRIDGE_X1 = 9;
@@ -79,6 +80,7 @@ export interface Mission2Clock {
   riteProgress: number;
   riteRequired: number;
   riteLocked: boolean;
+  riteDisruptedThisRound?: boolean;
   windlassProgress: number;
   windlassWorkerId: string | null;
   windlassArmed: boolean;
@@ -217,10 +219,22 @@ export function createMission2Grid(): GridSystem {
     }
   }
 
+  // Abandoned iron-bound powder keg near the bridge threshold (8, 0, 13):
+  // sits adjacent to both the northern harrier lanes (z=12..13) and the occultist's keystone route (z=14)
+  grid.setObstacle(BRIDGE_KEG, "powder_keg");
+
   grid.bakeCoverFromObstacles();
   for (let x = BRIDGE_X0; x <= BRIDGE_X1; x++) {
     grid.setDirectionalCover({ x, y: 0, z: BRIDGE_Z0 }, "N", "half");
     grid.setDirectionalCover({ x, y: 0, z: BRIDGE_Z1 }, "S", "half");
+  }
+  // Low sandstone pier-buttress bolsters on Charles Bridge deck & gateway threshold pillars
+  for (const z of [11, 16]) {
+    grid.setDirectionalCover({ x: 3, y: 0, z }, "E", "half");
+    grid.setDirectionalCover({ x: 6, y: 0, z }, "E", "half");
+  }
+  for (const z of [12, 16]) {
+    grid.setDirectionalCover({ x: 10, y: 0, z }, "W", "half");
   }
   // Western machicolations and loopholes on P1 and P2 overlooking the bridge
   for (const y of [1, 2] as FloorLevel[]) {
@@ -348,6 +362,7 @@ export function freshClock(units: UnitData[]): Mission2Clock {
     riteProgress: 0,
     riteRequired: RITE_TURNS,
     riteLocked: false,
+    riteDisruptedThisRound: false,
     windlassProgress: 0,
     windlassWorkerId: null,
     windlassArmed: false,
@@ -444,6 +459,48 @@ export function applyDouseAction(clock: Mission2Clock, douser: UnitData): Missio
   };
 }
 
+/**
+ * Ground-level threshold counterplay: a defender standing in the gateway threshold
+ * at (10, 0, 13..15) can physically disrupt the Occultist's ritual on the keystone (9, 0, 14)
+ * for 1 AP, knocking riteProgress back by 1 (and preventing rite completion on that turn).
+ */
+export function canDisruptKeystone(
+  clock: Mission2Clock,
+  defender: UnitData,
+  units: UnitData[],
+): boolean {
+  if (
+    clock.seated ||
+    clock.riteLocked ||
+    clock.riteDisruptedThisRound ||
+    clock.riteProgress <= 0 ||
+    defender.ap < 1 ||
+    !isUnitFighting(defender) ||
+    defender.pos.y !== 0 ||
+    defender.pos.x !== PORTCULLIS_X ||
+    Math.abs(defender.pos.z - KEYSTONE.z) > 1
+  ) {
+    return false;
+  }
+  const occultist = units.find((u) => u.id === OCCULTIST_ID);
+  return Boolean(occultist && isUnitFighting(occultist) && sameCoord(occultist.pos, KEYSTONE));
+}
+
+export function applyDisruptKeystone(
+  clock: Mission2Clock,
+  defender: UnitData,
+  units: UnitData[],
+): Mission2Clock | null {
+  if (!canDisruptKeystone(clock, defender, units)) {
+    return null;
+  }
+  return {
+    ...clock,
+    riteProgress: Math.max(0, clock.riteProgress - 1),
+    riteDisruptedThisRound: true,
+  };
+}
+
 export function applyThrowPitch(clock: Mission2Clock, harrierId?: string): Mission2Clock {
   if (clock.windlassHp <= 0 || clock.seated) return clock;
   if (harrierId && clock.pitchUsedHarrierIds.includes(harrierId)) return clock;
@@ -499,7 +556,11 @@ export function closePlayerTurn(clock: Mission2Clock, units: UnitData[]): Missio
  * Applies windlass burn damage if active.
  */
 export function closeEnemyTurn(clock: Mission2Clock, units: UnitData[]): Mission2Clock {
-  const next: Mission2Clock = { ...clock, hpMark: { ...clock.hpMark } };
+  const next: Mission2Clock = {
+    ...clock,
+    riteDisruptedThisRound: false,
+    hpMark: { ...clock.hpMark },
+  };
 
   if (next.windlassBurning && !next.seated && next.windlassHp > 0) {
     next.windlassHp = Math.max(0, next.windlassHp - 3);
@@ -603,7 +664,7 @@ export function computeMission2Ai(
   grid: GridSystem,
   enemy: UnitData,
   units: UnitData[],
-  _clock: Mission2Clock,
+  clock: Mission2Clock,
   weather: WeatherType = "rain",
 ): EnemyAiDecision {
   const empty: EnemyAiDecision = {
@@ -630,6 +691,31 @@ export function computeMission2Ai(
       );
       const anyFree = thresholdTiles().find((tile) => !occupied.has(coordKey(tile)));
       goal = sameFile ?? anyFree ?? null;
+    } else {
+      // Tactical repositioning on the threshold: if the harrier has no visible targets from its
+      // current threshold tile (or wants a clear pitch-throw angle onto the windlass), slide to a
+      // free threshold tile with better line-of-sight.
+      const currentTargets = evaluateVisibleTargets(grid, enemy, units, weather, enemy.pos);
+      const canThrowFromHere =
+        !clock.windlassBurning &&
+        clock.windlassHp > 0 &&
+        !clock.pitchUsedHarrierIds.includes(enemy.id) &&
+        Math.max(Math.abs(enemy.pos.x - WINDLASS.x), Math.abs(enemy.pos.z - WINDLASS.z)) <= 3 &&
+        checkLineOfSight3D(grid, enemy.pos, WINDLASS).clear;
+      if (currentTargets.length === 0 && !canThrowFromHere) {
+        const betterTile = thresholdTiles().find((tile) => {
+          if (occupied.has(coordKey(tile)) || sameCoord(tile, enemy.pos)) return false;
+          const probe = { ...enemy, pos: tile };
+          const targets = evaluateVisibleTargets(grid, probe, units, weather, tile);
+          const pitchClear =
+            !clock.windlassBurning &&
+            !clock.pitchUsedHarrierIds.includes(enemy.id) &&
+            Math.max(Math.abs(tile.x - WINDLASS.x), Math.abs(tile.z - WINDLASS.z)) <= 3 &&
+            checkLineOfSight3D(grid, tile, WINDLASS).clear;
+          return targets.length > 0 || pitchClear;
+        });
+        if (betterTile) goal = betterTile;
+      }
     }
   }
 
@@ -643,21 +729,42 @@ export function computeMission2Ai(
   const dest = movePath.length > 0 ? movePath[movePath.length - 1]! : enemy.pos;
   const viewer: UnitData = { ...enemy, pos: dest };
   const people = evaluateVisibleTargets(grid, viewer, units, weather, dest);
-  const person = people[0];
+
+  // Target prioritization: if a defender is actively unpinning the windlass (or standing on WINDLASS / ROPE),
+  // prioritize suppressing them to stall the portcullis drop!
+  const windlassDefender = people.find((ev) => {
+    const u = units.find((unit) => unit.id === ev.targetId);
+    return (
+      u &&
+      (sameCoord(u.pos, WINDLASS) ||
+        sameCoord(u.pos, ROPE) ||
+        u.id === clock.windlassWorkerId)
+    );
+  });
+  const thresholdBrawler = people.find((ev) => {
+    const u = units.find((unit) => unit.id === ev.targetId);
+    return u && u.pos.y === 0 && u.pos.x === PORTCULLIS_X;
+  });
+  const person = windlassDefender ?? thresholdBrawler ?? people[0];
+
   let strikeWindlass = false;
   let throwPitch = false;
   if (enemy.id.startsWith("enemy-harrier")) {
     const losToWindlass = checkLineOfSight3D(grid, dest, WINDLASS).clear;
     const distToWindlass = Math.max(Math.abs(dest.x - WINDLASS.x), Math.abs(dest.z - WINDLASS.z));
     if (
-      !_clock.windlassBurning &&
-      _clock.windlassHp > 0 &&
-      !_clock.pitchUsedHarrierIds.includes(enemy.id) &&
+      !clock.windlassBurning &&
+      clock.windlassHp > 0 &&
+      !clock.pitchUsedHarrierIds.includes(enemy.id) &&
       distToWindlass <= 3 &&
       losToWindlass
     ) {
       throwPitch = true;
-    } else if (!person && enemy.firearmLoaded !== false && losToWindlass) {
+    } else if (
+      enemy.firearmLoaded !== false &&
+      losToWindlass &&
+      (!person || clock.windlassHp <= 6)
+    ) {
       strikeWindlass = true;
     }
   }
@@ -665,8 +772,9 @@ export function computeMission2Ai(
   return {
     movePath,
     moveApCost: apForSteps(movePath.length, enemy.movePerAp),
-    targetId: person?.targetId ?? null,
+    targetId: strikeWindlass ? null : (person?.targetId ?? null),
     strikeWindlass,
     throwPitch,
   };
 }
+

@@ -19,6 +19,8 @@
 
 import * as THREE from "three";
 import type { ScenarioId, UnitArchetype } from "../core/types";
+import { getSwedishPortraitDataUri } from "./swedishCanvasRenderer";
+import { resolveSwedishProfile } from "./swedishRig2D";
 
 export type SpriteVariant =
   | UnitArchetype
@@ -614,6 +616,12 @@ export function getProceduralPortraitDataUri(
   unitId?: string,
   scenario?: ScenarioId,
 ): string {
+  const swedishProfile = resolveSwedishProfile(archetype, unitId, scenario);
+  if (swedishProfile) {
+    const canvasPortrait = getSwedishPortraitDataUri(swedishProfile);
+    if (canvasPortrait) return canvasPortrait;
+  }
+
   const variant = resolveSpriteVariant(archetype, unitId, scenario);
   const cached = PORTRAIT_CACHE[variant];
   if (cached) return cached;

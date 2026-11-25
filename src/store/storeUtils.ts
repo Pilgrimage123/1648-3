@@ -92,7 +92,7 @@ export function makeLog(
 export function addLightFlash(
   existing: ActiveLightFlash[],
   newFlash: Omit<ActiveLightFlash, "id" | "createdAt">,
-  now = Date.now(),
+  now = performance.now(),
 ): ActiveLightFlash[] {
   const kept = retainFlashes(existing, newFlash.kind, now);
   return [

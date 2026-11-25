@@ -73,7 +73,8 @@ export function MissionStatusChip() {
       )
     : 0;
   const detainedTurns = colloredo?.detainedTurns ?? 0;
-  const isDetained = detainedTurns > 0 || (colloredo?.hp ?? 1) <= 0;
+  const isDetained = detainedTurns > 0;
+  const isColloredoInThroes = Boolean(colloredo?.inDeathThroes && !isDetained);
   const roundsUntilReinforcements = Math.max(0, reinforcementRound - round);
 
   const weatherLabel =
@@ -87,7 +88,7 @@ export function MissionStatusChip() {
     <aside
       aria-label={text("ui.mission.aria", undefined, locale)}
       style={dragStyle}
-      className="pointer-events-auto flex items-center gap-2 baroque-cartouche baroque-border rounded-xl px-2.5 py-1 text-amber-50 select-none shadow-[0_4px_20px_rgba(0,0,0,0.85)] bg-slate-950/88 border-amber-500/65 backdrop-blur-md w-fit"
+      className="pointer-events-auto flex items-center gap-2 baroque-cartouche baroque-border rounded-xl px-2.5 py-1 text-amber-50 select-none shadow-[0_4px_20px_rgba(0,0,0,0.88)] bg-[#120d09]/92 border-amber-500/65 w-fit"
     >
       {/* Přetahovatelný úchyt + Kolo & Tah */}
       <div
@@ -184,16 +185,20 @@ export function MissionStatusChip() {
             title={
               isDetained
                 ? text("ui.mission.detainedTip", { progress: detainedTurns }, locale)
-                : text("ui.mission.boatTip", { distance: distToBoat }, locale)
+                : isColloredoInThroes
+                  ? text("inspect.cond.throes", undefined, locale)
+                  : text("ui.mission.boatTip", { distance: distToBoat }, locale)
             }
             className={
-              isDetained
+              isDetained || isColloredoInThroes
                 ? "font-cinzel font-black text-rose-300 animate-pulse"
                 : "font-literata"
             }
           >
             {isDetained ? (
               text("ui.mission.detained", { progress: detainedTurns }, locale)
+            ) : isColloredoInThroes ? (
+              text("ui.loss.throesBadge", { hp: colloredo?.hp ?? 0 }, locale)
             ) : (
               <>
                 {text("ui.mission.boat", undefined, locale)}{" "}

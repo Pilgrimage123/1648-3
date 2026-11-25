@@ -265,7 +265,7 @@ export const csUiMessages = {
   "ui.ribbon.reload.ready": (p) =>
     `Zbraň je plně nabitá (${p.required ?? 0}/${p.required ?? 0} AP) a připravená k výstřelu.`,
   "ui.ribbon.reload.blocked": () => "Nyní nelze nabíjet",
-  "ui.ribbon.reload.pistolNo": () => "Jednoranná bambitka nelze v boji přebít",
+  "ui.ribbon.reload.pistolNo": () => "Jednorannou bambitku nelze v boji přebít",
   "ui.ribbon.reload.full": () => "Zbraň je již plně nabitá",
   "ui.ribbon.reload.noAp": () => "Nedostatek AP (vyžaduje 1 AP na krok)",
   "ui.ribbon.reload.aria": () => "Nabít zbraň [R]",
@@ -382,6 +382,8 @@ export const csUiMessages = {
   "ui.ribbon.severRope.aria": () => "Přeříznout kotevní lano mříže za 1 AP",
   "ui.ribbon.douse": () => "Uhasit oheň, 1 AP",
   "ui.ribbon.douse.aria": () => "Uhasit hořící rumpál za 1 AP",
+  "ui.ribbon.disruptKeystone": () => "Narušit obřad, 1 AP",
+  "ui.ribbon.disruptKeystone.aria": () => "Narušit obřad na svorníku z prahu brány za 1 AP",
   "ui.mission.windlassBurning": () => "Rumpál hoří! (−3 HP)",
   "ui.mission.ropeTaut": () => "Lano napnuto",
   "ui.oath.both": () => "Přijmout oba",
@@ -400,6 +402,8 @@ export const csUiMessages = {
   "ui.ribbon.m3.relight.aria": () => "Znovu zapálit doutnák za 1 AP",
   "ui.ribbon.m3.tackle": () => "Přeříznout postraňky, 1 AP",
   "ui.ribbon.m3.tackle.aria": () => "Přeříznout postraňky káry za 1 AP",
+  "ui.ribbon.m3.disruptFalconet": () => "Zhatit zážeh děla, 1 AP",
+  "ui.ribbon.m3.disruptFalconet.aria": () => "Srazit lunt falkonetu a zrušit zaměřený kartáčový kužel za 1 AP",
   "ui.ribbon.m3.rope": () => "Po laně na lodžii, 1 AP",
   "ui.ribbon.m3.rope.aria": () => "Vylézt po laně na lodžii za 1 AP",
   "ui.ribbon.m3.stair": () => "Vystoupat po schodech, 1 AP",
@@ -545,8 +549,15 @@ export const csUiMessages = {
   "ui.epilogue.defeatTitle": () => "Vrchní velitel padl do zajetí",
   "ui.epilogue.victoryMeta": (p) =>
     `Mise splněna v ${p.count}. kole · Anno Salutis 1648, 26. července`,
-  "ui.epilogue.defeatMeta": (p) =>
-    `Katastrofa v ${p.count}. kole · Maršál Colloredo zadržen po 2 kola`,
+  "ui.epilogue.defeatMeta": (p) => {
+    const detail =
+      p.capture === "zero_hp"
+        ? "Maršál Colloredo podlehl zraněním"
+        : p.capture === "all_companions_fallen"
+          ? "Celá eskorta padla v boji"
+          : "Maršál Colloredo zadržen po 2 kola";
+    return `Katastrofa v ${p.count}. kole · ${detail}`;
+  },
   "ui.epilogue.boat.1.title": () => "1. Smrt v loďce a záchrana maršála:",
   "ui.epilogue.boat.1.body": () =>
     "Když pramice odrazila do temného proudu Vltavy, švédští mušketýři spustili ze břehu prudkou palbu. Dva věrní společníci v loďce vlastním tělem zakryli maršála Colloreda v noční košili. Na staroměstském břehu u křižovnického kláštera předali zraněného velitele strážím a v kalužích krve a nočního deště vydechli naposledy. Stráž na Staroměstské mostecké věži spustila železnou mříž doslova před nosem švédských dragounů!",

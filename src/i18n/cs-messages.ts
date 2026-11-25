@@ -599,6 +599,8 @@ export const csMessages = {
     "Kotevní lano je přeťato! Železná mříž se řítí dolů a s hromovým rachotem dosedá do prahu.",
   "log.m2.douse": () =>
     "Oheň na dřevěném rumpálu byl uhašen pískem a vodou!",
+  "log.m2.disrupt": (p, ctx) =>
+    `${ctx.unit(p.unitId, "nom")} vyrazil na práh brány a narušil okultistův obřad na svorníku (−1 stupeň obřadu)!`,
   "log.m2.pitch.thrown": () =>
     "Harcovník mrštil smolnou láhev! Dřevěný rumpál vzplanul (3 poškození za kolo).",
 
@@ -634,6 +636,8 @@ export const csMessages = {
   },
   "log.m3.cone.show": () => "Dělmistr odkryl kartáčový kužel. Tento tah ještě nestřílí.",
   "log.m3.cone.fire": () => "Kartáč vyšel z hlavně.",
+  "log.m3.falconet.disrupt": (p, ctx) =>
+    `${ctx.unit(p.unitId, "nom")} srazil dělmistrův lunt! Zaměřený kartáčový kužel falkonetu je zmařen.`,
   "log.m3.cookoff": () =>
     "Sklad vzplanul a dvůr lehl popelem. Voda v Čertovce zůstala nedotčena.",
   "log.m3.victory.mute": () =>

@@ -250,9 +250,11 @@ export interface GameStoreState {
   lightMission3Cord: () => void;
   cutMission3Tackle: () => void;
   armMission3Climb: () => void;
+  disruptMission3Falconet: () => void;
   unpinWindlassPawl: () => void;
   severPortcullisRope: () => void;
   douseWindlassFire: () => void;
+  disruptKeystoneRite: () => void;
   chooseOath: (which: "both" | "havel" | "ondrej" | "neither") => void;
 }
 
@@ -307,5 +309,7 @@ export interface StoreRuntimeDeps {
     reason: CaptureReason,
     roundNum: number,
   ) => Promise<void>;
-  noteMission3Noise: (reason: "shot" | "melee" | "blast" | "cord" | "tackle") => void;
+  noteMission3Noise: (
+    reason: "shot" | "melee" | "blast" | "cord" | "tackle" | "torch",
+  ) => void;
 }

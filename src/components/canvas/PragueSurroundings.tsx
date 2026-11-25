@@ -16,9 +16,28 @@
  */
 
 import * as THREE from "three";
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useGameStore } from "../../store/useGameStore";
+import { getBaroqueTextureSet } from "./baroqueMaterials";
 import { MISSION1_MOON_POSITION, MISSION2_SUN_POSITION } from "./diegeticLights";
+import {
+  buildCityInstancePlan,
+  buildPragueHouses,
+  createChimneyGeometry,
+  createFinialGeometry,
+  createGableRoofGeometry,
+  createPragueArchitectureGeometries,
+  createRenaissanceGableGeometry,
+  createWindowSurroundGeometry,
+  disposePragueArchitectureGeometries,
+  getMissionRowSpecs,
+  MISSION2_BOARD_BOUNDS,
+  MISSION3_BOARD_BOUNDS,
+  mulberry32,
+  STANDARD_BOARD_BOUNDS,
+  type DetailTransform,
+  type PragueHouse,
+} from "./pragueArchitecture";
 
 const NO_RAYCAST = () => null;
 
@@ -27,24 +46,6 @@ const BX = 19.2;
 const BZ = 22.4;
 
 type Mission = "mission1" | "mission2" | "mission3";
-
-function mulberry32(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/** Distance from a world XZ point to the board rectangle (0 inside). */
-function distToBoard(x: number, z: number): number {
-  const dx = Math.max(0, Math.abs(x) - BX);
-  const dz = Math.max(0, Math.abs(z) - BZ);
-  return Math.hypot(dx, dz);
-}
 
 // ---------------------------------------------------------------------------
 // Sky dome
@@ -143,6 +144,7 @@ function StarField({ visible }: { visible: boolean }) {
     g.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
     return g;
   }, []);
+  useEffect(() => () => geom.dispose(), [geom]);
   if (!visible) return null;
   return (
     <points geometry={geom} renderOrder={-9} raycast={NO_RAYCAST} frustumCulled={false}>
@@ -152,201 +154,728 @@ function StarField({ visible }: { visible: boolean }) {
 }
 
 // ---------------------------------------------------------------------------
-// House rows (instanced bodies + 45° tiled gable roofs + chimneys + lit windows)
+// Prague 1648 Architectural House Rows (Renaissance, Early Baroque & Gothic)
 // ---------------------------------------------------------------------------
-
-interface House {
-  x: number;
-  z: number;
-  w: number; // along ridge
-  d: number; // across ridge
-  h: number; // eaves height
-  ridgeAlongX: boolean;
-  normal: [number, number]; // facade facing the board
-  facade: string;
-  roof: string;
-}
-
-interface RowSpec {
-  /** Row start & end along its length axis */
-  from: number;
-  to: number;
-  /** Fixed coordinate across the row (row centre line) */
-  at: number;
-  alongX: boolean;
-  depth: number;
-  normal: [number, number];
-  maxH: number;
-  baseY?: number;
-}
-
-const FACADES_NIGHT = ["#4a443d", "#3f3a35", "#504638", "#463d3a", "#3b3833", "#4d4335"];
-const FACADES_DAY = ["#8a7e6c", "#7d7468", "#93836a", "#857063", "#787268", "#8e7a5e", "#7a6f62"];
-const ROOFS_NIGHT = ["#3a2420", "#33211d", "#3d2a22"];
-const ROOFS_DAY = ["#7a4634", "#6e4030", "#80503a", "#6a4a3c"];
-
-function buildHouses(rows: RowSpec[], night: boolean, seed: number): House[] {
-  const rand = mulberry32(seed);
-  const facades = night ? FACADES_NIGHT : FACADES_DAY;
-  const roofs = night ? ROOFS_NIGHT : ROOFS_DAY;
-  const out: House[] = [];
-  for (const row of rows) {
-    let s = row.from;
-    while (s < row.to) {
-      const w = 2.4 + rand() * 2.2;
-      const mid = s + w * 0.5;
-      s += w + (rand() < 0.12 ? 1.6 : 0.06); // occasional lane
-      const x = row.alongX ? mid : row.at;
-      const z = row.alongX ? row.at : mid;
-      // near face distance to board → height cap (camera pitch ≈ 48.6°, tan ≈ 1.13)
-      const nx = x - row.normal[0] * row.depth * 0.5;
-      const nz = z - row.normal[1] * row.depth * 0.5;
-      const dist = distToBoard(nx, nz);
-      const roofH = row.depth * 0.5;
-      const cap = Math.min(row.maxH, dist * 1.0 - roofH);
-      if (cap < 1.4) continue;
-      const h = Math.max(1.4, Math.min(cap, 3.6 + rand() * 5.2));
-      out.push({
-        x,
-        z,
-        w,
-        d: row.depth,
-        h,
-        ridgeAlongX: row.alongX,
-        normal: row.normal,
-        facade: facades[Math.floor(rand() * facades.length)]!,
-        roof: roofs[Math.floor(rand() * roofs.length)]!,
-      });
-    }
-  }
-  return out;
-}
 
 const _m = new THREE.Object3D();
 const _c = new THREE.Color();
 
-function HouseRows({ houses, night }: { houses: House[]; night: boolean }) {
-  const bodyRef = useRef<THREE.InstancedMesh>(null);
-  const roofRef = useRef<THREE.InstancedMesh>(null);
-  const chimRef = useRef<THREE.InstancedMesh>(null);
-  const corniceRef = useRef<THREE.InstancedMesh>(null);
-  const winRef = useRef<THREE.InstancedMesh>(null);
+function applyDetailInstances(
+  mesh: THREE.InstancedMesh | null,
+  items: DetailTransform[],
+): void {
+  if (!mesh || items.length === 0) return;
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i]!;
+    _m.position.set(it.x, it.y, it.z);
+    _m.rotation.set(0, it.rotY, 0);
+    _m.scale.set(it.sx, it.sy, it.sz);
+    _m.updateMatrix();
+    mesh.setMatrixAt(i, _m.matrix);
+    mesh.setColorAt(i, _c.set(it.color));
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.computeBoundingSphere();
+}
 
-  const windows = useMemo(() => {
-    const rand = mulberry32(houses.length * 31 + (night ? 7 : 3));
-    const list: { x: number; y: number; z: number; ry: number; lit: boolean }[] = [];
-    for (const hs of houses) {
-      const floors = Math.max(1, Math.floor((hs.h - 0.6) / 1.5));
-      const cols = Math.max(1, Math.floor(hs.w / 1.1));
-      const ry = Math.atan2(hs.normal[0], hs.normal[1]);
-      for (let f = 0; f < floors; f++) {
-        for (let c = 0; c < cols; c++) {
-          const lit = night ? rand() < 0.22 : false;
-          if (!night && rand() < 0.3) continue;
-          const off = (c - (cols - 1) / 2) * (hs.w / cols);
-          const y = 1.0 + f * 1.5;
-          const fx = hs.x + hs.normal[0] * (hs.d * 0.5 + 0.02) + (hs.ridgeAlongX ? off : 0);
-          const fz = hs.z + hs.normal[1] * (hs.d * 0.5 + 0.02) + (hs.ridgeAlongX ? 0 : off);
-          list.push({ x: fx, y, z: fz, ry, lit });
-        }
-      }
-    }
-    return list;
-  }, [houses, night]);
+function applyHouseBodies(
+  mesh: THREE.InstancedMesh | null,
+  items: PragueHouse[],
+): void {
+  if (!mesh || items.length === 0) return;
+  for (let i = 0; i < items.length; i++) {
+    const hs = items[i]!;
+    _m.position.set(hs.x, hs.h * 0.5 - 0.25, hs.z);
+    _m.rotation.set(0, hs.rotY, 0);
+    _m.scale.set(hs.w, hs.h + 0.5, hs.d);
+    _m.updateMatrix();
+    mesh.setMatrixAt(i, _m.matrix);
+    mesh.setColorAt(i, _c.set(hs.facadeColor));
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.computeBoundingSphere();
+}
+
+function applyWindowSurrounds(
+  mesh: THREE.InstancedMesh | null,
+  items: { x: number; y: number; z: number; rotY: number; w: number; h: number; trimColor: string }[],
+): void {
+  if (!mesh || items.length === 0) return;
+  for (let i = 0; i < items.length; i++) {
+    const wd = items[i]!;
+    _m.position.set(wd.x, wd.y, wd.z);
+    _m.rotation.set(0, wd.rotY, 0);
+    _m.scale.set(wd.w, wd.h, 0.55);
+    _m.updateMatrix();
+    mesh.setMatrixAt(i, _m.matrix);
+    mesh.setColorAt(i, _c.set(wd.trimColor));
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.computeBoundingSphere();
+}
+
+function applyWindowPanes(
+  mesh: THREE.InstancedMesh | null,
+  items: { x: number; y: number; z: number; rotY: number; w: number; h: number; glowColor: string }[],
+  fixedHex: string | null,
+): void {
+  if (!mesh || items.length === 0) return;
+  for (let i = 0; i < items.length; i++) {
+    const wd = items[i]!;
+    _m.position.set(wd.x, wd.y, wd.z);
+    _m.rotation.set(0, wd.rotY, 0);
+    _m.scale.set(wd.w * 0.92, wd.h * 0.92, 1);
+    _m.updateMatrix();
+    mesh.setMatrixAt(i, _m.matrix);
+    mesh.setColorAt(i, _c.set(fixedHex ?? wd.glowColor));
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.computeBoundingSphere();
+}
+
+function HouseRows({
+  houses,
+  night,
+  seed = 1648,
+}: {
+  houses: PragueHouse[];
+  night: boolean;
+  seed?: number;
+}) {
+  const plan = useMemo(
+    () => buildCityInstancePlan(houses, night, seed),
+    [houses, night, seed],
+  );
+  const geoms = useMemo(() => createPragueArchitectureGeometries(), []);
+  useEffect(() => () => disposePragueArchitectureGeometries(geoms), [geoms]);
+
+  // Partition windows by pediment geometry & period glazing texture
+  const winGroups = useMemo(() => {
+    const gothicSurr = plan.windows.filter((w) => w.pediment === "gothic");
+    const renSurr = plan.windows.filter((w) => w.pediment === "renaissance");
+    const barTriSurr = plan.windows.filter((w) => w.pediment === "baroque_tri");
+    const barSegSurr = plan.windows.filter((w) => w.pediment === "baroque_seg");
+
+    const unlitGothic = plan.windows.filter((w) => !w.lit && w.style === "gothic");
+    const unlitRen = plan.windows.filter((w) => !w.lit && w.style === "renaissance");
+    const unlitBar = plan.windows.filter((w) => !w.lit && w.style === "baroque");
+
+    const litGothic = plan.windows.filter((w) => w.lit && w.style === "gothic");
+    const litRen = plan.windows.filter((w) => w.lit && w.style === "renaissance");
+    const litBar = plan.windows.filter((w) => w.lit && w.style === "baroque");
+
+    return {
+      gothicSurr,
+      renSurr,
+      barTriSurr,
+      barSegSurr,
+      unlitGothic,
+      unlitRen,
+      unlitBar,
+      litGothic,
+      litRen,
+      litBar,
+    };
+  }, [plan.windows]);
+
+  const sgraffitoRef = useRef<THREE.InstancedMesh>(null);
+  const frescoRef = useRef<THREE.InstancedMesh>(null);
+  const gothicPlasterRef = useRef<THREE.InstancedMesh>(null);
+  const baroqueStuccoRef = useRef<THREE.InstancedMesh>(null);
+  const plinthRef = useRef<THREE.InstancedMesh>(null);
+  const corniceRef = useRef<THREE.InstancedMesh>(null);
+  const pilasterRef = useRef<THREE.InstancedMesh>(null);
+  const gableRoofRef = useRef<THREE.InstancedMesh>(null);
+  const mansardRoofRef = useRef<THREE.InstancedMesh>(null);
+  const renGableRef = useRef<THREE.InstancedMesh>(null);
+  const renAtticRef = useRef<THREE.InstancedMesh>(null);
+  const barGableRef = useRef<THREE.InstancedMesh>(null);
+  const gotGableRef = useRef<THREE.InstancedMesh>(null);
+  const dormerRef = useRef<THREE.InstancedMesh>(null);
+  const orielRef = useRef<THREE.InstancedMesh>(null);
+  const gothicPortalRef = useRef<THREE.InstancedMesh>(null);
+  const renPortalRef = useRef<THREE.InstancedMesh>(null);
+  const barPortalRef = useRef<THREE.InstancedMesh>(null);
+  const gothicDoorRef = useRef<THREE.InstancedMesh>(null);
+  const renDoorRef = useRef<THREE.InstancedMesh>(null);
+  const barDoorRef = useRef<THREE.InstancedMesh>(null);
+  const gothicGrilleRef = useRef<THREE.InstancedMesh>(null);
+  const basketGrilleRef = useRef<THREE.InstancedMesh>(null);
+  const houseSignRef = useRef<THREE.InstancedMesh>(null);
+  const chimRef = useRef<THREE.InstancedMesh>(null);
+  const finialRef = useRef<THREE.InstancedMesh>(null);
+
+  const gothicSurrRef = useRef<THREE.InstancedMesh>(null);
+  const renSurrRef = useRef<THREE.InstancedMesh>(null);
+  const barTriSurrRef = useRef<THREE.InstancedMesh>(null);
+  const barSegSurrRef = useRef<THREE.InstancedMesh>(null);
+  const unlitGothicRef = useRef<THREE.InstancedMesh>(null);
+  const unlitRenRef = useRef<THREE.InstancedMesh>(null);
+  const unlitBarRef = useRef<THREE.InstancedMesh>(null);
+  const litGothicRef = useRef<THREE.InstancedMesh>(null);
+  const litRenRef = useRef<THREE.InstancedMesh>(null);
+  const litBarRef = useRef<THREE.InstancedMesh>(null);
 
   useLayoutEffect(() => {
-    const body = bodyRef.current;
-    const roof = roofRef.current;
-    const chim = chimRef.current;
-    const cornice = corniceRef.current;
-    const win = winRef.current;
-    if (!body || !roof || !chim || !cornice || !win) return;
-    houses.forEach((hs, i) => {
-      const sx = hs.ridgeAlongX ? hs.w : hs.d;
-      const sz = hs.ridgeAlongX ? hs.d : hs.w;
-      _m.position.set(hs.x, hs.h * 0.5 - 0.3, hs.z);
-      _m.rotation.set(0, 0, 0);
-      _m.scale.set(sx, hs.h + 0.6, sz);
-      _m.updateMatrix();
-      body.setMatrixAt(i, _m.matrix);
-      body.setColorAt(i, _c.set(hs.facade));
+    applyHouseBodies(sgraffitoRef.current, plan.sgraffitoHouses);
+    applyHouseBodies(frescoRef.current, plan.frescoHouses);
+    applyHouseBodies(gothicPlasterRef.current, plan.gothicPlasterHouses);
+    applyHouseBodies(baroqueStuccoRef.current, plan.baroqueStuccoHouses);
+    applyDetailInstances(plinthRef.current, plan.plinths);
+    applyDetailInstances(corniceRef.current, plan.cornices);
+    applyDetailInstances(pilasterRef.current, plan.pilasters);
+    applyDetailInstances(gableRoofRef.current, plan.gableRoofs);
+    applyDetailInstances(mansardRoofRef.current, plan.mansardRoofs);
+    applyDetailInstances(renGableRef.current, plan.renaissanceGables);
+    applyDetailInstances(renAtticRef.current, plan.renaissanceAttics);
+    applyDetailInstances(barGableRef.current, plan.baroqueGables);
+    applyDetailInstances(gotGableRef.current, plan.gothicGables);
+    applyDetailInstances(dormerRef.current, plan.dormers);
+    applyDetailInstances(orielRef.current, plan.oriels);
+    applyDetailInstances(gothicPortalRef.current, plan.gothicPortals);
+    applyDetailInstances(renPortalRef.current, plan.renaissancePortals);
+    applyDetailInstances(barPortalRef.current, plan.baroquePortals);
+    applyDetailInstances(gothicDoorRef.current, plan.gothicDoors);
+    applyDetailInstances(renDoorRef.current, plan.renaissanceDoors);
+    applyDetailInstances(barDoorRef.current, plan.baroqueDoors);
+    applyDetailInstances(gothicGrilleRef.current, plan.gothicGrilles);
+    applyDetailInstances(basketGrilleRef.current, plan.basketGrilles);
+    applyDetailInstances(houseSignRef.current, plan.houseSigns);
+    applyDetailInstances(chimRef.current, plan.chimneys);
+    applyDetailInstances(finialRef.current, plan.finials);
 
-      // Baroque cornice under the eaves
-      _m.position.set(hs.x, hs.h - 0.05, hs.z);
-      _m.scale.set(sx + 0.18, 0.16, sz + 0.18);
-      _m.updateMatrix();
-      cornice.setMatrixAt(i, _m.matrix);
-      cornice.setColorAt(i, _c.set(hs.facade).multiplyScalar(1.25));
+    applyWindowSurrounds(gothicSurrRef.current, winGroups.gothicSurr);
+    applyWindowSurrounds(renSurrRef.current, winGroups.renSurr);
+    applyWindowSurrounds(barTriSurrRef.current, winGroups.barTriSurr);
+    applyWindowSurrounds(barSegSurrRef.current, winGroups.barSegSurr);
 
-      // 45° gable roof: rotated square prism, half buried in the body
-      const side = hs.d / Math.SQRT2;
-      _m.position.set(hs.x, hs.h, hs.z);
-      if (hs.ridgeAlongX) {
-        _m.rotation.set(Math.PI / 4, 0, 0);
-        _m.scale.set(hs.w + 0.12, side, side);
-      } else {
-        _m.rotation.set(0, 0, Math.PI / 4);
-        _m.scale.set(side, side, hs.w + 0.12);
-      }
-      _m.updateMatrix();
-      roof.setMatrixAt(i, _m.matrix);
-      roof.setColorAt(i, _c.set(hs.roof));
+    // Subtle period glazing tints: Gothic dark lead-rondel, Renaissance clear slate, Baroque greenish-blue crown glass
+    applyWindowPanes(unlitGothicRef.current, winGroups.unlitGothic, night ? "#1b1f24" : "#343734");
+    applyWindowPanes(unlitRenRef.current, winGroups.unlitRen, night ? "#16202d" : "#2f3844");
+    applyWindowPanes(unlitBarRef.current, winGroups.unlitBar, night ? "#15292e" : "#2c464a");
 
-      // Chimney stack
-      _m.rotation.set(0, 0, 0);
-      const cOff = (i % 3 - 1) * hs.w * 0.25;
-      _m.position.set(
-        hs.x + (hs.ridgeAlongX ? cOff : 0),
-        hs.h + hs.d * 0.42,
-        hs.z + (hs.ridgeAlongX ? 0 : cOff),
-      );
-      _m.scale.set(0.38, 0.9, 0.38);
-      _m.updateMatrix();
-      chim.setMatrixAt(i, _m.matrix);
-      chim.setColorAt(i, _c.set(hs.facade).multiplyScalar(0.8));
-    });
-    windows.forEach((wd, i) => {
-      _m.position.set(wd.x, wd.y, wd.z);
-      _m.rotation.set(0, wd.ry, 0);
-      _m.scale.set(1, 1, 1);
-      _m.updateMatrix();
-      win.setMatrixAt(i, _m.matrix);
-      win.setColorAt(
-        i,
-        wd.lit ? _c.set("#f0a64a") : _c.set(night ? "#0b0d12" : "#2a2a2c"),
-      );
-    });
-    for (const mesh of [body, roof, chim, cornice, win]) {
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-      mesh.computeBoundingSphere();
-    }
-  }, [houses, windows]);
+    applyWindowPanes(litGothicRef.current, winGroups.litGothic, null);
+    applyWindowPanes(litRenRef.current, winGroups.litRen, null);
+    applyWindowPanes(litBarRef.current, winGroups.litBar, null);
+  }, [plan, winGroups, night]);
 
+  const textures = useMemo(() => getBaroqueTextureSet(), []);
   if (houses.length === 0) return null;
 
   return (
     <group>
-      <instancedMesh ref={bodyRef} args={[undefined, undefined, houses.length]} receiveShadow castShadow raycast={NO_RAYCAST}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial roughness={0.92} />
-      </instancedMesh>
-      <instancedMesh ref={corniceRef} args={[undefined, undefined, houses.length]} receiveShadow raycast={NO_RAYCAST}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial roughness={0.85} />
-      </instancedMesh>
-      <instancedMesh ref={roofRef} args={[undefined, undefined, houses.length]} receiveShadow castShadow raycast={NO_RAYCAST}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial roughness={0.8} />
-      </instancedMesh>
-      <instancedMesh ref={chimRef} args={[undefined, undefined, houses.length]} raycast={NO_RAYCAST}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial roughness={0.95} />
-      </instancedMesh>
-      <instancedMesh ref={winRef} args={[undefined, undefined, Math.max(1, windows.length)]} raycast={NO_RAYCAST}>
-        <planeGeometry args={[0.42, 0.72]} />
-        <meshBasicMaterial toneMapped={false} />
-      </instancedMesh>
+      {/* 1a. High-contrast Bohemian Renaissance psaníčkové sgrafito (charcoal underlayer + white limewash + top frieze) */}
+      {plan.sgraffitoHouses.length > 0 && (
+        <instancedMesh
+          ref={sgraffitoRef}
+          args={[undefined, undefined, plan.sgraffitoHouses.length]}
+          receiveShadow
+          castShadow
+          raycast={NO_RAYCAST}
+        >
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial
+            roughness={0.86}
+            map={textures.sgraffitoFacadeAlbedo}
+            bumpMap={textures.masonryAshlarBump}
+            bumpScale={0.025}
+          />
+        </instancedMesh>
+      )}
+
+      {/* 1b. Renaissance mineral-pigment frescoed facades (red, ochre, sage, slate-blue + painted grotesque bands) */}
+      {plan.frescoHouses.length > 0 && (
+        <instancedMesh
+          ref={frescoRef}
+          args={[undefined, undefined, plan.frescoHouses.length]}
+          receiveShadow
+          castShadow
+          raycast={NO_RAYCAST}
+        >
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial
+            roughness={0.85}
+            map={textures.renaissanceFrescoAlbedo}
+          />
+        </instancedMesh>
+      )}
+
+      {/* 1c. Gothic smooth medieval limewash facades with illusionistic painted corner quoins */}
+      {plan.gothicPlasterHouses.length > 0 && (
+        <instancedMesh
+          ref={gothicPlasterRef}
+          args={[undefined, undefined, plan.gothicPlasterHouses.length]}
+          receiveShadow
+          castShadow
+          raycast={NO_RAYCAST}
+        >
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial
+            roughness={0.91}
+            map={textures.gothicPlasterAlbedo}
+          />
+        </instancedMesh>
+      )}
+
+      {/* 1d. Early Baroque warm ochre/terracotta/salmon smooth sculpted stucco facades */}
+      {plan.baroqueStuccoHouses.length > 0 && (
+        <instancedMesh
+          ref={baroqueStuccoRef}
+          args={[undefined, undefined, plan.baroqueStuccoHouses.length]}
+          receiveShadow
+          castShadow
+          raycast={NO_RAYCAST}
+        >
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial
+            roughness={0.82}
+            map={textures.baroqueStuccoAlbedo}
+          />
+        </instancedMesh>
+      )}
+
+      {/* Heavy ground-floor rusticated stone plinths */}
+      {plan.plinths.length > 0 && (
+        <instancedMesh
+          ref={plinthRef}
+          args={[undefined, undefined, plan.plinths.length]}
+          receiveShadow
+          raycast={NO_RAYCAST}
+        >
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial
+            roughness={0.95}
+            bumpMap={textures.masonryAshlarBump}
+            bumpScale={0.055}
+          />
+        </instancedMesh>
+      )}
+
+      {/* Eaves crown cornices & bold Early Baroque / Renaissance belt courses (kordonové římsy) */}
+      {plan.cornices.length > 0 && (
+        <instancedMesh
+          ref={corniceRef}
+          args={[undefined, undefined, plan.cornices.length]}
+          receiveShadow
+          raycast={NO_RAYCAST}
+        >
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial roughness={0.8} />
+        </instancedMesh>
+      )}
+
+      {/* Plastic Early Baroque pilasters & Renaissance corner lesenes */}
+      {plan.pilasters.length > 0 && (
+        <instancedMesh
+          ref={pilasterRef}
+          args={[undefined, undefined, plan.pilasters.length]}
+          castShadow
+          raycast={NO_RAYCAST}
+        >
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial roughness={0.82} />
+        </instancedMesh>
+      )}
+
+      {/* Steep pitched clay-tile gable roofs */}
+      {plan.gableRoofs.length > 0 && (
+        <instancedMesh
+          ref={gableRoofRef}
+          geometry={geoms.gableRoof}
+          args={[undefined, undefined, plan.gableRoofs.length]}
+          receiveShadow
+          castShadow
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial
+            roughness={0.72}
+            map={textures.roofTileAlbedo}
+            bumpMap={textures.roofTileBump}
+            bumpScale={0.045}
+          />
+        </instancedMesh>
+      )}
+
+      {/* Early Baroque 4-sided hipped mansard roofs */}
+      {plan.mansardRoofs.length > 0 && (
+        <instancedMesh
+          ref={mansardRoofRef}
+          geometry={geoms.mansardRoof}
+          args={[undefined, undefined, plan.mansardRoofs.length]}
+          receiveShadow
+          castShadow
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial
+            roughness={0.7}
+            map={textures.roofTileAlbedo}
+            bumpMap={textures.roofTileBump}
+            bumpScale={0.045}
+          />
+        </instancedMesh>
+      )}
+
+      {/* Sculpted Bohemian Renaissance scrolled gables (seamless psaníčko pattern, zero frieze stripe) */}
+      {plan.renaissanceGables.length > 0 && (
+        <instancedMesh
+          ref={renGableRef}
+          geometry={geoms.renaissanceGable}
+          args={[undefined, undefined, plan.renaissanceGables.length]}
+          receiveShadow
+          castShadow
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial
+            roughness={0.84}
+            map={textures.sgraffitoPatternAlbedo}
+          />
+        </instancedMesh>
+      )}
+
+      {/* Prague Renaissance lunette attic parapets (lunetové atiky) */}
+      {plan.renaissanceAttics.length > 0 && (
+        <instancedMesh
+          ref={renAtticRef}
+          geometry={geoms.renaissanceAttic}
+          args={[undefined, undefined, plan.renaissanceAttics.length]}
+          receiveShadow
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial
+            roughness={0.84}
+            map={textures.sgraffitoPatternAlbedo}
+          />
+        </instancedMesh>
+      )}
+
+      {/* Early Baroque scrolled volute gables with classical tympanum */}
+      {plan.baroqueGables.length > 0 && (
+        <instancedMesh
+          ref={barGableRef}
+          geometry={geoms.baroqueGable}
+          args={[undefined, undefined, plan.baroqueGables.length]}
+          receiveShadow
+          castShadow
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial roughness={0.8} map={textures.baroqueStuccoAlbedo} />
+        </instancedMesh>
+      )}
+
+      {/* Medieval Gothic crow-stepped gables (clean smooth medieval limewash — no center quoin seam) */}
+      {plan.gothicGables.length > 0 && (
+        <instancedMesh
+          ref={gotGableRef}
+          geometry={geoms.gothicGable}
+          args={[undefined, undefined, plan.gothicGables.length]}
+          receiveShadow
+          castShadow
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial
+            roughness={0.92}
+            map={textures.smoothLimeAlbedo}
+            bumpMap={textures.masonryAshlarBump}
+            bumpScale={0.032}
+          />
+        </instancedMesh>
+      )}
+
+      {/* Roof dormers (vikýře) */}
+      {plan.dormers.length > 0 && (
+        <instancedMesh
+          ref={dormerRef}
+          geometry={geoms.dormer}
+          args={[undefined, undefined, plan.dormers.length]}
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial roughness={0.82} />
+        </instancedMesh>
+      )}
+
+      {/* Cantilevered 1st-floor bay oriels (arkýře) */}
+      {plan.oriels.length > 0 && (
+        <instancedMesh
+          ref={orielRef}
+          geometry={geoms.oriel}
+          args={[undefined, undefined, plan.oriels.length]}
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial
+            roughness={0.86}
+            bumpMap={textures.masonryAshlarBump}
+            bumpScale={0.03}
+          />
+        </instancedMesh>
+      )}
+
+      {/* 2a. Gothic pointed portals with flanking stone benches (sedátka) */}
+      {plan.gothicPortals.length > 0 && (
+        <instancedMesh
+          ref={gothicPortalRef}
+          geometry={geoms.gothicPortal}
+          args={[undefined, undefined, plan.gothicPortals.length]}
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial roughness={0.9} bumpMap={textures.masonryAshlarBump} bumpScale={0.03} />
+        </instancedMesh>
+      )}
+
+      {/* 2b. Renaissance semicircular rusticated bosáž portals with top tablet */}
+      {plan.renaissancePortals.length > 0 && (
+        <instancedMesh
+          ref={renPortalRef}
+          geometry={geoms.renaissancePortal}
+          args={[undefined, undefined, plan.renaissancePortals.length]}
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial roughness={0.84} bumpMap={textures.masonryAshlarBump} bumpScale={0.025} />
+        </instancedMesh>
+      )}
+
+      {/* 2c. Early Baroque columned portals carrying projecting altán balconies, broken pediments & cartouches */}
+      {plan.baroquePortals.length > 0 && (
+        <instancedMesh
+          ref={barPortalRef}
+          geometry={geoms.baroquePortal}
+          args={[undefined, undefined, plan.baroquePortals.length]}
+          castShadow
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial roughness={0.78} />
+        </instancedMesh>
+      )}
+
+      {/* 3a. Gothic iron-strapped oak doors with rivets & ring knocker */}
+      {plan.gothicDoors.length > 0 && (
+        <instancedMesh
+          ref={gothicDoorRef}
+          args={[undefined, undefined, plan.gothicDoors.length]}
+          raycast={NO_RAYCAST}
+        >
+          <planeGeometry args={[1, 1]} />
+          <meshStandardMaterial map={textures.gothicDoorAlbedo} roughness={0.88} />
+        </instancedMesh>
+      )}
+
+      {/* 3b. Renaissance coffered doors with carved rosettes (kazetová vrata) */}
+      {plan.renaissanceDoors.length > 0 && (
+        <instancedMesh
+          ref={renDoorRef}
+          args={[undefined, undefined, plan.renaissanceDoors.length]}
+          raycast={NO_RAYCAST}
+        >
+          <planeGeometry args={[1, 1]} />
+          <meshStandardMaterial map={textures.renaissanceDoorAlbedo} roughness={0.82} />
+        </instancedMesh>
+      )}
+
+      {/* 3c. Early Baroque double-leaf carved doors with inset pedestrian wicket gate */}
+      {plan.baroqueDoors.length > 0 && (
+        <instancedMesh
+          ref={barDoorRef}
+          args={[undefined, undefined, plan.baroqueDoors.length]}
+          raycast={NO_RAYCAST}
+        >
+          <planeGeometry args={[1, 1]} />
+          <meshStandardMaterial map={textures.baroqueDoorAlbedo} roughness={0.8} />
+        </instancedMesh>
+      )}
+
+      {/* Painted / relief Prague house signs (domovní znamení) */}
+      {plan.houseSigns.length > 0 && (
+        <instancedMesh
+          ref={houseSignRef}
+          args={[undefined, undefined, plan.houseSigns.length]}
+          raycast={NO_RAYCAST}
+        >
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial map={textures.houseSignAlbedo} roughness={0.68} />
+        </instancedMesh>
+      )}
+
+      {/* Ground-floor Gothic heavy wrought-iron grilles */}
+      {plan.gothicGrilles.length > 0 && (
+        <instancedMesh
+          ref={gothicGrilleRef}
+          geometry={geoms.gothicGrille}
+          args={[undefined, undefined, plan.gothicGrilles.length]}
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial roughness={0.55} metalness={0.68} />
+        </instancedMesh>
+      )}
+
+      {/* Ground-floor Renaissance outward-bowed basket grilles (košové mříže) */}
+      {plan.basketGrilles.length > 0 && (
+        <instancedMesh
+          ref={basketGrilleRef}
+          geometry={geoms.basketGrille}
+          args={[undefined, undefined, plan.basketGrilles.length]}
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial roughness={0.52} metalness={0.7} />
+        </instancedMesh>
+      )}
+
+      {/* Plastered Prague chimney stacks with corbeled crowns */}
+      {plan.chimneys.length > 0 && (
+        <instancedMesh
+          ref={chimRef}
+          geometry={geoms.chimney}
+          args={[undefined, undefined, plan.chimneys.length]}
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial roughness={0.93} />
+        </instancedMesh>
+      )}
+
+      {/* Gable finial vases / stone obelisks (vázy a čučky) */}
+      {plan.finials.length > 0 && (
+        <instancedMesh
+          ref={finialRef}
+          geometry={geoms.finial}
+          args={[undefined, undefined, plan.finials.length]}
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial roughness={0.78} />
+        </instancedMesh>
+      )}
+
+      {/* 4a. Gothic deeply recessed chamfered stone window surrounds */}
+      {winGroups.gothicSurr.length > 0 && (
+        <instancedMesh
+          ref={gothicSurrRef}
+          geometry={geoms.gothicWindowSurround}
+          args={[undefined, undefined, winGroups.gothicSurr.length]}
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial roughness={0.9} />
+        </instancedMesh>
+      )}
+
+      {/* 4b. Renaissance moulded šambrána with horizontal cornice hood */}
+      {winGroups.renSurr.length > 0 && (
+        <instancedMesh
+          ref={renSurrRef}
+          geometry={geoms.renaissanceWindowSurround}
+          args={[undefined, undefined, winGroups.renSurr.length]}
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial roughness={0.82} />
+        </instancedMesh>
+      )}
+
+      {/* 4c. Early Baroque tall window surrounds with triangular suprafenestras */}
+      {winGroups.barTriSurr.length > 0 && (
+        <instancedMesh
+          ref={barTriSurrRef}
+          geometry={geoms.baroqueWindowSurroundTri}
+          args={[undefined, undefined, winGroups.barTriSurr.length]}
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial roughness={0.78} />
+        </instancedMesh>
+      )}
+
+      {/* 4d. Early Baroque tall window surrounds with segmental arched suprafenestras */}
+      {winGroups.barSegSurr.length > 0 && (
+        <instancedMesh
+          ref={barSegSurrRef}
+          geometry={geoms.baroqueWindowSurroundSeg}
+          args={[undefined, undefined, winGroups.barSegSurr.length]}
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial roughness={0.78} />
+        </instancedMesh>
+      )}
+
+      {/* 5a. Reflective unlit Gothic leaded bullseye rondel glass (bukle) */}
+      {winGroups.unlitGothic.length > 0 && (
+        <instancedMesh
+          ref={unlitGothicRef}
+          args={[undefined, undefined, winGroups.unlitGothic.length]}
+          raycast={NO_RAYCAST}
+        >
+          <planeGeometry args={[1, 1]} />
+          <meshStandardMaterial
+            map={textures.gothicWindowAlbedo}
+            roughness={0.28}
+            metalness={0.22}
+            envMapIntensity={0.7}
+          />
+        </instancedMesh>
+      )}
+
+      {/* 5b. Reflective unlit Renaissance leaded glass with heraldic medallions */}
+      {winGroups.unlitRen.length > 0 && (
+        <instancedMesh
+          ref={unlitRenRef}
+          args={[undefined, undefined, winGroups.unlitRen.length]}
+          raycast={NO_RAYCAST}
+        >
+          <planeGeometry args={[1, 1]} />
+          <meshStandardMaterial
+            map={textures.windowPaneAlbedo}
+            roughness={0.22}
+            metalness={0.26}
+            envMapIntensity={0.85}
+          />
+        </instancedMesh>
+      )}
+
+      {/* 5c. Reflective unlit Early Baroque greenish-blue tinted crown glass in light wooden casements */}
+      {winGroups.unlitBar.length > 0 && (
+        <instancedMesh
+          ref={unlitBarRef}
+          args={[undefined, undefined, winGroups.unlitBar.length]}
+          raycast={NO_RAYCAST}
+        >
+          <planeGeometry args={[1, 1]} />
+          <meshStandardMaterial
+            map={textures.baroqueWindowAlbedo}
+            roughness={0.16}
+            metalness={0.32}
+            envMapIntensity={0.95}
+          />
+        </instancedMesh>
+      )}
+
+      {/* 6a-c. Warm candlelit nocturnal windows preserving each period's glazing pattern */}
+      {winGroups.litGothic.length > 0 && (
+        <instancedMesh
+          ref={litGothicRef}
+          args={[undefined, undefined, winGroups.litGothic.length]}
+          raycast={NO_RAYCAST}
+        >
+          <planeGeometry args={[1, 1]} />
+          <meshBasicMaterial map={textures.gothicWindowAlbedo} toneMapped={false} />
+        </instancedMesh>
+      )}
+      {winGroups.litRen.length > 0 && (
+        <instancedMesh
+          ref={litRenRef}
+          args={[undefined, undefined, winGroups.litRen.length]}
+          raycast={NO_RAYCAST}
+        >
+          <planeGeometry args={[1, 1]} />
+          <meshBasicMaterial map={textures.windowPaneAlbedo} toneMapped={false} />
+        </instancedMesh>
+      )}
+      {winGroups.litBar.length > 0 && (
+        <instancedMesh
+          ref={litBarRef}
+          args={[undefined, undefined, winGroups.litBar.length]}
+          raycast={NO_RAYCAST}
+        >
+          <planeGeometry args={[1, 1]} />
+          <meshBasicMaterial map={textures.baroqueWindowAlbedo} toneMapped={false} />
+        </instancedMesh>
+      )}
     </group>
   );
 }
@@ -450,15 +979,20 @@ function PragueCastle({ pos, rotY, night }: { pos: [number, number, number]; rot
       </mesh>
       <mesh position={[8, 33.6, -4]} scale={[1, 1.25, 1]} raycast={NO_RAYCAST}>
         <sphereGeometry args={[2.5, 16, 12]} />
-        <meshStandardMaterial color={copper} roughness={0.6} metalness={0.3} />
+        <meshStandardMaterial color={copper} roughness={0.44} metalness={0.55} />
       </mesh>
       <mesh position={[8, 37.4, -4]} raycast={NO_RAYCAST}>
         <cylinderGeometry args={[0.7, 0.9, 2.2, 8]} />
-        <meshStandardMaterial color={copper} roughness={0.6} metalness={0.3} />
+        <meshStandardMaterial color={copper} roughness={0.44} metalness={0.55} />
       </mesh>
       <mesh position={[8, 39.6, -4]} raycast={NO_RAYCAST}>
         <coneGeometry args={[0.8, 2.6, 8]} />
-        <meshStandardMaterial color={copper} roughness={0.6} metalness={0.3} />
+        <meshStandardMaterial color={copper} roughness={0.42} metalness={0.58} />
+      </mesh>
+      {/* Gilded Renaissance finial orb atop St. Vitus Great Tower */}
+      <mesh position={[8, 41.1, -4]} raycast={NO_RAYCAST}>
+        <sphereGeometry args={[0.42, 8, 6]} />
+        <meshStandardMaterial color="#e5b84b" metalness={0.88} roughness={0.22} />
       </mesh>
       {/* St. George's Basilica twin Romanesque towers */}
       <Spire pos={[18, 18, -3]} w={2.2} h={7} roofH={4} color={stone} roof={roof} />
@@ -567,7 +1101,7 @@ function WaterRect({
   z0,
   z1,
   color,
-  y = -0.2,
+  y = -0.12,
 }: {
   x0: number;
   x1: number;
@@ -576,6 +1110,7 @@ function WaterRect({
   color: string;
   y?: number;
 }) {
+  const textures = useMemo(() => getBaroqueTextureSet(), []);
   return (
     <mesh
       position={[(x0 + x1) / 2, y, (z0 + z1) / 2]}
@@ -584,7 +1119,14 @@ function WaterRect({
       raycast={NO_RAYCAST}
     >
       <planeGeometry args={[x1 - x0, z1 - z0]} />
-      <meshStandardMaterial color={color} roughness={0.14} metalness={0.32} />
+      <meshStandardMaterial
+        color={color}
+        roughness={0.22}
+        metalness={0.25}
+        envMapIntensity={0.88}
+        bumpMap={textures.waterRippleBump}
+        bumpScale={0.02}
+      />
     </mesh>
   );
 }
@@ -597,28 +1139,15 @@ function WaterRect({
 function Mission2Surroundings() {
   const houses = useMemo(
     () =>
-      buildHouses(
-        [
-          // Old Town blocks behind Křižovnické náměstí (east)
-          { from: -44, to: 44, at: 23.5, alongX: false, depth: 5, normal: [-1, 0], maxH: 7 },
-          { from: -44, to: 44, at: 30, alongX: false, depth: 6, normal: [-1, 0], maxH: 10 },
-          { from: -44, to: 44, at: 37, alongX: false, depth: 6, normal: [-1, 0], maxH: 12 },
-          // Old Town riverside north & south of the board (east of quay)
-          { from: 7, to: 21, at: -26, alongX: true, depth: 5, normal: [0, 1], maxH: 8 },
-          { from: 7, to: 21, at: 26, alongX: true, depth: 5, normal: [0, -1], maxH: 8 },
-          { from: 7, to: 21, at: -33, alongX: true, depth: 6, normal: [0, 1], maxH: 11 },
-          { from: 7, to: 21, at: 33, alongX: true, depth: 6, normal: [0, -1], maxH: 11 },
-          // Malá Strana across the Vltava (west bank)
-          { from: -60, to: -8, at: -60, alongX: false, depth: 6, normal: [1, 0], maxH: 11 },
-          { from: 8, to: 60, at: -60, alongX: false, depth: 6, normal: [1, 0], maxH: 11 },
-          { from: -60, to: 60, at: -68, alongX: false, depth: 7, normal: [1, 0], maxH: 13 },
-        ],
+      buildPragueHouses(
+        getMissionRowSpecs("mission2"),
         false,
         2607,
+        MISSION2_BOARD_BOUNDS,
       ),
     [],
   );
-  const water = "#1d4f66";
+  const water = "#174b63";
   return (
     <group>
       {/* Vltava continuing north, south and west beyond the board */}
@@ -666,7 +1195,7 @@ function Mission2Surroundings() {
       ))}
       <LesserTownBridgeTowers x={-58.5} night={false} />
 
-      <HouseRows houses={houses} night={false} />
+      <HouseRows houses={houses} night={false} seed={2607} />
 
       {/* Horizon: Hradčany & Petřín to the west, Týn and Old Town Hall to the east */}
       <PragueCastle pos={[-86, -1, -24]} rotY={Math.PI / 2} night={false} />
@@ -681,56 +1210,141 @@ function Mission2Surroundings() {
 function Mission1Surroundings() {
   const houses = useMemo(
     () =>
-      buildHouses(
-        [
-          // Kampa island beyond Čertovka (north)
-          { from: -46, to: 46, at: -26, alongX: true, depth: 5, normal: [0, 1], maxH: 7 },
-          { from: -46, to: 46, at: -33, alongX: true, depth: 6, normal: [0, 1], maxH: 10 },
-          // Maltese Square & Lázeňská street (south)
-          { from: -27, to: -12, at: 26, alongX: true, depth: 5, normal: [0, -1], maxH: 8 },
-          { from: 2, to: 27, at: 26, alongX: true, depth: 5, normal: [0, -1], maxH: 8 },
-          { from: -27, to: -14, at: 33, alongX: true, depth: 6, normal: [0, -1], maxH: 11 },
-          { from: 4, to: 27, at: 33, alongX: true, depth: 6, normal: [0, -1], maxH: 11 },
-          // West (towards Újezd) and east (towards the bridge) — skip the canal band
-          { from: -12, to: 22, at: -23, alongX: false, depth: 5, normal: [1, 0], maxH: 8 },
-          { from: -12, to: 22, at: 23, alongX: false, depth: 5, normal: [-1, 0], maxH: 8 },
-          { from: -12, to: 40, at: -30, alongX: false, depth: 6, normal: [1, 0], maxH: 11 },
-          { from: -12, to: 40, at: 30, alongX: false, depth: 6, normal: [-1, 0], maxH: 11 },
-        ],
+      buildPragueHouses(
+        getMissionRowSpecs("mission1"),
         true,
         1648,
+        STANDARD_BOARD_BOUNDS,
       ),
     [],
   );
-  const water = "#0b2f40";
+  const millGeoms = useMemo(
+    () => ({
+      roof: createGableRoofGeometry(),
+      gable: createRenaissanceGableGeometry(),
+      chimney: createChimneyGeometry(),
+      finial: createFinialGeometry(),
+      windowSurround: createWindowSurroundGeometry(),
+    }),
+    [],
+  );
+  useEffect(
+    () => () => {
+      millGeoms.roof.dispose();
+      millGeoms.gable.dispose();
+      millGeoms.chimney.dispose();
+      millGeoms.finial.dispose();
+      millGeoms.windowSurround.dispose();
+    },
+    [millGeoms],
+  );
+  const textures = useMemo(() => getBaroqueTextureSet(), []);
+  const water = "#103a4f";
   return (
     <group>
       {/* Čertovka canal continuing east & west beyond the board (z: 0..4) */}
-      <WaterRect x0={-70} x1={-BX} z0={-BZ} z1={-14.4} color={water} y={-0.18} />
-      <WaterRect x0={BX} x1={70} z0={-BZ} z1={-14.4} color={water} y={-0.18} />
+      <WaterRect x0={-70} x1={-BX} z0={-BZ} z1={-14.4} color={water} y={-0.12} />
+      <WaterRect x0={BX} x1={70} z0={-BZ} z1={-14.4} color={water} y={-0.12} />
       {[-14.2, -22.6].map((wz) => (
-        <mesh key={wz} position={[0, -0.05, wz]} raycast={NO_RAYCAST}>
-          <boxGeometry args={[140, 0.3, 0.4]} />
-          <meshStandardMaterial color="#2c2823" roughness={0.95} />
-        </mesh>
+        <group key={wz}>
+          <mesh position={[-(BX + 70) * 0.5, -0.05, wz]} raycast={NO_RAYCAST}>
+            <boxGeometry args={[70 - BX, 0.3, 0.4]} />
+            <meshStandardMaterial color="#2c2823" roughness={0.95} />
+          </mesh>
+          <mesh position={[(BX + 70) * 0.5, -0.05, wz]} raycast={NO_RAYCAST}>
+            <boxGeometry args={[70 - BX, 0.3, 0.4]} />
+            <meshStandardMaterial color="#2c2823" roughness={0.95} />
+          </mesh>
+        </group>
       ))}
 
-      {/* Mill house continuing the on-board Čertovka wheel off the west edge.
-          The wheel itself is the palace dressing at grid (1.15, 0, 2.2). */}
-      <mesh position={[-23.2, 1.6, -18.1]} raycast={NO_RAYCAST}>
-        <boxGeometry args={[4.2, 3.4, 5.2]} />
-        <meshStandardMaterial color="#3d372f" roughness={0.95} />
-      </mesh>
-      <mesh position={[-23.2, 3.3, -18.1]} rotation={[0, 0, Math.PI / 4]} scale={[3.6, 3.6, 5.4]} raycast={NO_RAYCAST}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#33211d" roughness={0.85} />
-      </mesh>
-      <mesh position={[-21.05, 1.8, -18.1]} rotation={[0, Math.PI / 2, 0]} raycast={NO_RAYCAST}>
-        <planeGeometry args={[0.5, 0.7]} />
-        <meshBasicMaterial color="#f0a64a" toneMapped={false} />
-      </mesh>
+      {/* Renaissance Grand Priory Mill House continuing the on-board Čertovka wheel off the west edge */}
+      <group position={[-23.6, 0, -18.1]}>
+        {/* Low stone water-table plinth */}
+        <mesh position={[0, 0.12, 0]} raycast={NO_RAYCAST}>
+          <boxGeometry args={[5.5, 1.36, 6.3]} />
+          <meshStandardMaterial color="#3a3530" roughness={0.95} bumpMap={textures.masonryAshlarBump} bumpScale={0.05} />
+        </mesh>
+        {/* High-contrast Bohemian Renaissance psaníčkové sgrafito main body */}
+        <mesh position={[0, 2.35, 0]} raycast={NO_RAYCAST}>
+          <boxGeometry args={[5.4, 4.7, 6.2]} />
+          <meshStandardMaterial color="#80796e" roughness={0.86} map={textures.sgraffitoFacadeAlbedo} />
+        </mesh>
+        {/* Eaves cornice & Renaissance stringcourse belt */}
+        <mesh position={[0, 4.68, 0]} raycast={NO_RAYCAST}>
+          <boxGeometry args={[5.76, 0.24, 6.56]} />
+          <meshStandardMaterial color="#918778" roughness={0.8} />
+        </mesh>
+        <mesh position={[0, 2.15, 0]} raycast={NO_RAYCAST}>
+          <boxGeometry args={[5.62, 0.14, 6.42]} />
+          <meshStandardMaterial color="#918778" roughness={0.82} />
+        </mesh>
+        {/* True-pitched Bohemian clay tile gable roof (ridge along X, gable facing east toward Čertovka dock) */}
+        <mesh
+          position={[0, 4.7, 0]}
+          scale={[5.2, 2.9, 6.6]}
+          geometry={millGeoms.roof}
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial
+            color="#623629"
+            roughness={0.72}
+            map={textures.roofTileAlbedo}
+            bumpMap={textures.roofTileBump}
+            bumpScale={0.045}
+          />
+        </mesh>
+        {/* Sculpted Renaissance scrolled gables on east & west ends with stone vase finials */}
+        {([1, -1] as const).map((dir) => (
+          <group key={dir}>
+            <mesh
+              position={[dir * 2.62, 4.68, 0]}
+              rotation={[0, dir > 0 ? Math.PI / 2 : -Math.PI / 2, 0]}
+              scale={[6.28, 3.25, 0.38]}
+              geometry={millGeoms.gable}
+              raycast={NO_RAYCAST}
+            >
+              <meshStandardMaterial color="#80796e" roughness={0.84} map={textures.sgraffitoPatternAlbedo} />
+            </mesh>
+            <mesh
+              position={[dir * 2.62, 8.05, 0]}
+              scale={[0.3, 0.56, 0.3]}
+              geometry={millGeoms.finial}
+              raycast={NO_RAYCAST}
+            >
+              <meshStandardMaterial color="#918778" roughness={0.78} />
+            </mesh>
+          </group>
+        ))}
+        {/* Corbeled Prague chimney */}
+        <mesh
+          position={[-0.9, 6.55, -1.1]}
+          scale={[0.62, 1.7, 0.62]}
+          geometry={millGeoms.chimney}
+          raycast={NO_RAYCAST}
+        >
+          <meshStandardMaterial color="#423b34" roughness={0.92} />
+        </mesh>
+        {/* Painted Prague mill house sign (domovní znamení) facing the dock */}
+        <mesh position={[2.76, 3.65, 0]} rotation={[0, Math.PI / 2, 0]} raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.84, 0.62, 0.08]} />
+          <meshStandardMaterial color="#b4a894" map={textures.houseSignAlbedo} roughness={0.68} />
+        </mesh>
+        {/* Renaissance stone-framed mullioned candlelit windows facing the dock */}
+        {[-1.55, 1.55].map((wz) => (
+          <group key={wz} position={[2.76, 2.95, wz]} rotation={[0, Math.PI / 2, 0]}>
+            <mesh scale={[0.74, 1.12, 0.55]} geometry={millGeoms.windowSurround} raycast={NO_RAYCAST}>
+              <meshStandardMaterial color="#918778" roughness={0.82} />
+            </mesh>
+            <mesh position={[0, 0, 0.01]} raycast={NO_RAYCAST}>
+              <planeGeometry args={[0.68, 1.02]} />
+              <meshBasicMaterial color="#eba349" map={textures.windowPaneAlbedo} toneMapped={false} />
+            </mesh>
+          </group>
+        ))}
+      </group>
 
-      <HouseRows houses={houses} night />
+      <HouseRows houses={houses} night seed={1648} />
 
       {/* Church of Our Lady beneath the Chain – the Maltese commandery church beside the Grand Priory */}
       <OurLadyBeneathTheChain pos={[-4, 0, 34]} rotY={Math.PI} night />
@@ -744,38 +1358,64 @@ function Mission1Surroundings() {
 }
 
 function Mission3Surroundings() {
-  const water = "#092533";
+  const houses = useMemo(
+    () =>
+      buildPragueHouses(
+        getMissionRowSpecs("mission3"),
+        true,
+        2707,
+        MISSION3_BOARD_BOUNDS,
+      ),
+    [],
+  );
+  const water = "#103a4f";
   return (
     <group>
-      {/* Čertovka canal extensions north and south of x = 4..5 (world x = -12.8..-9.6) */}
-      <WaterRect x0={-12.8} x1={-9.6} z0={-48} z1={-9.6} color={water} y={-0.36} />
-      <WaterRect x0={-12.8} x1={-9.6} z0={1.6} z1={48} color={water} y={-0.36} />
+      {/* Čertovka canal extensions north and south of x = 4..5 (world x = -12.8..-9.6), flush with board water plane */}
+      <WaterRect x0={-12.8} x1={-9.6} z0={-54} z1={-9.6} color={water} y={-0.12} />
+      <WaterRect x0={-12.8} x1={-9.6} z0={1.6} z1={54} color={water} y={-0.12} />
 
-      {/* Malá Strana bridgehead towers & shut arch east of the battery gate (world x = +15..+22) */}
-      <mesh position={[19, 7, -3]} raycast={NO_RAYCAST}>
-        <boxGeometry args={[6, 15, 16]} />
-        <meshStandardMaterial color="#14181f" roughness={1} />
-      </mesh>
-      <mesh position={[18, 15, -7]} raycast={NO_RAYCAST}>
-        <boxGeometry args={[3.2, 8, 3.2]} />
-        <meshStandardMaterial color="#10141a" roughness={1} />
-      </mesh>
-      <mesh position={[18, 14, 2]} raycast={NO_RAYCAST}>
-        <boxGeometry args={[3.2, 7, 3.2]} />
-        <meshStandardMaterial color="#10141a" roughness={1} />
-      </mesh>
-      <mesh position={[15, 2.2, -5.6]} raycast={NO_RAYCAST}>
-        <boxGeometry args={[1.1, 4.4, 1.1]} />
-        <meshStandardMaterial color="#1c1917" roughness={0.95} />
-      </mesh>
-      <mesh position={[15, 2.2, -1.2]} raycast={NO_RAYCAST}>
-        <boxGeometry args={[1.1, 4.4, 1.1]} />
-        <meshStandardMaterial color="#1c1917" roughness={0.95} />
-      </mesh>
-      <mesh position={[15, 4.5, -3.4]} raycast={NO_RAYCAST}>
-        <boxGeometry args={[1.2, 0.7, 4.6]} />
-        <meshStandardMaterial color="#1c1917" roughness={0.95} />
-      </mesh>
+      {/* Canal stone retaining walls extending off-board */}
+      {[-12.95, -9.45].map((wx) => (
+        <group key={wx}>
+          <mesh position={[wx, -0.05, -31.8]} raycast={NO_RAYCAST}>
+            <boxGeometry args={[0.35, 0.35, 44.4]} />
+            <meshStandardMaterial color="#2c2823" roughness={0.95} />
+          </mesh>
+          <mesh position={[wx, -0.05, 27.8]} raycast={NO_RAYCAST}>
+            <boxGeometry args={[0.35, 0.35, 52.4]} />
+            <meshStandardMaterial color="#2c2823" roughness={0.95} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Malá Strana & Kampa Renaissance/Baroque/Gothic surrounding blocks */}
+      <HouseRows houses={houses} night seed={2707} />
+
+      {/* Malá Strana bridgehead Gothic/Renaissance towers & shut arch east of the battery gate */}
+      <group position={[18.8, 0, -3.4]}>
+        <Spire pos={[0, 0, -4.4]} w={5.2} h={16} roofH={8.5} color="#282a30" roof="#1c2026" turrets />
+        <Spire pos={[0, 0, 4.4]} w={4.5} h={11.5} roofH={5.2} color="#2c2b2f" roof="#241e1d" />
+        <mesh position={[0, 5.2, 0]} raycast={NO_RAYCAST}>
+          <boxGeometry args={[3.4, 4.6, 5.2]} />
+          <meshStandardMaterial color="#26282e" roughness={0.92} />
+        </mesh>
+        <mesh position={[-3.6, 2.2, -2.2]} raycast={NO_RAYCAST}>
+          <boxGeometry args={[1.1, 4.4, 1.1]} />
+          <meshStandardMaterial color="#2b2623" roughness={0.94} />
+        </mesh>
+        <mesh position={[-3.6, 2.2, 2.2]} raycast={NO_RAYCAST}>
+          <boxGeometry args={[1.1, 4.4, 1.1]} />
+          <meshStandardMaterial color="#2b2623" roughness={0.94} />
+        </mesh>
+        <mesh position={[-3.6, 4.5, 0]} raycast={NO_RAYCAST}>
+          <boxGeometry args={[1.2, 0.75, 5.2]} />
+          <meshStandardMaterial color="#342e29" roughness={0.9} />
+        </mesh>
+      </group>
+
+      {/* Distant Prague Castle & Hradčany ridge framing the night horizon */}
+      <PragueCastle pos={[-54, -1, -76]} rotY={0.42} night />
     </group>
   );
 }

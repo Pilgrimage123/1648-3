@@ -156,7 +156,7 @@ export function TacticalUtilitiesCapsule() {
       {/* 1. Kompaktní jednořádková lišta nástrojů */}
       <nav
         aria-label={text("ui.tools.aria", undefined, locale)}
-        className="pointer-events-auto flex items-center gap-1 baroque-cartouche baroque-border rounded-xl px-2 py-1 shadow-[0_4px_20px_rgba(0,0,0,0.85)] text-amber-100 bg-slate-950/88 border-amber-500/65 backdrop-blur-md"
+        className="pointer-events-auto flex items-center gap-1 baroque-cartouche baroque-border rounded-xl px-2 py-1 shadow-[0_4px_20px_rgba(0,0,0,0.88)] text-amber-100 bg-[#120d09]/92 border-amber-500/65"
       >
         {/* Rotace kamery (Q / E) */}
         <div className="flex items-center bg-slate-900/90 rounded-lg p-0.5 border border-amber-900/70">
@@ -341,7 +341,7 @@ export function TacticalUtilitiesCapsule() {
       {stackExpanded && (
         <aside
           aria-label={text("ui.floors.sectionAria", undefined, locale)}
-          className="pointer-events-auto w-72 baroque-cartouche baroque-border rounded-xl p-2 shadow-[0_8px_28px_rgba(0,0,0,0.9)] bg-slate-950/92 border-amber-500/70 backdrop-blur-md flex flex-col gap-1.5 animate-in fade-in duration-150"
+          className="pointer-events-auto w-72 baroque-cartouche baroque-border rounded-xl p-2 shadow-[0_8px_28px_rgba(0,0,0,0.92)] bg-[#120d09]/95 border-amber-500/70 flex flex-col gap-1.5 animate-in fade-in duration-150"
         >
           <div className="flex items-center justify-between px-1 pb-1 border-b border-amber-900/70">
             <div className="flex items-center gap-1.5">
@@ -379,22 +379,17 @@ export function TacticalUtilitiesCapsule() {
               return (
                 <div
                   key={floor}
-                  onClick={() => setActiveFloor(floor)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setActiveFloor(floor);
-                    }
-                  }}
-                  className={`flex flex-col gap-1 rounded-lg px-2 py-1 border transition-all cursor-pointer ${
+                  className={`flex flex-col gap-1 rounded-lg px-2 py-1 border transition-all ${
                     isCurrentView
                       ? "bg-amber-950/60 border-amber-400"
                       : "bg-slate-900/85 border-slate-800 hover:border-amber-700/70"
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setActiveFloor(floor)}
+                    className="flex items-center justify-between gap-1.5 w-full text-left cursor-pointer"
+                  >
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span
                         className={`px-1.5 py-0.5 rounded text-[9px] font-cinzel font-black tabular-nums border ${
@@ -423,7 +418,7 @@ export function TacticalUtilitiesCapsule() {
                         <span>{reachAp} AP</span>
                       </span>
                     )}
-                  </div>
+                  </button>
 
                   {(alliesOnFloor.length > 0 || enemiesOnFloor.length > 0) && (
                     <div className="flex flex-wrap items-center gap-1 pt-0.5 border-t border-amber-900/40">
@@ -433,10 +428,7 @@ export function TacticalUtilitiesCapsule() {
                           <button
                             key={ally.id}
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              selectUnit(ally.id);
-                            }}
+                            onClick={() => selectUnit(ally.id)}
                             className={`px-1.5 py-0.5 rounded text-[8px] font-cinzel font-bold border transition-all cursor-pointer ${
                               isSel
                                 ? "bg-sky-500/35 border-sky-300 text-white"
@@ -461,8 +453,7 @@ export function TacticalUtilitiesCapsule() {
                           <button
                             key={enemy.id}
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onClick={() => {
                               setActiveFloor(floor);
                               handleUnitClick(enemy.id);
                             }}

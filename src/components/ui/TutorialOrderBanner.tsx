@@ -93,11 +93,11 @@ export function TutorialOrderBanner() {
   };
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-3 z-30 flex flex-col items-center px-4 animate-in fade-in slide-in-from-top-4 duration-300">
+    <div className="pointer-events-none fixed inset-x-0 top-14 z-30 flex flex-col items-center px-4 animate-in fade-in slide-in-from-top-4 duration-300">
       {/* Hlavní rozkazová barokní kartuše */}
       <aside
         aria-label={text("ui.tutorial.aria", undefined, locale)}
-        className="pointer-events-auto max-w-2xl w-full baroque-cartouche baroque-border rounded-xl px-3.5 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.95)] bg-slate-950/92 border-amber-500/70 backdrop-blur-md flex flex-col gap-1.5 transition-all"
+        className="pointer-events-auto max-w-xl w-full baroque-cartouche baroque-border rounded-xl px-3.5 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.95)] bg-slate-950/92 border-amber-500/70 backdrop-blur-md flex flex-col gap-1.5 transition-all"
       >
         {/* Horní řádek: Portrét mluvčího, krok a tlačítka ovládání */}
         <div className="flex items-center justify-between gap-2.5">

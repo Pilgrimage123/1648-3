@@ -27,10 +27,11 @@
  */
 
 import { useFrame } from "@react-three/fiber";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { getTileVisibility } from "../../core/FogOfWar";
 import { useGameStore } from "../../store/useGameStore";
+import { getBaroqueTextureSet } from "./baroqueMaterials";
 import {
   continuousGridToWorld,
   FLOOR_HEIGHT,
@@ -108,8 +109,8 @@ const PALACE_LIGHTS_P0: (PalaceChandelierLightSpec | null)[] = [
 ];
 
 /**
- * Framed Chiaroscuro Oil Painting (Caravaggio / Rembrandt style) with ornate gilded Baroque frame
- * and picture-frame corner bosses.
+ * Framed Chiaroscuro Oil Painting (Caravaggio / Rembrandt style) with procedural oil canvas,
+ * chased gilded Baroque frame, corner rosettes, and crest cartouche.
  */
 function BaroqueMasterpiecePainting({
   x,
@@ -119,7 +120,7 @@ function BaroqueMasterpiecePainting({
   width = 1.35,
   height = 0.92,
   canvasTone = "#2c1812",
-  subjectTone = "#c27838",
+  variant = 0,
   opacity = 1,
 }: {
   x: number;
@@ -130,54 +131,85 @@ function BaroqueMasterpiecePainting({
   height?: number;
   canvasTone?: string;
   subjectTone?: string;
+  variant?: 0 | 1 | 2 | 3;
   opacity?: number;
 }) {
+  const textures = useMemo(() => getBaroqueTextureSet(), []);
+  const paintingTex = textures.paintingTextures[variant] ?? null;
   const [wx, wy, wz] = continuousGridToWorld(x, y, z);
   const isTransparent = opacity < 0.99;
   if (opacity <= 0.02) return null;
 
+  const hw = width * 0.48;
+  const hh = height * 0.48;
+
   return (
     <group position={[wx, wy + 1.68, wz]} rotation={[0, rotY, 0]}>
-      {/* Gilded outer moulded frame */}
+      {/* Chased gilded outer moulded frame */}
       <mesh raycast={noRaycast}>
-        <boxGeometry args={[width, height, 0.055]} />
+        <boxGeometry args={[width, height, 0.06]} />
         <meshStandardMaterial
           color={BRASS_GOLD}
-          metalness={0.78}
-          roughness={0.28}
+          metalness={0.86}
+          roughness={0.24}
+          bumpMap={textures.gildedFiligreeBump}
+          bumpScale={0.045}
           transparent={isTransparent}
           opacity={opacity}
         />
       </mesh>
-      {/* Top Baroque crest cartouche */}
-      <mesh position={[0, height * 0.54, 0.015]} raycast={noRaycast}>
-        <boxGeometry args={[width * 0.32, 0.12, 0.06]} />
+      {/* Inner beveled gold liner */}
+      <mesh position={[0, 0, 0.012]} raycast={noRaycast}>
+        <boxGeometry args={[width - 0.1, height - 0.1, 0.044]} />
         <meshStandardMaterial
           color={BRIGHT_GOLD}
-          metalness={0.85}
-          roughness={0.22}
+          metalness={0.9}
+          roughness={0.2}
           transparent={isTransparent}
           opacity={opacity}
         />
       </mesh>
-      {/* Dark Chiaroscuro background canvas */}
-      <mesh position={[0, 0, 0.032]} raycast={noRaycast}>
-        <planeGeometry args={[width - 0.16, height - 0.16]} />
+      {/* Four gilded Baroque corner bosses */}
+      {[
+        [-hw, -hh],
+        [hw, -hh],
+        [-hw, hh],
+        [hw, hh],
+      ].map(([cx, cy], ci) => (
+        <mesh key={`corner-${ci}`} position={[cx!, cy!, 0.022]} raycast={noRaycast}>
+          <boxGeometry args={[0.095, 0.095, 0.045]} />
+          <meshStandardMaterial
+            color={BRIGHT_GOLD}
+            metalness={0.88}
+            roughness={0.22}
+            bumpMap={textures.gildedFiligreeBump}
+            bumpScale={0.035}
+            transparent={isTransparent}
+            opacity={opacity}
+          />
+        </mesh>
+      ))}
+      {/* Top Baroque scrolled crest cartouche */}
+      <mesh position={[0, height * 0.54, 0.018]} raycast={noRaycast}>
+        <boxGeometry args={[width * 0.34, 0.13, 0.065]} />
         <meshStandardMaterial
-          color={canvasTone}
-          roughness={0.62}
+          color={BRIGHT_GOLD}
+          metalness={0.88}
+          roughness={0.2}
+          bumpMap={textures.gildedFiligreeBump}
+          bumpScale={0.04}
           transparent={isTransparent}
           opacity={opacity}
         />
       </mesh>
-      {/* Illuminated Caravaggio focal figure/highlight */}
-      <mesh position={[-width * 0.08, -0.02, 0.036]} raycast={noRaycast}>
-        <planeGeometry args={[(width - 0.16) * 0.42, (height - 0.16) * 0.64]} />
+      {/* Procedural Caravaggio / Rembrandt Chiaroscuro oil canvas */}
+      <mesh position={[0, 0, 0.036]} raycast={noRaycast}>
+        <planeGeometry args={[width - 0.18, height - 0.18]} />
         <meshStandardMaterial
-          color={subjectTone}
-          emissive={subjectTone}
-          emissiveIntensity={0.14}
-          roughness={0.5}
+          map={paintingTex}
+          color={paintingTex ? "#ffffff" : canvasTone}
+          roughness={0.44}
+          metalness={0.04}
           transparent={isTransparent}
           opacity={opacity}
         />
@@ -187,7 +219,8 @@ function BaroqueMasterpiecePainting({
 }
 
 /**
- * Woven Crimson & Gold Maltese Heraldic Wall Tapestry (Gobelín s maltézským křížem).
+ * Woven Crimson & Gold Maltese Heraldic Wall Tapestry (Gobelín s maltézským křížem)
+ * rendered with procedural brocade/cross CanvasTexture and brass spearhead finials.
  */
 function MalteseHeraldicTapestry({
   x,
@@ -202,72 +235,158 @@ function MalteseHeraldicTapestry({
   rotY?: number;
   opacity?: number;
 }) {
+  const textures = useMemo(() => getBaroqueTextureSet(), []);
   const [wx, wy, wz] = continuousGridToWorld(x, y, z);
   const isTransparent = opacity < 0.99;
   if (opacity <= 0.02) return null;
 
   return (
     <group position={[wx, wy + 1.62, wz]} rotation={[0, rotY, 0]}>
-      {/* Brass tapestry rod */}
-      <mesh position={[0, 0.72, 0.02]} rotation={[0, 0, Math.PI * 0.5]} raycast={noRaycast}>
-        <cylinderGeometry args={[0.024, 0.024, 1.32, 8]} />
+      {/* Brass tapestry rod with spearhead finials */}
+      <mesh position={[0, 0.72, 0.022]} rotation={[0, 0, Math.PI * 0.5]} raycast={noRaycast}>
+        <cylinderGeometry args={[0.024, 0.024, 1.36, 8]} />
         <meshStandardMaterial
           color={BRASS_GOLD}
-          metalness={0.85}
-          roughness={0.24}
+          metalness={0.88}
+          roughness={0.22}
+          bumpMap={textures.gildedFiligreeBump}
+          bumpScale={0.03}
           transparent={isTransparent}
           opacity={opacity}
         />
       </mesh>
-      {/* Cardinal velvet tapestry drape */}
-      <mesh position={[0, 0, 0.02]} raycast={noRaycast}>
-        <boxGeometry args={[1.14, 1.36, 0.028]} />
-        <meshStandardMaterial
-          color={CARDINAL_VELVET}
-          roughness={0.82}
-          transparent={isTransparent}
-          opacity={opacity}
-        />
-      </mesh>
-      {/* Gold brocade border */}
-      <mesh position={[0, 0, 0.036]} raycast={noRaycast}>
-        <boxGeometry args={[0.98, 1.2, 0.01]} />
-        <meshStandardMaterial
-          color={BRASS_GOLD}
-          metalness={0.72}
-          roughness={0.32}
-          transparent={isTransparent}
-          opacity={opacity}
-        />
-      </mesh>
-      <mesh position={[0, 0, 0.044]} raycast={noRaycast}>
-        <boxGeometry args={[0.88, 1.1, 0.01]} />
+      {[-0.7, 0.7].map((fx, fi) => (
+        <mesh
+          key={`finial-${fi}`}
+          position={[fx, 0.72, 0.022]}
+          rotation={[0, 0, fx < 0 ? Math.PI * 0.5 : -Math.PI * 0.5]}
+          raycast={noRaycast}
+        >
+          <coneGeometry args={[0.045, 0.11, 6]} />
+          <meshStandardMaterial
+            color={BRIGHT_GOLD}
+            metalness={0.9}
+            roughness={0.2}
+            transparent={isTransparent}
+            opacity={opacity}
+          />
+        </mesh>
+      ))}
+      {/* Carved walnut wall brackets */}
+      {[-0.5, 0.5].map((bx, bi) => (
+        <mesh key={`br-${bi}`} position={[bx, 0.72, 0.008]} raycast={noRaycast}>
+          <boxGeometry args={[0.06, 0.11, 0.05]} />
+          <meshStandardMaterial
+            color={WALNUT_DARK}
+            roughness={0.62}
+            bumpMap={textures.carvedWalnutBump}
+            bumpScale={0.04}
+            transparent={isTransparent}
+            opacity={opacity}
+          />
+        </mesh>
+      ))}
+      {/* Backing velvet panel */}
+      <mesh position={[0, 0, 0.018]} raycast={noRaycast}>
+        <boxGeometry args={[1.14, 1.38, 0.026]} />
         <meshStandardMaterial
           color={DEEP_CRIMSON}
-          roughness={0.85}
+          roughness={0.86}
           transparent={isTransparent}
           opacity={opacity}
         />
       </mesh>
-      {/* Maltese Cross emblem in center */}
-      <mesh position={[0, 0.06, 0.054]} raycast={noRaycast}>
-        <boxGeometry args={[0.42, 0.12, 0.012]} />
+      {/* Procedural woven Maltese Cross & gilded brocade face */}
+      <mesh position={[0, 0, 0.034]} raycast={noRaycast}>
+        <planeGeometry args={[1.12, 1.36]} />
         <meshStandardMaterial
-          color="#f8fafc"
-          emissive="#fef3c7"
-          emissiveIntensity={0.18}
-          roughness={0.4}
+          map={textures.malteseTapestryTexture}
+          color={textures.malteseTapestryTexture ? "#ffffff" : CARDINAL_VELVET}
+          roughness={0.78}
+          metalness={0.08}
           transparent={isTransparent}
           opacity={opacity}
         />
       </mesh>
-      <mesh position={[0, 0.06, 0.054]} raycast={noRaycast}>
-        <boxGeometry args={[0.12, 0.42, 0.012]} />
+    </group>
+  );
+}
+
+/**
+ * Perimeter Gilded Brass Wall Sconce (Barokní nástěnný svícen) — emissive flame only,
+ * zero extra pointLights, strictly raycast={noRaycast}.
+ */
+function BaroqueWallSconce({
+  x,
+  y,
+  z,
+  rotY = 0,
+  opacity = 1,
+}: {
+  x: number;
+  y: 0 | 1;
+  z: number;
+  rotY?: number;
+  opacity?: number;
+}) {
+  const textures = useMemo(() => getBaroqueTextureSet(), []);
+  const [wx, wy, wz] = continuousGridToWorld(x, y, z);
+  const isTransparent = opacity < 0.99;
+  if (opacity <= 0.02) return null;
+
+  return (
+    <group position={[wx, wy + 1.56, wz]} rotation={[0, rotY, 0]}>
+      {/* Chased brass backplate */}
+      <mesh raycast={noRaycast}>
+        <boxGeometry args={[0.14, 0.28, 0.03]} />
         <meshStandardMaterial
-          color="#f8fafc"
-          emissive="#fef3c7"
-          emissiveIntensity={0.18}
-          roughness={0.4}
+          color={BRASS_GOLD}
+          metalness={0.88}
+          roughness={0.22}
+          bumpMap={textures.gildedFiligreeBump}
+          bumpScale={0.04}
+          transparent={isTransparent}
+          opacity={opacity}
+        />
+      </mesh>
+      {/* Extending brass candle arm */}
+      <mesh position={[0, -0.02, 0.09]} rotation={[Math.PI * 0.5, 0, 0]} raycast={noRaycast}>
+        <cylinderGeometry args={[0.014, 0.018, 0.16, 6]} />
+        <meshStandardMaterial
+          color={BRASS_GOLD}
+          metalness={0.88}
+          roughness={0.22}
+          transparent={isTransparent}
+          opacity={opacity}
+        />
+      </mesh>
+      {/* Drip bobeche cup */}
+      <mesh position={[0, 0.0, 0.16]} raycast={noRaycast}>
+        <cylinderGeometry args={[0.045, 0.025, 0.025, 8]} />
+        <meshStandardMaterial
+          color={BRIGHT_GOLD}
+          metalness={0.9}
+          roughness={0.18}
+          transparent={isTransparent}
+          opacity={opacity}
+        />
+      </mesh>
+      {/* Beeswax taper & amber flame */}
+      <mesh position={[0, 0.065, 0.16]} raycast={noRaycast}>
+        <cylinderGeometry args={[0.014, 0.016, 0.1, 6]} />
+        <meshStandardMaterial
+          color="#f8f4e8"
+          roughness={0.62}
+          transparent={isTransparent}
+          opacity={opacity}
+        />
+      </mesh>
+      <mesh position={[0, 0.135, 0.16]} raycast={noRaycast}>
+        <coneGeometry args={[0.019, 0.055, 5]} />
+        <meshStandardMaterial
+          color="#fef08a"
+          emissive="#f97316"
+          emissiveIntensity={1.75}
           transparent={isTransparent}
           opacity={opacity}
         />
@@ -278,7 +397,7 @@ function MalteseHeraldicTapestry({
 
 /**
  * Suspended Tiered Gilded Brass & Bohemian Crystal Chandelier (Barokní křišťálový lustr).
- * Anchored high above head clearance (wy + 2.02..2.36m) so tiles stay unobstructed.
+ * Anchored high above head clearance (wy + 2.02..2.36m) with subtle pendulum draft sway.
  */
 function BaroqueCrystalChandelier({
   x,
@@ -291,89 +410,149 @@ function BaroqueCrystalChandelier({
   z: number;
   opacity?: number;
 }) {
+  const textures = useMemo(() => getBaroqueTextureSet(), []);
+  const swayRef = useRef<THREE.Group>(null);
+  const phase = x * 0.7 + z * 0.4;
+
+  useFrame((state) => {
+    if (!swayRef.current) return;
+    const t = state.clock.elapsedTime;
+    swayRef.current.rotation.z = Math.sin(t * 0.72 + phase) * 0.024;
+    swayRef.current.rotation.x = Math.cos(t * 0.58 + phase) * 0.016;
+  });
+
   if (opacity <= 0.02) return null;
   const [wx, wy, wz] = continuousGridToWorld(x, y, z);
   const isTransparent = opacity < 0.99;
 
   return (
-    <group position={[wx, wy + 2.06, wz]}>
-      {/* Ceiling suspension rod */}
-      <mesh position={[0, 0.2, 0]} raycast={noRaycast}>
-        <cylinderGeometry args={[0.02, 0.02, 0.28, 6]} />
-        <meshStandardMaterial
-          color={BRASS_GOLD}
-          metalness={0.85}
-          roughness={0.25}
-          transparent={isTransparent}
-          opacity={opacity}
-        />
-      </mesh>
-      {/* Main gilded corona hoop */}
-      <mesh rotation={[Math.PI * 0.5, 0, 0]} raycast={noRaycast}>
-        <torusGeometry args={[0.34, 0.024, 6, 18]} />
-        <meshStandardMaterial
-          color={BRASS_GOLD}
-          metalness={0.86}
-          roughness={0.24}
-          transparent={isTransparent}
-          opacity={opacity}
-        />
-      </mesh>
-      {/* Inner crystal prism crown */}
-      <mesh position={[0, 0.06, 0]} rotation={[Math.PI * 0.5, 0, 0]} raycast={noRaycast}>
-        <torusGeometry args={[0.18, 0.018, 6, 14]} />
-        <meshStandardMaterial
-          color="#e2e8f0"
-          emissive="#fef3c7"
-          emissiveIntensity={0.22}
-          metalness={0.4}
-          roughness={0.18}
-          transparent={isTransparent}
-          opacity={opacity}
-        />
-      </mesh>
-      {/* Lower crystal pear finial */}
-      <mesh position={[0, -0.1, 0]} rotation={[Math.PI, 0, 0]} raycast={noRaycast}>
-        <coneGeometry args={[0.06, 0.14, 6]} />
-        <meshStandardMaterial
-          color="#e2e8f0"
-          emissive="#fef3c7"
-          emissiveIntensity={0.25}
-          roughness={0.15}
-          metalness={0.5}
-          transparent={isTransparent}
-          opacity={opacity}
-        />
-      </mesh>
-      {/* 6 perimeter beeswax candles & warm amber flames */}
-      {[0, 1, 2, 3, 4, 5].map((ci) => {
-        const ang = (ci / 6) * Math.PI * 2;
-        const cx = Math.cos(ang) * 0.34;
-        const cz = Math.sin(ang) * 0.34;
-        return (
-          <group key={`ch-candle-${ci}`} position={[cx, 0.05, cz]}>
-            <mesh raycast={noRaycast}>
-              <cylinderGeometry args={[0.016, 0.018, 0.08, 6]} />
-              <meshStandardMaterial
-                color="#f8fafc"
-                roughness={0.6}
-                transparent={isTransparent}
-                opacity={opacity}
-              />
-            </mesh>
-            <mesh position={[0, 0.065, 0]} raycast={noRaycast}>
-              <coneGeometry args={[0.018, 0.05, 5]} />
-              <meshStandardMaterial
-                color="#fef08a"
-                emissive="#f97316"
-                emissiveIntensity={1.6}
-                transparent={isTransparent}
-                opacity={opacity}
-              />
-            </mesh>
-          </group>
-        );
-      })}
+    <group position={[wx, wy + 2.26, wz]}>
+      <group ref={swayRef}>
+        {/* Ceiling suspension rod */}
+        <mesh position={[0, -0.02, 0]} raycast={noRaycast}>
+          <cylinderGeometry args={[0.02, 0.02, 0.3, 6]} />
+          <meshStandardMaterial
+            color={BRASS_GOLD}
+            metalness={0.88}
+            roughness={0.22}
+            transparent={isTransparent}
+            opacity={opacity}
+          />
+        </mesh>
+        {/* Central turned brass baluster boss */}
+        <mesh position={[0, -0.2, 0]} raycast={noRaycast}>
+          <sphereGeometry args={[0.085, 10, 8]} />
+          <meshStandardMaterial
+            color={BRIGHT_GOLD}
+            metalness={0.9}
+            roughness={0.18}
+            bumpMap={textures.gildedFiligreeBump}
+            bumpScale={0.035}
+            transparent={isTransparent}
+            opacity={opacity}
+          />
+        </mesh>
+        {/* Main gilded corona hoop */}
+        <mesh position={[0, -0.2, 0]} rotation={[Math.PI * 0.5, 0, 0]} raycast={noRaycast}>
+          <torusGeometry args={[0.36, 0.025, 6, 20]} />
+          <meshStandardMaterial
+            color={BRASS_GOLD}
+            metalness={0.88}
+            roughness={0.22}
+            bumpMap={textures.gildedFiligreeBump}
+            bumpScale={0.03}
+            transparent={isTransparent}
+            opacity={opacity}
+          />
+        </mesh>
+        {/* Inner Bohemian crystal prism crown */}
+        <mesh position={[0, -0.13, 0]} rotation={[Math.PI * 0.5, 0, 0]} raycast={noRaycast}>
+          <torusGeometry args={[0.2, 0.019, 6, 16]} />
+          <meshStandardMaterial
+            color="#f1f5f9"
+            emissive="#fef3c7"
+            emissiveIntensity={0.26}
+            metalness={0.32}
+            roughness={0.08}
+            envMapIntensity={1.6}
+            transparent={isTransparent}
+            opacity={opacity}
+          />
+        </mesh>
+        {/* Lower faceted Bohemian crystal pear finial */}
+        <mesh position={[0, -0.32, 0]} rotation={[Math.PI, 0, 0]} raycast={noRaycast}>
+          <coneGeometry args={[0.068, 0.16, 8]} />
+          <meshStandardMaterial
+            color="#f8fafc"
+            emissive="#fef3c7"
+            emissiveIntensity={0.3}
+            roughness={0.08}
+            metalness={0.38}
+            envMapIntensity={1.7}
+            transparent={isTransparent}
+            opacity={opacity}
+          />
+        </mesh>
+        {/* 6 radial gilded scroll arms, crystal drops & beeswax candles */}
+        {[0, 1, 2, 3, 4, 5].map((ci) => {
+          const ang = (ci / 6) * Math.PI * 2;
+          const cx = Math.cos(ang) * 0.36;
+          const cz = Math.sin(ang) * 0.36;
+          return (
+            <group key={`ch-candle-${ci}`}>
+              {/* Radial brass arm */}
+              <mesh
+                position={[cx * 0.5, -0.2, cz * 0.5]}
+                rotation={[0, -ang, Math.PI * 0.5]}
+                raycast={noRaycast}
+              >
+                <cylinderGeometry args={[0.012, 0.014, 0.34, 6]} />
+                <meshStandardMaterial
+                  color={BRASS_GOLD}
+                  metalness={0.86}
+                  roughness={0.24}
+                  transparent={isTransparent}
+                  opacity={opacity}
+                />
+              </mesh>
+              <group position={[cx, -0.15, cz]}>
+                {/* Hanging crystal prism drop */}
+                <mesh position={[0, -0.095, 0]} rotation={[Math.PI, 0, 0]} raycast={noRaycast}>
+                  <coneGeometry args={[0.022, 0.065, 5]} />
+                  <meshStandardMaterial
+                    color="#f8fafc"
+                    emissive="#fde68a"
+                    emissiveIntensity={0.25}
+                    roughness={0.08}
+                    metalness={0.35}
+                    transparent={isTransparent}
+                    opacity={opacity}
+                  />
+                </mesh>
+                <mesh raycast={noRaycast}>
+                  <cylinderGeometry args={[0.016, 0.018, 0.085, 6]} />
+                  <meshStandardMaterial
+                    color="#f8fafc"
+                    roughness={0.6}
+                    transparent={isTransparent}
+                    opacity={opacity}
+                  />
+                </mesh>
+                <mesh position={[0, 0.068, 0]} raycast={noRaycast}>
+                  <coneGeometry args={[0.02, 0.055, 5]} />
+                  <meshStandardMaterial
+                    color="#fef08a"
+                    emissive="#f97316"
+                    emissiveIntensity={1.75}
+                    transparent={isTransparent}
+                    opacity={opacity}
+                  />
+                </mesh>
+              </group>
+            </group>
+          );
+        })}
+      </group>
     </group>
   );
 }
@@ -386,6 +565,7 @@ export function GrandPrioryPalaceDressing() {
   const fogSnapshot = useGameStore((s) => s.fogSnapshot);
   const fogOfWarEnabled = useGameStore((s) => s.fogOfWarEnabled);
   const waterwheelRef = useRef<THREE.Group>(null);
+  const textures = useMemo(() => getBaroqueTextureSet(), []);
 
   const isShootingView = actionMode === "shoot" || activeProjectile !== null;
 
@@ -447,12 +627,23 @@ export function GrandPrioryPalaceDressing() {
                 {/* Raised walnut dais platform */}
                 <mesh position={[0, 0.14, 0]} castShadow raycast={noRaycast}>
                   <boxGeometry args={[1.18, 0.28, 1.68]} />
-                  <meshStandardMaterial color={WALNUT_DARK} roughness={0.65} />
+                  <meshStandardMaterial
+                    color={WALNUT_DARK}
+                    roughness={0.62}
+                    bumpMap={textures.carvedWalnutBump}
+                    bumpScale={0.045}
+                  />
                 </mesh>
                 {/* Gilded base moulding */}
                 <mesh position={[0, 0.04, 0]} raycast={noRaycast}>
                   <boxGeometry args={[1.24, 0.06, 1.74]} />
-                  <meshStandardMaterial color={BRASS_GOLD} metalness={0.8} roughness={0.28} />
+                  <meshStandardMaterial
+                    color={BRASS_GOLD}
+                    metalness={0.86}
+                    roughness={0.24}
+                    bumpMap={textures.gildedFiligreeBump}
+                    bumpScale={0.035}
+                  />
                 </mesh>
                 {/* Rumpled white linen mattress & thrown-back crimson quilt (Colloredo just leapt out!) */}
                 <mesh position={[0.04, 0.36, 0]} castShadow raycast={noRaycast}>
@@ -480,11 +671,22 @@ export function GrandPrioryPalaceDressing() {
                 {/* Carved Walnut & Gilded Headboard with Maltese Crest */}
                 <mesh position={[-0.54, 0.88, 0]} castShadow raycast={noRaycast}>
                   <boxGeometry args={[0.12, 1.32, 1.62]} />
-                  <meshStandardMaterial color={WALNUT_MID} roughness={0.58} />
+                  <meshStandardMaterial
+                    color={WALNUT_MID}
+                    roughness={0.55}
+                    bumpMap={textures.carvedWalnutBump}
+                    bumpScale={0.05}
+                  />
                 </mesh>
                 <mesh position={[-0.47, 1.15, 0]} raycast={noRaycast}>
                   <boxGeometry args={[0.04, 0.38, 0.38]} />
-                  <meshStandardMaterial color={BRASS_GOLD} metalness={0.85} roughness={0.22} />
+                  <meshStandardMaterial
+                    color={BRASS_GOLD}
+                    metalness={0.88}
+                    roughness={0.2}
+                    bumpMap={textures.gildedFiligreeBump}
+                    bumpScale={0.04}
+                  />
                 </mesh>
                 {/* Four Twisted Solomonic Gilded Columns */}
                 {[
@@ -496,12 +698,18 @@ export function GrandPrioryPalaceDressing() {
                   <group key={`bed-post-${i}`} position={[px!, 0, pz!]}>
                     <mesh position={[0, 1.12, 0]} castShadow raycast={noRaycast}>
                       <cylinderGeometry args={[0.048, 0.058, 2.05, 10]} />
-                      <meshStandardMaterial color={BRASS_GOLD} metalness={0.82} roughness={0.25} />
+                      <meshStandardMaterial
+                        color={BRASS_GOLD}
+                        metalness={0.86}
+                        roughness={0.22}
+                        bumpMap={textures.flutedColumnBump}
+                        bumpScale={0.045}
+                      />
                     </mesh>
                     {/* Gilded finial plume above canopy */}
                     <mesh position={[0, 2.34, 0]} raycast={noRaycast}>
                       <sphereGeometry args={[0.075, 10, 10]} />
-                      <meshStandardMaterial color={BRIGHT_GOLD} metalness={0.88} roughness={0.2} />
+                      <meshStandardMaterial color={BRIGHT_GOLD} metalness={0.9} roughness={0.18} />
                     </mesh>
                   </group>
                 ))}
@@ -512,7 +720,13 @@ export function GrandPrioryPalaceDressing() {
                 </mesh>
                 <mesh position={[0, 2.08, 0]} raycast={noRaycast}>
                   <boxGeometry args={[1.28, 0.05, 1.78]} />
-                  <meshStandardMaterial color={BRASS_GOLD} metalness={0.85} roughness={0.22} />
+                  <meshStandardMaterial
+                    color={BRASS_GOLD}
+                    metalness={0.88}
+                    roughness={0.2}
+                    bumpMap={textures.gildedFiligreeBump}
+                    bumpScale={0.035}
+                  />
                 </mesh>
                 {/* Tied-back crimson velvet bed curtains */}
                 <mesh position={[-0.5, 1.22, -0.74]} rotation={[0.12, 0, 0]} raycast={noRaycast}>
@@ -535,11 +749,22 @@ export function GrandPrioryPalaceDressing() {
                 {/* Carved walnut desk body */}
                 <mesh position={[0, 0.42, 0]} castShadow raycast={noRaycast}>
                   <boxGeometry args={[0.72, 0.82, 1.32]} />
-                  <meshStandardMaterial color={WALNUT_MID} roughness={0.58} />
+                  <meshStandardMaterial
+                    color={WALNUT_MID}
+                    roughness={0.55}
+                    bumpMap={textures.carvedWalnutBump}
+                    bumpScale={0.045}
+                  />
                 </mesh>
                 <mesh position={[0, 0.84, 0]} raycast={noRaycast}>
                   <boxGeometry args={[0.78, 0.05, 1.38]} />
-                  <meshStandardMaterial color={BRASS_GOLD} metalness={0.75} roughness={0.3} />
+                  <meshStandardMaterial
+                    color={BRASS_GOLD}
+                    metalness={0.84}
+                    roughness={0.24}
+                    bumpMap={textures.gildedFiligreeBump}
+                    bumpScale={0.035}
+                  />
                 </mesh>
                 {/* Unrolled parchment map of Prague fortifications with crimson wax seal */}
                 <mesh position={[0.04, 0.87, -0.12]} rotation={[0, 0.15, 0]} raycast={noRaycast}>
@@ -554,19 +779,24 @@ export function GrandPrioryPalaceDressing() {
                 <group position={[0.02, 0, 0.92]}>
                   <mesh position={[0, 0.32, 0]} raycast={noRaycast}>
                     <cylinderGeometry args={[0.06, 0.18, 0.64, 10]} />
-                    <meshStandardMaterial color={WALNUT_DARK} roughness={0.65} />
+                    <meshStandardMaterial
+                      color={WALNUT_DARK}
+                      roughness={0.62}
+                      bumpMap={textures.carvedWalnutBump}
+                      bumpScale={0.04}
+                    />
                   </mesh>
                   <mesh position={[0, 0.78, 0]} raycast={noRaycast}>
                     <sphereGeometry args={[0.22, 14, 14]} />
                     <meshStandardMaterial
                       color="#d6c49e"
-                      metalness={0.35}
-                      roughness={0.42}
+                      metalness={0.42}
+                      roughness={0.36}
                     />
                   </mesh>
                   <mesh position={[0, 0.78, 0]} rotation={[0.4, 0, 0]} raycast={noRaycast}>
                     <torusGeometry args={[0.25, 0.016, 8, 20]} />
-                    <meshStandardMaterial color={BRASS_GOLD} metalness={0.88} roughness={0.2} />
+                    <meshStandardMaterial color={BRASS_GOLD} metalness={0.9} roughness={0.18} />
                   </mesh>
                 </group>
               </group>
@@ -585,7 +815,12 @@ export function GrandPrioryPalaceDressing() {
                 </mesh>
                 <mesh position={[0, 0.48, 0]} castShadow raycast={noRaycast}>
                   <boxGeometry args={[0.92, 0.92, 0.42]} />
-                  <meshStandardMaterial color={WALNUT_DARK} roughness={0.6} />
+                  <meshStandardMaterial
+                    color={WALNUT_DARK}
+                    roughness={0.58}
+                    bumpMap={textures.carvedWalnutBump}
+                    bumpScale={0.045}
+                  />
                 </mesh>
                 {/* Altar cloth & Golden Maltese Reliquary Cross */}
                 <mesh position={[0, 0.95, -0.02]} raycast={noRaycast}>
@@ -594,11 +829,23 @@ export function GrandPrioryPalaceDressing() {
                 </mesh>
                 <mesh position={[0, 1.32, 0.06]} raycast={noRaycast}>
                   <boxGeometry args={[0.06, 0.56, 0.05]} />
-                  <meshStandardMaterial color={BRIGHT_GOLD} metalness={0.9} roughness={0.18} />
+                  <meshStandardMaterial
+                    color={BRIGHT_GOLD}
+                    metalness={0.92}
+                    roughness={0.16}
+                    bumpMap={textures.gildedFiligreeBump}
+                    bumpScale={0.03}
+                  />
                 </mesh>
                 <mesh position={[0, 1.42, 0.06]} raycast={noRaycast}>
                   <boxGeometry args={[0.36, 0.06, 0.05]} />
-                  <meshStandardMaterial color={BRIGHT_GOLD} metalness={0.9} roughness={0.18} />
+                  <meshStandardMaterial
+                    color={BRIGHT_GOLD}
+                    metalness={0.92}
+                    roughness={0.16}
+                    bumpMap={textures.gildedFiligreeBump}
+                    bumpScale={0.03}
+                  />
                 </mesh>
               </group>
             );
@@ -614,11 +861,22 @@ export function GrandPrioryPalaceDressing() {
                 <group position={[lx, ly, lz]}>
                   <mesh position={[0, 0.42, 0]} castShadow raycast={noRaycast}>
                     <boxGeometry args={[1.22, 0.82, 0.38]} />
-                    <meshStandardMaterial color={WALNUT_DARK} roughness={0.62} />
+                    <meshStandardMaterial
+                      color={WALNUT_DARK}
+                      roughness={0.58}
+                      bumpMap={textures.carvedWalnutBump}
+                      bumpScale={0.045}
+                    />
                   </mesh>
                   <mesh position={[0, 0.85, 0]} raycast={noRaycast}>
                     <boxGeometry args={[1.28, 0.05, 0.44]} />
-                    <meshStandardMaterial color={BRASS_GOLD} metalness={0.78} roughness={0.28} />
+                    <meshStandardMaterial
+                      color={BRASS_GOLD}
+                      metalness={0.84}
+                      roughness={0.24}
+                      bumpMap={textures.gildedFiligreeBump}
+                      bumpScale={0.035}
+                    />
                   </mesh>
                   <mesh position={[-0.22, 0.93, 0]} raycast={noRaycast}>
                     <boxGeometry args={[0.38, 0.12, 0.26]} />
@@ -629,11 +887,22 @@ export function GrandPrioryPalaceDressing() {
                 <group position={[cx, cy, cz]}>
                   <mesh position={[0, 0.42, 0]} castShadow raycast={noRaycast}>
                     <boxGeometry args={[0.38, 0.82, 1.45]} />
-                    <meshStandardMaterial color={WALNUT_MID} roughness={0.6} />
+                    <meshStandardMaterial
+                      color={WALNUT_MID}
+                      roughness={0.56}
+                      bumpMap={textures.carvedWalnutBump}
+                      bumpScale={0.045}
+                    />
                   </mesh>
                   <mesh position={[0, 0.85, 0]} raycast={noRaycast}>
                     <boxGeometry args={[0.44, 0.05, 1.52]} />
-                    <meshStandardMaterial color={BRASS_GOLD} metalness={0.78} roughness={0.28} />
+                    <meshStandardMaterial
+                      color={BRASS_GOLD}
+                      metalness={0.84}
+                      roughness={0.24}
+                      bumpMap={textures.gildedFiligreeBump}
+                      bumpScale={0.035}
+                    />
                   </mesh>
                 </group>
               </group>
@@ -650,20 +919,31 @@ export function GrandPrioryPalaceDressing() {
               <group key={`stair-statue-${idx}`} position={[stx, sty, stz]}>
                 <mesh position={[0, 0.45, 0]} castShadow raycast={noRaycast}>
                   <boxGeometry args={[0.48, 0.9, 0.48]} />
-                  <meshStandardMaterial color={LIMESTONE_TRIM} roughness={0.62} />
+                  <meshStandardMaterial
+                    color={LIMESTONE_TRIM}
+                    roughness={0.62}
+                    bumpMap={textures.masonryAshlarBump}
+                    bumpScale={0.04}
+                  />
                 </mesh>
                 <mesh position={[0, 0.92, 0]} raycast={noRaycast}>
                   <boxGeometry args={[0.54, 0.08, 0.54]} />
-                  <meshStandardMaterial color={BRASS_GOLD} metalness={0.78} roughness={0.28} />
+                  <meshStandardMaterial
+                    color={BRASS_GOLD}
+                    metalness={0.86}
+                    roughness={0.22}
+                    bumpMap={textures.gildedFiligreeBump}
+                    bumpScale={0.035}
+                  />
                 </mesh>
                 {/* Classical marble torso & draped toga */}
                 <mesh position={[0, 1.38, 0]} castShadow raycast={noRaycast}>
                   <cylinderGeometry args={[0.14, 0.18, 0.82, 10]} />
-                  <meshStandardMaterial color="#e7e2d8" roughness={0.45} />
+                  <meshStandardMaterial color="#e7e2d8" roughness={0.36} metalness={0.04} />
                 </mesh>
                 <mesh position={[0, 1.92, 0]} castShadow raycast={noRaycast}>
                   <sphereGeometry args={[0.13, 10, 10]} />
-                  <meshStandardMaterial color="#e7e2d8" roughness={0.45} />
+                  <meshStandardMaterial color="#e7e2d8" roughness={0.36} metalness={0.04} />
                 </mesh>
               </group>
             );
@@ -678,17 +958,29 @@ export function GrandPrioryPalaceDressing() {
                 {[-0.55, 0, 0.55].map((lz, i) => (
                   <mesh key={`h-leg-${i}`} position={[0, 0.36, lz]} raycast={noRaycast}>
                     <cylinderGeometry args={[0.04, 0.03, 0.72, 8]} />
-                    <meshStandardMaterial color={BRASS_GOLD} metalness={0.8} roughness={0.26} />
+                    <meshStandardMaterial
+                      color={BRASS_GOLD}
+                      metalness={0.86}
+                      roughness={0.22}
+                      bumpMap={textures.flutedColumnBump}
+                      bumpScale={0.035}
+                    />
                   </mesh>
                 ))}
                 {/* Wing-shaped harpsichord case */}
                 <mesh position={[0, 0.78, 0]} castShadow raycast={noRaycast}>
                   <boxGeometry args={[0.68, 0.22, 1.56]} />
-                  <meshStandardMaterial color={CARDINAL_VELVET} roughness={0.55} />
+                  <meshStandardMaterial color={CARDINAL_VELVET} roughness={0.48} />
                 </mesh>
                 <mesh position={[0, 0.89, 0]} raycast={noRaycast}>
                   <boxGeometry args={[0.72, 0.04, 1.6]} />
-                  <meshStandardMaterial color={BRASS_GOLD} metalness={0.85} roughness={0.22} />
+                  <meshStandardMaterial
+                    color={BRASS_GOLD}
+                    metalness={0.88}
+                    roughness={0.2}
+                    bumpMap={textures.gildedFiligreeBump}
+                    bumpScale={0.04}
+                  />
                 </mesh>
                 {/* Ivory keyboard manual */}
                 <mesh position={[-0.28, 0.82, -0.45]} raycast={noRaycast}>
@@ -699,7 +991,7 @@ export function GrandPrioryPalaceDressing() {
             );
           })()}
 
-          {/* Chiaroscuro Oil Paintings & Maltese Heraldic Tapestries on verified P1 full-height walls */}
+          {/* Chiaroscuro Oil Paintings, Maltese Tapestries & Wall Sconces on verified P1 full-height walls */}
           <BaroqueMasterpiecePainting
             x={3.0}
             y={1}
@@ -707,8 +999,7 @@ export function GrandPrioryPalaceDressing() {
             rotY={0}
             width={1.15}
             height={0.78}
-            canvasTone="#231510"
-            subjectTone="#d97706"
+            variant={0}
             opacity={p1Opacity}
           />
           <BaroqueMasterpiecePainting
@@ -718,8 +1009,7 @@ export function GrandPrioryPalaceDressing() {
             rotY={0}
             width={1.1}
             height={0.76}
-            canvasTone="#1f1822"
-            subjectTone="#b45309"
+            variant={1}
             opacity={p1Opacity}
           />
           <BaroqueMasterpiecePainting
@@ -729,10 +1019,10 @@ export function GrandPrioryPalaceDressing() {
             rotY={0}
             width={1.15}
             height={0.78}
-            canvasTone="#291912"
-            subjectTone="#ca8a04"
+            variant={2}
             opacity={p1Opacity}
           />
+          <BaroqueWallSconce x={5.5} y={1} z={21.52} rotY={0} opacity={p1Opacity} />
           <MalteseHeraldicTapestry
             x={3.0}
             y={1}
@@ -747,8 +1037,7 @@ export function GrandPrioryPalaceDressing() {
             rotY={Math.PI}
             width={1.12}
             height={0.76}
-            canvasTone="#1e1510"
-            subjectTone="#c27838"
+            variant={3}
             opacity={p1Opacity}
           />
           <MalteseHeraldicTapestry
@@ -758,6 +1047,7 @@ export function GrandPrioryPalaceDressing() {
             rotY={Math.PI}
             opacity={p1Opacity}
           />
+          <BaroqueWallSconce x={5.5} y={1} z={20.48} rotY={Math.PI} opacity={p1Opacity} />
 
           {/* Three Suspended P1 Bohemian Crystal Chandeliers */}
           <BaroqueCrystalChandelier x={11.5} y={1} z={22.0} opacity={p1Opacity} />
@@ -776,15 +1066,25 @@ export function GrandPrioryPalaceDressing() {
               <group key={`belv-urn-${ui}`} position={[uwx, uwy, uwz]}>
                 <mesh position={[0, 0.14, 0]} castShadow raycast={noRaycast}>
                   <boxGeometry args={[0.24, 0.28, 0.24]} />
-                  <meshStandardMaterial color={LIMESTONE_TRIM} roughness={0.72} />
+                  <meshStandardMaterial
+                    color={LIMESTONE_TRIM}
+                    roughness={0.72}
+                    bumpMap={textures.masonryAshlarBump}
+                    bumpScale={0.04}
+                  />
                 </mesh>
                 <mesh position={[0, 0.36, 0]} castShadow raycast={noRaycast}>
                   <cylinderGeometry args={[0.11, 0.06, 0.2, 8]} />
-                  <meshStandardMaterial color={STUCCO_WARM} roughness={0.68} />
+                  <meshStandardMaterial
+                    color={STUCCO_WARM}
+                    roughness={0.66}
+                    bumpMap={textures.flutedColumnBump}
+                    bumpScale={0.035}
+                  />
                 </mesh>
                 <mesh position={[0, 0.48, 0]} raycast={noRaycast}>
                   <sphereGeometry args={[0.055, 8, 6]} />
-                  <meshStandardMaterial color={BRASS_GOLD} metalness={0.72} roughness={0.32} />
+                  <meshStandardMaterial color={BRASS_GOLD} metalness={0.86} roughness={0.22} />
                 </mesh>
               </group>
             );
@@ -802,23 +1102,55 @@ export function GrandPrioryPalaceDressing() {
         {(() => {
           const [mx, my, mz] = continuousGridToWorld(11.5, 0, 19.0);
           return (
-            <group position={[mx, my + 0.012, mz]}>
+            <group position={[mx, my + 0.006, mz]}>
               <mesh rotation={[-Math.PI * 0.5, 0, 0]} raycast={noRaycast}>
                 <ringGeometry args={[0.72, 0.82, 24]} />
-                <meshStandardMaterial color="#343d4b" metalness={0.05} roughness={0.92} />
+                <meshStandardMaterial
+                  color="#6b5c4f"
+                  metalness={0.05}
+                  roughness={0.88}
+                  depthWrite={false}
+                  polygonOffset
+                  polygonOffsetFactor={-1}
+                  polygonOffsetUnits={-1}
+                />
               </mesh>
               <mesh rotation={[-Math.PI * 0.5, 0, 0]} raycast={noRaycast}>
                 <circleGeometry args={[0.71, 24]} />
-                <meshStandardMaterial color="#252c38" roughness={0.92} metalness={0.04} />
+                <meshStandardMaterial
+                  color="#4d4138"
+                  roughness={0.9}
+                  metalness={0.04}
+                  depthWrite={false}
+                  polygonOffset
+                  polygonOffsetFactor={-1}
+                  polygonOffsetUnits={-1}
+                />
               </mesh>
-              {/* Subtle inlaid stone compass bars */}
+              {/* Subtle inlaid stone compass bars with separated Y offsets to prevent Z-fighting */}
               <mesh position={[0, 0.002, 0]} rotation={[-Math.PI * 0.5, 0, 0]} raycast={noRaycast}>
                 <planeGeometry args={[1.15, 0.22]} />
-                <meshStandardMaterial color="#343d4b" metalness={0.05} roughness={0.92} />
+                <meshStandardMaterial
+                  color="#6b5c4f"
+                  metalness={0.05}
+                  roughness={0.88}
+                  depthWrite={false}
+                  polygonOffset
+                  polygonOffsetFactor={-2}
+                  polygonOffsetUnits={-2}
+                />
               </mesh>
-              <mesh position={[0, 0.002, 0]} rotation={[-Math.PI * 0.5, 0, 0]} raycast={noRaycast}>
+              <mesh position={[0, 0.004, 0]} rotation={[-Math.PI * 0.5, 0, 0]} raycast={noRaycast}>
                 <planeGeometry args={[0.22, 1.15]} />
-                <meshStandardMaterial color="#343d4b" metalness={0.05} roughness={0.92} />
+                <meshStandardMaterial
+                  color="#6b5c4f"
+                  metalness={0.05}
+                  roughness={0.88}
+                  depthWrite={false}
+                  polygonOffset
+                  polygonOffsetFactor={-3}
+                  polygonOffsetUnits={-3}
+                />
               </mesh>
             </group>
           );
@@ -832,7 +1164,12 @@ export function GrandPrioryPalaceDressing() {
               {/* Oak weapon rack frame */}
               <mesh position={[0, 0.55, 0]} castShadow raycast={noRaycast}>
                 <boxGeometry args={[0.28, 1.1, 1.24]} />
-                <meshStandardMaterial color={WALNUT_DARK} roughness={0.75} />
+                <meshStandardMaterial
+                  color={WALNUT_DARK}
+                  roughness={0.72}
+                  bumpMap={textures.carvedWalnutBump}
+                  bumpScale={0.04}
+                />
               </mesh>
               {/* Upright 17th-century pikes & halberds */}
               {[-0.42, -0.14, 0.14, 0.42].map((pz, pIdx) => (
@@ -843,7 +1180,7 @@ export function GrandPrioryPalaceDressing() {
                   </mesh>
                   <mesh position={[0, 2.14, 0]} raycast={noRaycast}>
                     <coneGeometry args={[0.045, 0.22, 4]} />
-                    <meshStandardMaterial color="#cbd5e1" metalness={0.88} roughness={0.22} />
+                    <meshStandardMaterial color="#cbd5e1" metalness={0.9} roughness={0.18} />
                   </mesh>
                 </group>
               ))}
@@ -863,12 +1200,12 @@ export function GrandPrioryPalaceDressing() {
               {/* Steel breastplate */}
               <mesh position={[0, 1.12, 0]} castShadow raycast={noRaycast}>
                 <cylinderGeometry args={[0.2, 0.16, 0.48, 10]} />
-                <meshStandardMaterial color="#475569" metalness={0.85} roughness={0.25} />
+                <meshStandardMaterial color="#475569" metalness={0.88} roughness={0.2} />
               </mesh>
               {/* Comb morion helmet */}
               <mesh position={[0, 1.52, 0]} castShadow raycast={noRaycast}>
                 <sphereGeometry args={[0.14, 10, 10]} />
-                <meshStandardMaterial color="#475569" metalness={0.88} roughness={0.22} />
+                <meshStandardMaterial color="#475569" metalness={0.9} roughness={0.18} />
               </mesh>
             </group>
           );
@@ -884,28 +1221,55 @@ export function GrandPrioryPalaceDressing() {
                 <group key={`facade-pilaster-${idx}`} position={[px, 0, 0]}>
                   <mesh position={[0, FLOOR_HEIGHT * 0.5, 0]} castShadow raycast={noRaycast}>
                     <boxGeometry args={[0.34, FLOOR_HEIGHT, 0.34]} />
-                    <meshStandardMaterial color={STUCCO_WARM} roughness={0.65} />
+                    <meshStandardMaterial
+                      color={STUCCO_WARM}
+                      roughness={0.65}
+                      bumpMap={textures.flutedColumnBump}
+                      bumpScale={0.055}
+                    />
                   </mesh>
                   <mesh position={[0, FLOOR_HEIGHT - 0.12, 0]} raycast={noRaycast}>
                     <boxGeometry args={[0.44, 0.2, 0.44]} />
-                    <meshStandardMaterial color={BRASS_GOLD} metalness={0.78} roughness={0.28} />
+                    <meshStandardMaterial
+                      color={BRASS_GOLD}
+                      metalness={0.86}
+                      roughness={0.22}
+                      bumpMap={textures.gildedFiligreeBump}
+                      bumpScale={0.04}
+                    />
                   </mesh>
                 </group>
               ))}
               {/* Broken Baroque Scrolled Pediment flanking central Maltese Crest (bounded <= 2.38m) */}
               <mesh position={[-0.86, FLOOR_HEIGHT - 0.12, -0.04]} rotation={[0, 0, 0.26]} castShadow raycast={noRaycast}>
                 <boxGeometry args={[1.1, 0.18, 0.28]} />
-                <meshStandardMaterial color={STUCCO_WARM} roughness={0.68} />
+                <meshStandardMaterial
+                  color={STUCCO_WARM}
+                  roughness={0.68}
+                  bumpMap={textures.masonryAshlarBump}
+                  bumpScale={0.045}
+                />
               </mesh>
               <mesh position={[0.86, FLOOR_HEIGHT - 0.12, -0.04]} rotation={[0, 0, -0.26]} castShadow raycast={noRaycast}>
                 <boxGeometry args={[1.1, 0.18, 0.28]} />
-                <meshStandardMaterial color={STUCCO_WARM} roughness={0.68} />
+                <meshStandardMaterial
+                  color={STUCCO_WARM}
+                  roughness={0.68}
+                  bumpMap={textures.masonryAshlarBump}
+                  bumpScale={0.045}
+                />
               </mesh>
               {/* Colloredo-Maltese Heraldic Cartouche Shield at apex */}
               <group position={[0, FLOOR_HEIGHT - 0.2, -0.08]}>
                 <mesh raycast={noRaycast}>
                   <cylinderGeometry args={[0.32, 0.32, 0.12, 12]} />
-                  <meshStandardMaterial color={BRASS_GOLD} metalness={0.82} roughness={0.25} />
+                  <meshStandardMaterial
+                    color={BRASS_GOLD}
+                    metalness={0.88}
+                    roughness={0.2}
+                    bumpMap={textures.gildedFiligreeBump}
+                    bumpScale={0.04}
+                  />
                 </mesh>
                 <mesh position={[0, 0, -0.05]} rotation={[Math.PI * 0.5, 0, 0]} raycast={noRaycast}>
                   <cylinderGeometry args={[0.25, 0.25, 0.06, 12]} />
@@ -934,15 +1298,32 @@ export function GrandPrioryPalaceDressing() {
             <group key={`courtyard-fountain-${fi}`} position={[wx, wy, wz]} rotation={[0, rotY, 0]}>
               <mesh position={[0, 0.45, 0.08]} castShadow raycast={noRaycast}>
                 <cylinderGeometry args={[0.26, 0.18, 0.18, 12]} />
-                <meshStandardMaterial color={LIMESTONE_TRIM} roughness={0.72} />
+                <meshStandardMaterial
+                  color={LIMESTONE_TRIM}
+                  roughness={0.7}
+                  bumpMap={textures.masonryAshlarBump}
+                  bumpScale={0.04}
+                />
               </mesh>
               <mesh position={[0, 0.55, 0.08]} rotation={[-Math.PI * 0.5, 0, 0]} raycast={noRaycast}>
                 <circleGeometry args={[0.22, 12]} />
-                <meshStandardMaterial color="#164459" roughness={0.12} metalness={0.35} />
+                <meshStandardMaterial
+                  color="#164459"
+                  roughness={0.1}
+                  metalness={0.45}
+                  bumpMap={textures.waterRippleBump}
+                  bumpScale={0.025}
+                />
               </mesh>
               <mesh position={[0, 0.92, 0.04]} raycast={noRaycast}>
                 <sphereGeometry args={[0.11, 8, 8]} />
-                <meshStandardMaterial color={BRASS_GOLD} metalness={0.82} roughness={0.28} />
+                <meshStandardMaterial
+                  color={BRASS_GOLD}
+                  metalness={0.88}
+                  roughness={0.22}
+                  bumpMap={textures.gildedFiligreeBump}
+                  bumpScale={0.035}
+                />
               </mesh>
             </group>
           );
@@ -955,13 +1336,13 @@ export function GrandPrioryPalaceDressing() {
             <BaroqueCrystalChandelier x={5.5} y={0} z={21.5} opacity={1} />
             <MalteseHeraldicTapestry x={3.8} y={0} z={17.54} rotY={0} opacity={1} />
             <MalteseHeraldicTapestry x={6.8} y={0} z={17.54} rotY={0} opacity={1} />
+            <BaroqueWallSconce x={5.3} y={0} z={17.52} rotY={0} opacity={1} />
             <BaroqueMasterpiecePainting
               x={7.2}
               y={0}
               z={16.54}
               rotY={0}
-              canvasTone="#231510"
-              subjectTone="#d97706"
+              variant={0}
               opacity={1}
             />
             <BaroqueMasterpiecePainting
@@ -969,17 +1350,16 @@ export function GrandPrioryPalaceDressing() {
               y={0}
               z={16.54}
               rotY={0}
-              canvasTone="#1b1824"
-              subjectTone="#b45309"
+              variant={1}
               opacity={1}
             />
+            <BaroqueWallSconce x={17.75} y={0} z={16.52} rotY={0} opacity={1} />
             <BaroqueMasterpiecePainting
               x={19.0}
               y={0}
               z={16.54}
               rotY={0}
-              canvasTone="#291812"
-              subjectTone="#ca8a04"
+              variant={2}
               opacity={1}
             />
           </group>
@@ -999,11 +1379,21 @@ export function GrandPrioryPalaceDressing() {
             <group key={`belv-pilaster-${bi}`} position={[pwx, pwy, pwz]}>
               <mesh position={[0, FLOOR_HEIGHT * 0.5, 0]} castShadow receiveShadow raycast={noRaycast}>
                 <boxGeometry args={[0.26, FLOOR_HEIGHT, 0.26]} />
-                <meshStandardMaterial color={LIMESTONE_TRIM} roughness={0.78} />
+                <meshStandardMaterial
+                  color={LIMESTONE_TRIM}
+                  roughness={0.76}
+                  bumpMap={textures.masonryAshlarBump}
+                  bumpScale={0.05}
+                />
               </mesh>
               <mesh position={[0, FLOOR_HEIGHT - 0.1, 0]} raycast={noRaycast}>
                 <boxGeometry args={[0.34, 0.16, 0.34]} />
-                <meshStandardMaterial color={STUCCO_WARM} roughness={0.72} />
+                <meshStandardMaterial
+                  color={STUCCO_WARM}
+                  roughness={0.7}
+                  bumpMap={textures.masonryAshlarBump}
+                  bumpScale={0.04}
+                />
               </mesh>
             </group>
           );
@@ -1018,11 +1408,16 @@ export function GrandPrioryPalaceDressing() {
             <group key={`bollard-${mi}`} position={[bwx, bwy, bwz]}>
               <mesh position={[0, 0.18, 0]} castShadow receiveShadow raycast={noRaycast}>
                 <cylinderGeometry args={[0.1, 0.13, 0.36, 8]} />
-                <meshStandardMaterial color={LIMESTONE_TRIM} roughness={0.88} />
+                <meshStandardMaterial
+                  color={LIMESTONE_TRIM}
+                  roughness={0.86}
+                  bumpMap={textures.masonryAshlarBump}
+                  bumpScale={0.04}
+                />
               </mesh>
               <mesh position={[0, 0.28, 0.1]} rotation={[0, Math.PI * 0.5, 0]} raycast={noRaycast}>
                 <torusGeometry args={[0.055, 0.015, 6, 12]} />
-                <meshStandardMaterial color="#27272a" metalness={0.75} roughness={0.45} />
+                <meshStandardMaterial color="#27272a" metalness={0.82} roughness={0.38} />
               </mesh>
             </group>
           );
@@ -1043,17 +1438,32 @@ export function GrandPrioryPalaceDressing() {
               {/* Stone mill sluice pier */}
               <mesh position={[-0.55, 0.35, 0]} castShadow raycast={noRaycast}>
                 <boxGeometry args={[0.75, 1.45, 2.2]} />
-                <meshStandardMaterial color="#3f3a34" roughness={0.85} />
+                <meshStandardMaterial
+                  color="#3f3a34"
+                  roughness={0.85}
+                  bumpMap={textures.masonryAshlarBump}
+                  bumpScale={0.055}
+                />
               </mesh>
               {/* Rotating oak waterwheel */}
               <group ref={waterwheelRef} position={[0.05, 0.28, 0]}>
                 <mesh rotation={[0, 0, Math.PI * 0.5]} raycast={noRaycast}>
                   <cylinderGeometry args={[0.14, 0.14, 0.48, 10]} />
-                  <meshStandardMaterial color={WALNUT_DARK} roughness={0.8} />
+                  <meshStandardMaterial
+                    color={WALNUT_DARK}
+                    roughness={0.78}
+                    bumpMap={textures.carvedWalnutBump}
+                    bumpScale={0.04}
+                  />
                 </mesh>
                 <mesh rotation={[0, Math.PI * 0.5, 0]} raycast={noRaycast}>
                   <torusGeometry args={[1.05, 0.08, 8, 20]} />
-                  <meshStandardMaterial color={WALNUT_MID} roughness={0.78} />
+                  <meshStandardMaterial
+                    color={WALNUT_MID}
+                    roughness={0.76}
+                    bumpMap={textures.carvedWalnutBump}
+                    bumpScale={0.04}
+                  />
                 </mesh>
                 {Array.from({ length: 8 }, (_, i) => {
                   const ang = (i / 8) * Math.PI * 2;
@@ -1064,7 +1474,12 @@ export function GrandPrioryPalaceDressing() {
                       raycast={noRaycast}
                     >
                       <boxGeometry args={[0.38, 2.15, 0.07]} />
-                      <meshStandardMaterial color={WALNUT_DARK} roughness={0.82} />
+                      <meshStandardMaterial
+                        color={WALNUT_DARK}
+                        roughness={0.8}
+                        bumpMap={textures.carvedWalnutBump}
+                        bumpScale={0.04}
+                      />
                     </mesh>
                   );
                 })}

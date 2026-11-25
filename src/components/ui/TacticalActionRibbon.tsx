@@ -33,10 +33,11 @@ import {
 import { useState } from "react";
 import { bestTileCover, sameCoord } from "../../core/GridSystem";
 import { evaluateVisibleTargets, isUnitFighting } from "../../core/CombatSystem";
-import { INSCRIPTION, ROPE, WINDLASS } from "../../core/mission2";
+import { canDisruptKeystone, INSCRIPTION, ROPE, WINDLASS } from "../../core/mission2";
 import {
   armClimb,
   canCutTackle,
+  canDisruptFalconet,
   canLightCord,
   canOfferCordLay,
   MAX_CORD,
@@ -44,7 +45,6 @@ import {
 } from "../../core/mission3";
 import type { StatModifier } from "../../core/types";
 import {
-  formatPhrase,
   text,
   useLocale,
   weaponLabel,
@@ -117,9 +117,11 @@ export function TacticalActionRibbon() {
   const lightMission3Cord = useGameStore((s) => s.lightMission3Cord);
   const cutMission3Tackle = useGameStore((s) => s.cutMission3Tackle);
   const armMission3Climb = useGameStore((s) => s.armMission3Climb);
+  const disruptMission3Falconet = useGameStore((s) => s.disruptMission3Falconet);
   const unpinWindlassPawl = useGameStore((s) => s.unpinWindlassPawl);
   const severPortcullisRope = useGameStore((s) => s.severPortcullisRope);
   const douseWindlassFire = useGameStore((s) => s.douseWindlassFire);
+  const disruptKeystoneRite = useGameStore((s) => s.disruptKeystoneRite);
 
   const [hoveredAbilityId, setHoveredAbilityId] = useState<string | null>(null);
   const locale = useLocale();
@@ -213,7 +215,8 @@ export function TacticalActionRibbon() {
     : null;
   const meleeCalc = activeMeleeEval?.calculation ?? null;
 
-  const isGuidedActive = guidedTutorial?.enabled && !guidedTutorial.dismissed;
+  const isGuidedActive =
+    scenario === "mission1" && guidedTutorial?.enabled && !guidedTutorial.dismissed;
   const guidedStep = guidedTutorial?.currentStep;
 
   const isTutorialActive = !tutorialDismissed && tutorialStep !== null;
@@ -553,21 +556,30 @@ export function TacticalActionRibbon() {
                 {/* Mikro-segmenty Zdraví, Zbroje a Akčních bodů */}
                 <div className="flex items-center justify-between gap-2 mt-1.5">
                   <div className="flex items-center gap-1.5">
-                    <div
-                      className="flex items-center gap-[2px]"
-                      title={text("ui.ribbon.health", { hp: selectedUnit.hp, required: selectedUnit.maxHp }, locale)}
-                    >
-                      {Array.from({ length: selectedUnit.maxHp }, (_, i) => (
-                        <span
-                          key={i}
-                          className={`w-2 h-2 rounded-[1px] ${
-                            i < selectedUnit.hp
-                              ? "bg-emerald-400 shadow-[0_0_3px_#34d399]"
-                              : "bg-slate-800"
-                          }`}
-                        />
-                      ))}
-                    </div>
+                    {selectedUnit.inDeathThroes ? (
+                      <span
+                        className="font-cinzel font-black text-[9px] text-rose-300 animate-pulse tracking-wide"
+                        title={text("inspect.cond.throes", undefined, locale)}
+                      >
+                        {text("ui.loss.throesBadge", { hp: selectedUnit.hp }, locale)}
+                      </span>
+                    ) : (
+                      <div
+                        className="flex items-center gap-[2px]"
+                        title={text("ui.ribbon.health", { hp: selectedUnit.hp, required: selectedUnit.maxHp }, locale)}
+                      >
+                        {Array.from({ length: selectedUnit.maxHp }, (_, i) => (
+                          <span
+                            key={i}
+                            className={`w-2 h-2 rounded-[1px] ${
+                              i < selectedUnit.hp
+                                ? "bg-emerald-400 shadow-[0_0_3px_#34d399]"
+                                : "bg-slate-800"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    )}
 
                     {selectedUnit.maxArmor > 0 && (
                       <div
@@ -1365,6 +1377,21 @@ export function TacticalActionRibbon() {
                   </button>
                 )}
 
+              {scenario === "mission2" &&
+                m2 &&
+                selectedUnit &&
+                canDisruptKeystone(m2, selectedUnit, units) && (
+                  <button
+                    type="button"
+                    disabled={!canCommand || !hasAp}
+                    onClick={disruptKeystoneRite}
+                    aria-label={text("ui.ribbon.disruptKeystone.aria", undefined, locale)}
+                    className="h-10 px-3 rounded-lg border border-amber-300 bg-amber-600 hover:bg-amber-500 text-stone-950 font-cinzel text-xs font-black cursor-pointer shadow-[0_0_10px_rgba(245,158,11,0.5)] disabled:opacity-35 disabled:cursor-not-allowed"
+                  >
+                    {text("ui.ribbon.disruptKeystone", undefined, locale)}
+                  </button>
+                )}
+
               {scenario === "mission3" && m3 && selectedUnit && canOfferCordLay(m3, selectedUnit, grid, units) && (
                 <button
                   type="button"
@@ -1424,6 +1451,21 @@ export function TacticalActionRibbon() {
                   {text("ui.ribbon.m3.tackle", undefined, locale)}
                 </button>
               )}
+
+              {scenario === "mission3" &&
+                m3 &&
+                selectedUnit &&
+                canDisruptFalconet(m3, grid, selectedUnit, units) && (
+                  <button
+                    type="button"
+                    disabled={!canCommand || !hasAp}
+                    onClick={disruptMission3Falconet}
+                    aria-label={text("ui.ribbon.m3.disruptFalconet.aria", undefined, locale)}
+                    className="h-10 px-3 rounded-lg border border-amber-300 bg-amber-600 hover:bg-amber-500 text-stone-950 font-cinzel text-xs font-black cursor-pointer shadow-[0_0_10px_rgba(245,158,11,0.5)] disabled:opacity-35 disabled:cursor-not-allowed"
+                  >
+                    {text("ui.ribbon.m3.disruptFalconet", undefined, locale)}
+                  </button>
+                )}
 
               {scenario === "mission3" &&
                 m3 &&
