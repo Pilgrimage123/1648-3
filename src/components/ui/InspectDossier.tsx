@@ -48,6 +48,11 @@ function toneClass(tone: InspectView["tone"]): string {
 
 export function InspectDossier() {
   const inspectOpen = useGameStore((s) => s.inspectOpen);
+  if (!inspectOpen) return null;
+  return <InspectDossierContent />;
+}
+
+function InspectDossierContent() {
   const inspectKeyHeld = useGameStore((s) => s.inspectKeyHeld);
   const inspectPin = useGameStore((s) => s.inspectPin);
   const units = useGameStore((s) => s.units);
@@ -64,8 +69,6 @@ export function InspectDossier() {
   const closeInspect = useGameStore((s) => s.closeInspect);
   const drag = useDraggableHud();
   const locale = useLocale();
-
-  if (!inspectOpen) return null;
 
   const shot = visibleTargets.find((target) => target.targetId === selectedTargetId)?.calculation;
   const melee = visibleMeleeTargets.find((target) => target.targetId === selectedTargetId)?.calculation;

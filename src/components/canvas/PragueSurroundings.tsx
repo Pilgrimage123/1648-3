@@ -237,6 +237,14 @@ function applyWindowPanes(
   mesh.computeBoundingSphere();
 }
 
+let sharedArchitectureGeometries: ReturnType<typeof createPragueArchitectureGeometries> | null = null;
+function getSharedArchitectureGeometries() {
+  if (!sharedArchitectureGeometries) {
+    sharedArchitectureGeometries = createPragueArchitectureGeometries();
+  }
+  return sharedArchitectureGeometries;
+}
+
 function HouseRows({
   houses,
   night,
@@ -250,8 +258,7 @@ function HouseRows({
     () => buildCityInstancePlan(houses, night, seed),
     [houses, night, seed],
   );
-  const geoms = useMemo(() => createPragueArchitectureGeometries(), []);
-  useEffect(() => () => disposePragueArchitectureGeometries(geoms), [geoms]);
+  const geoms = useMemo(() => getSharedArchitectureGeometries(), []);
 
   // Partition windows by pediment geometry & period glazing texture
   const winGroups = useMemo(() => {
@@ -1218,25 +1225,16 @@ function Mission1Surroundings() {
       ),
     [],
   );
+  const sharedGeoms = useMemo(() => getSharedArchitectureGeometries(), []);
   const millGeoms = useMemo(
     () => ({
-      roof: createGableRoofGeometry(),
-      gable: createRenaissanceGableGeometry(),
-      chimney: createChimneyGeometry(),
-      finial: createFinialGeometry(),
-      windowSurround: createWindowSurroundGeometry(),
+      roof: sharedGeoms.gableRoof,
+      gable: sharedGeoms.renaissanceGable,
+      chimney: sharedGeoms.chimney,
+      finial: sharedGeoms.finial,
+      windowSurround: sharedGeoms.renaissanceWindowSurround,
     }),
-    [],
-  );
-  useEffect(
-    () => () => {
-      millGeoms.roof.dispose();
-      millGeoms.gable.dispose();
-      millGeoms.chimney.dispose();
-      millGeoms.finial.dispose();
-      millGeoms.windowSurround.dispose();
-    },
-    [millGeoms],
+    [sharedGeoms],
   );
   const textures = useMemo(() => getBaroqueTextureSet(), []);
   const water = "#103a4f";

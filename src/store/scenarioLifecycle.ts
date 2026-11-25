@@ -1,6 +1,13 @@
 import { phrase, projectUnit, type Phrase } from "../i18n/runtime";
 import { createInitialCameraDirectorState, resetLiveMovementTelemetry } from "../core/CameraDirector";
-import { createInitialGrid, createInitialUnits } from "../core/GridSystem";
+import {
+  createInitialGrid,
+  createInitialUnits,
+  GRID_DEPTH,
+  GRID_FLOORS,
+  GRID_WIDTH,
+  GridSystem,
+} from "../core/GridSystem";
 import {
   createMission2Explored,
   createMission2Grid,
@@ -22,6 +29,7 @@ import type {
 import { deriveSelectionData, syncColloredoMobility } from "./combatResolution";
 import type { GameStoreState, StoreGet, StoreSet } from "./storeTypes";
 import { bumpSessionEpoch, makeLog } from "./storeUtils";
+import { suspendAudio } from "../utils/audioSystem";
 
 export function deriveLegacyTutorialStep(
   guided: GuidedTutorialState,
@@ -69,31 +77,28 @@ export function createDefaultGuidedTutorial(scenario: ScenarioId): GuidedTutoria
   };
 }
 
-export function createInitialMission1Snapshot() {
-  const initialGrid = createInitialGrid();
-  const initialUnits = createInitialUnits();
+export function createIdleBriefingSnapshot() {
+  const initialGrid = new GridSystem(GRID_WIDTH, GRID_DEPTH, GRID_FLOORS, true);
   const initialWeather: WeatherType = "rain";
-  const firstPlayerId =
-    initialUnits.find((u) => u.id === "player-jan-matej")?.id ??
-    initialUnits.find((u) => u.faction === "player")?.id ??
-    null;
-  const derived = deriveSelectionData(
-    initialGrid,
-    initialUnits,
-    firstPlayerId,
-    initialWeather,
-    null,
-    undefined,
-    [],
-    true,
-    "mission1",
-  );
   const guided = createDefaultGuidedTutorial("mission1");
   return {
     initialGrid,
     initialWeather,
-    firstPlayerId,
-    derived,
+    firstPlayerId: null as string | null,
+    derived: {
+      units: [],
+      fogSnapshot: {
+        visibleCoords: new Set<string>(),
+        exploredCoords: new Set<string>(),
+        visibleEnemyIds: new Set<string>(),
+        soundContacts: [],
+        unitSightRadii: {},
+      },
+      reachableTiles: new Map(),
+      visibleTargets: [],
+      visibleMeleeTargets: [],
+      selectedTargetId: null,
+    },
     guided,
     tutorialMirrors: mirrorTutorialFields(guided, "mission1", 1),
   };
@@ -167,7 +172,7 @@ export function buildScenarioResetState(state: GameStoreState): Partial<GameStor
       ...mirrorTutorialFields(guided, "mission3", null),
       selectedUnitId: firstId,
       activeFloor: 0,
-      renderMode: "3D_MODEL",
+      renderMode: state.preferredRenderMode,
       fogOfWarEnabled: false,
       fogSnapshot: nextDerived.fogSnapshot,
       reachableTiles: nextDerived.reachableTiles,
@@ -214,7 +219,7 @@ export function buildScenarioResetState(state: GameStoreState): Partial<GameStor
       ...mirrorTutorialFields(guided, "mission2", null),
       selectedUnitId: firstId,
       activeFloor: 2,
-      renderMode: "3D_MODEL",
+      renderMode: state.preferredRenderMode,
       fogOfWarEnabled: currentFogEnabled,
       fogSnapshot: nextDerived.fogSnapshot,
       reachableTiles: nextDerived.reachableTiles,
@@ -257,7 +262,7 @@ export function buildScenarioResetState(state: GameStoreState): Partial<GameStor
     units: nextUnits,
     reinforcementsSpawned: false,
     reinforcementRound: 5,
-    renderMode: "2D_SPRITE",
+    renderMode: state.preferredRenderMode,
     ...mirrorTutorialFields(guided, "mission1", 1),
     selectedUnitId: firstId,
     activeFloor: 1,
@@ -388,11 +393,11 @@ export function createScenarioLifecycleActions(set: StoreSet, get: StoreGet) {
     },
 
     beginScenario: (scenario: "mission1" | "mission2" | "mission3") => {
-      set({ scenario, briefingOpen: false });
-      get().resetGame();
+      set((s) => buildScenarioResetState({ ...s, scenario }));
     },
 
     openBriefing: () => {
+      suspendAudio();
       set({ briefingOpen: true });
     },
   };

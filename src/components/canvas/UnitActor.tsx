@@ -17,7 +17,7 @@ import {
   Target,
   Zap,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import {
   liveMovementTelemetry,
@@ -40,9 +40,13 @@ import { BaroqueCoverBadge } from "../ui/BaroqueCoverBadge";
 import { wasRecentRightCameraPan } from "./TacticalCamera";
 import { UnitVisual2D } from "./UnitVisual2D";
 import { facingForward, FACING_YAW } from "./diegeticLights";
-import { MatchcordCoal, UnitVisual3D } from "./UnitVisual3D";
+import { MatchcordCoal } from "./MatchcordCoal";
 import { WorldHtml } from "./WorldHtml";
 import { FLOOR_HEIGHT, gridToWorld } from "./worldCoords";
+
+const UnitVisual3D = lazy(() =>
+  import("./UnitVisual3D").then((m) => ({ default: m.UnitVisual3D })),
+);
 
 interface UnitActorProps {
   unit: UnitData;
@@ -288,19 +292,16 @@ export function UnitActor({ unit }: UnitActorProps) {
         const dz = p1.z - p0.z;
         const horizLen = Math.hypot(dx, dz);
         if (horizLen > 0.001) {
-          liveMovementTelemetry.tangentXZ = [dx / horizLen, dz / horizLen];
+          liveMovementTelemetry.tangentXZ[0] = dx / horizLen;
+          liveMovementTelemetry.tangentXZ[1] = dz / horizLen;
         }
         liveMovementTelemetry.unitId = unit.id;
-        liveMovementTelemetry.worldPos = [
-          group.position.x,
-          group.position.y,
-          group.position.z,
-        ];
-        liveMovementTelemetry.continuousCoord = {
-          x: THREE.MathUtils.lerp(c0.x, c1.x, segFrac),
-          y: THREE.MathUtils.lerp(c0.y, c1.y, segFrac),
-          z: THREE.MathUtils.lerp(c0.z, c1.z, segFrac),
-        };
+        liveMovementTelemetry.worldPos[0] = group.position.x;
+        liveMovementTelemetry.worldPos[1] = group.position.y;
+        liveMovementTelemetry.worldPos[2] = group.position.z;
+        liveMovementTelemetry.continuousCoord.x = THREE.MathUtils.lerp(c0.x, c1.x, segFrac);
+        liveMovementTelemetry.continuousCoord.y = THREE.MathUtils.lerp(c0.y, c1.y, segFrac);
+        liveMovementTelemetry.continuousCoord.z = THREE.MathUtils.lerp(c0.z, c1.z, segFrac);
         liveMovementTelemetry.progress01 =
           moveProgressRef.current / Math.max(1, totalSegments);
         liveMovementTelemetry.segmentIndex = segIdx;
@@ -825,17 +826,19 @@ export function UnitActor({ unit }: UnitActorProps) {
             supportsRestFork={unit.weapon.supportsRestFork}
           />
         ) : (
-          <UnitVisual3D
-            archetype={unit.archetype}
-            faction={unit.faction}
-            facing={unit.facing}
-            hitTimestamp={unitFx?.hitTimestamp ?? 0}
-            opacity={visualOpacity}
-            lockType={unit.weapon.lockType}
-            weather={weather}
-            roofed={grid.isEnclosedRoofed(unit.pos.x, unit.pos.y, unit.pos.z)}
-            unitId={unit.id}
-          />
+          <Suspense fallback={null}>
+            <UnitVisual3D
+              archetype={unit.archetype}
+              faction={unit.faction}
+              facing={unit.facing}
+              hitTimestamp={unitFx?.hitTimestamp ?? 0}
+              opacity={visualOpacity}
+              lockType={unit.weapon.lockType}
+              weather={weather}
+              roofed={grid.isEnclosedRoofed(unit.pos.x, unit.pos.y, unit.pos.z)}
+              unitId={unit.id}
+            />
+          </Suspense>
         )}
       </group>
 

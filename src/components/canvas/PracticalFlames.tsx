@@ -53,7 +53,7 @@ function FlameCone({
     mesh.scale.set(flicker, flicker * 1.15, flicker);
   });
   return (
-    <mesh ref={ref} position={position} visible={lit}>
+    <mesh ref={ref} position={position} visible={lit} raycast={() => null}>
       <coneGeometry args={[0.045, 0.16, 7]} />
       <meshStandardMaterial
         color={color}

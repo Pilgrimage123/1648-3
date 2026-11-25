@@ -195,12 +195,13 @@ export class GridSystem {
   public readonly width: number;
   public readonly depth: number;
   public readonly floors: number;
-  private readonly tiles: Map<string, TileData> = new Map();
+  private tileArray: TileData[] = [];
   private readonly doors: Map<string, DoorData> = new Map();
   /** Closed doors a mover may not breach. Mission 3 seals both relief doors until the roll. */
   public readonly sealedDoorIds: Set<string> = new Set();
   private instanceRoofMask: ((x: number, y: number, z: number) => boolean) | null = null;
   private instanceRoofKind: RoofKind | null = null;
+  private cachedEscapeTile: TileData | null | undefined = undefined;
 
   public setRoofMask(
     fn: ((x: number, y: number, z: number) => boolean) | null,
@@ -222,24 +223,37 @@ export class GridSystem {
     return evalRoofParapetCover(this.instanceRoofKind, c, dir);
   }
 
-  constructor(width = GRID_WIDTH, depth = GRID_DEPTH, floors = GRID_FLOORS) {
+  constructor(
+    width = GRID_WIDTH,
+    depth = GRID_DEPTH,
+    floors = GRID_FLOORS,
+    empty = false,
+  ) {
     this.width = width;
     this.depth = depth;
     this.floors = floors;
-    this.initializeEmpty();
+    if (!empty) {
+      this.initializeEmpty();
+    }
+  }
+
+  private tileIdx(c: GridCoord): number {
+    return c.x + c.z * this.width + c.y * this.width * this.depth;
   }
 
   private initializeEmpty(): void {
-    this.tiles.clear();
+    const total = this.width * this.depth * this.floors;
+    this.tileArray = new Array<TileData>(total);
     this.doors.clear();
     this.sealedDoorIds.clear();
+    this.cachedEscapeTile = undefined;
     for (let y = 0; y < this.floors; y++) {
       const floor = y as FloorLevel;
       for (let z = 0; z < this.depth; z++) {
         for (let x = 0; x < this.width; x++) {
           const coord: GridCoord = { x, y: floor, z };
           const isGround = floor === 0;
-          this.tiles.set(coordKey(coord), {
+          this.tileArray[this.tileIdx(coord)] = {
             coord,
             walkable: isGround,
             hasFloor: isGround,
@@ -250,7 +264,7 @@ export class GridSystem {
             smokeTurns: 0,
             surface: isGround ? "cobble" : "wood_roof",
             damageLevel: 0,
-          });
+          };
         }
       }
     }
@@ -268,12 +282,21 @@ export class GridSystem {
   }
 
   public getTile(c: GridCoord): TileData | undefined {
-    if (!this.inBounds(c)) return undefined;
-    return this.tiles.get(coordKey(c));
+    if (this.tileArray.length === 0 || !this.inBounds(c)) return undefined;
+    return this.tileArray[this.tileIdx(c)];
   }
 
   public getAllTiles(): TileData[] {
-    return Array.from(this.tiles.values());
+    return this.tileArray;
+  }
+
+  public getMission1EscapeTileCached(): TileData | undefined {
+    if (this.cachedEscapeTile !== undefined) {
+      return this.cachedEscapeTile ?? undefined;
+    }
+    const found = this.tileArray.find((t) => t.isEscapeZone && t.coord.y === 0);
+    this.cachedEscapeTile = found ?? null;
+    return found;
   }
 
   public getFloorTiles(floor: FloorLevel): TileData[] {
@@ -524,7 +547,7 @@ export class GridSystem {
    */
   public decaySmoke(weather: WeatherType = "clear"): void {
     const openDoors = this.getOpenExteriorDoors();
-    for (const tile of this.tiles.values()) {
+    for (const tile of this.tileArray) {
       if (tile.smokeTurns <= 0) continue;
       const c = tile.coord;
       const isIndoor = this.isEnclosedRoofed(c.x, c.y, c.z);
@@ -553,7 +576,7 @@ export class GridSystem {
    * Spolehlivě odstraní kryt, pokud byl objekt v průběhu boje zničen (např. granátem).
    */
   public bakeCoverFromObstacles(): void {
-    for (const tile of this.tiles.values()) {
+    for (const tile of this.tileArray) {
       if (!tile.hasFloor || !tile.walkable) {
         tile.cover = emptyCover();
         continue;
@@ -994,7 +1017,7 @@ export function soldierMovePerAp(weapon: WeaponStats): number {
 
 /** Čertovka extraction tile. First escape-zone tile in grid order, which is the west dock `(3, 0, 2)`. */
 export function getMission1EscapeTile(grid: GridSystem): TileData | undefined {
-  return grid.getAllTiles().find((t) => t.isEscapeZone && t.coord.y === 0);
+  return grid.getMission1EscapeTileCached();
 }
 
 /** Powder keg nearest the palace (highest `z`), used by the step-3 tutorial beacon. */

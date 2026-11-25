@@ -39,7 +39,7 @@ import {
   type SwedishTroopProfile,
 } from "../../utils/swedishRig2D";
 import { facingForward, FACING_YAW } from "./diegeticLights";
-import { MatchcordCoal } from "./UnitVisual3D";
+import { MatchcordCoal } from "./MatchcordCoal";
 
 export interface UnitVisual2DProps {
   archetype: UnitArchetype;
@@ -73,10 +73,65 @@ function hashUnitSeed(unitId?: string): number {
   return (h / 997) * Math.PI * 2;
 }
 
+interface SwedishCanvasBundle {
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D | null;
+  texture: THREE.CanvasTexture;
+  depthMaterial: THREE.MeshDepthMaterial;
+}
+
+const SWEDISH_BUNDLE_CACHE = new Map<string, SwedishCanvasBundle>();
+let cachedBundleScenario: string | null = null;
+
+function getOrCreateSwedishCanvasBundle(
+  cacheKey: string,
+  scenario: string,
+  profile: SwedishTroopProfile,
+  pose: ReturnType<typeof createSwedishRigState>["pose"],
+  facingSign: 1 | -1,
+): SwedishCanvasBundle {
+  if (cachedBundleScenario !== scenario) {
+    for (const bundle of SWEDISH_BUNDLE_CACHE.values()) {
+      bundle.texture.dispose();
+      bundle.depthMaterial.dispose();
+    }
+    SWEDISH_BUNDLE_CACHE.clear();
+    cachedBundleScenario = scenario;
+  }
+  const existing = SWEDISH_BUNDLE_CACHE.get(cacheKey);
+  if (existing) return existing;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = SWEDISH_CANVAS_W;
+  canvas.height = SWEDISH_CANVAS_H;
+  const ctx = canvas.getContext("2d");
+
+  if (ctx) {
+    drawSwedishSoldier2D(ctx, profile, pose, facingSign);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+
+  const depthMaterial = new THREE.MeshDepthMaterial({
+    depthPacking: THREE.RGBADepthPacking,
+    map: texture,
+    alphaTest: 0.42,
+  });
+
+  const bundle = { canvas, ctx, texture, depthMaterial };
+  SWEDISH_BUNDLE_CACHE.set(cacheKey, bundle);
+  return bundle;
+}
+
 /**
  * Live HTML5 2D Canvas Skeletal Rigged Billboard for 1648 Swedish Soldiers.
  */
 function SwedishRiggedVisual2D({
+  scenario,
   profile,
   facing,
   opacity,
@@ -97,6 +152,7 @@ function SwedishRiggedVisual2D({
   supportsRestFork,
   ribbonColor,
 }: {
+  scenario: string;
   profile: SwedishTroopProfile;
   facing: CardinalDir;
   opacity: number;
@@ -129,40 +185,18 @@ function SwedishRiggedVisual2D({
   const facingSignRef = useRef<1 | -1>(facing === "W" || facing === "N" ? -1 : 1);
   const cameraRightRef = useRef(new THREE.Vector3(1, 0, 0));
 
-  // Create dedicated offscreen 2D Canvas + THREE.CanvasTexture + matching shadow DepthMaterial
+  // Reuse per-unit offscreen 2D Canvas + THREE.CanvasTexture + DepthMaterial across FoW hide/reveal
   const canvasBundle = useMemo(() => {
-    const canvas = document.createElement("canvas");
-    canvas.width = SWEDISH_CANVAS_W;
-    canvas.height = SWEDISH_CANVAS_H;
-    const ctx = canvas.getContext("2d");
-
-    // Draw immediate crisp initial pose so software WebGL on-demand renderers see frame 0 immediately
     rigRef.current.pose.hasFurketa = hasFurketa;
-    if (ctx) {
-      drawSwedishSoldier2D(ctx, profile, rigRef.current.pose, facingSignRef.current);
-    }
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.needsUpdate = true;
-
-    const depthMaterial = new THREE.MeshDepthMaterial({
-      depthPacking: THREE.RGBADepthPacking,
-      map: texture,
-      alphaTest: 0.42,
-    });
-
-    return { canvas, ctx, texture, depthMaterial };
-  }, [profile, hasFurketa]);
-
-  useEffect(() => {
-    return () => {
-      canvasBundle.texture.dispose();
-      canvasBundle.depthMaterial.dispose();
-    };
-  }, [canvasBundle]);
+    const key = `${scenario}:${unitId ?? profile.id}:${hasFurketa ? 1 : 0}`;
+    return getOrCreateSwedishCanvasBundle(
+      key,
+      scenario,
+      profile,
+      rigRef.current.pose,
+      facingSignRef.current,
+    );
+  }, [scenario, unitId, profile, hasFurketa]);
 
   const baseEmissive = useMemo(() => new THREE.Color("#14223a"), []);
   const flashEmissive = useMemo(() => new THREE.Color("#ef4444"), []);
@@ -237,11 +271,11 @@ function SwedishRiggedVisual2D({
       inp.fireElapsedSec !== null ||
       inp.hitElapsedSec !== null;
 
-    // Step physics every frame for silky springs; redraw 2D canvas at 60Hz during action, ~28Hz in idle
+    // Step physics every frame for silky springs; redraw 2D canvas at 60Hz during action, ~12Hz in idle
     const pose = stepSwedishRig(rigRef.current, inp, dt);
 
     accumRef.current += dt;
-    const redrawInterval = isHighAction ? 0.014 : 0.036;
+    const redrawInterval = isHighAction ? 0.014 : 0.083;
     if (facingFlipped || accumRef.current >= redrawInterval) {
       accumRef.current = 0;
       drawSwedishSoldier2D(ctx, profile, pose, facingSignRef.current);
@@ -268,7 +302,7 @@ function SwedishRiggedVisual2D({
     <group>
       {/* Directional facing chevron & matchcord glow aligned in 3D facing yaw */}
       <group rotation={[0, FACING_YAW[facing], 0]}>
-        <mesh position={[0, 0.025, 0.44]} rotation={[-Math.PI * 0.5, 0, 0]}>
+        <mesh position={[0, 0.025, 0.44]} rotation={[-Math.PI * 0.5, 0, 0]} raycast={() => null}>
           <coneGeometry args={[0.1, 0.18, 3]} />
           <meshBasicMaterial
             color={ribbonColor}
@@ -399,6 +433,7 @@ export function UnitVisual2D({
   if (swedishProfile) {
     return (
       <SwedishRiggedVisual2D
+        scenario={scenario}
         profile={swedishProfile}
         facing={facing}
         opacity={opacity}
@@ -426,7 +461,7 @@ export function UnitVisual2D({
     <group>
       {/* Directional facing chevron & matchcord glow aligned in 3D facing yaw */}
       <group rotation={[0, FACING_YAW[facing], 0]}>
-        <mesh position={[0, 0.025, 0.44]} rotation={[-Math.PI * 0.5, 0, 0]}>
+        <mesh position={[0, 0.025, 0.44]} rotation={[-Math.PI * 0.5, 0, 0]} raycast={() => null}>
           <coneGeometry args={[0.1, 0.18, 3]} />
           <meshBasicMaterial
             color={ribbonColor}

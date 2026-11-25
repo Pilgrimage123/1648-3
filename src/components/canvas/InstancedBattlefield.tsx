@@ -2474,7 +2474,6 @@ export function InstancedBattlefield() {
     activeProjectile,
     selectedUnit?.pos,
     selectedTargetUnit?.pos,
-    hoveredTile,
     effectiveViewFloor,
     scenario,
   ]);
@@ -3782,6 +3781,7 @@ export function InstancedBattlefield() {
               <mesh
                 position={[0, -(hoveredTile.y * FLOOR_HEIGHT) + 0.02, 0]}
                 rotation={[-Math.PI * 0.5, 0, 0]}
+                raycast={() => null}
               >
                 <ringGeometry args={[TILE_SIZE * 0.22, TILE_SIZE * 0.28, 16]} />
                 <meshBasicMaterial
@@ -3794,7 +3794,7 @@ export function InstancedBattlefield() {
             </>
           )}
 
-          <mesh position={[0, 0.048, 0]} rotation={[-Math.PI * 0.5, 0, Math.PI * 0.25]}>
+          <mesh position={[0, 0.048, 0]} rotation={[-Math.PI * 0.5, 0, Math.PI * 0.25]} raycast={() => null}>
             <ringGeometry args={[TILE_SIZE * 0.54, TILE_SIZE * 0.65, 4]} />
             <meshBasicMaterial
               color={

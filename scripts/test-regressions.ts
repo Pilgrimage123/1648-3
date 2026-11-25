@@ -1,10 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { addLightFlash } from "../src/store/storeUtils";
 import { isFixtureDucked, retainFlashes } from "../src/components/canvas/diegeticLights";
-import { appendVictoryLog } from "../src/store/combatResolution";
+import { appendVictoryLog, resolveShotImpactMetadata } from "../src/store/combatResolution";
 import { evaluateVisibleTargets } from "../src/core/CombatSystem";
-import { createInitialGrid } from "../src/core/GridSystem";
+import { createInitialGrid, getMission1EscapeTile } from "../src/core/GridSystem";
+import { createMission2Grid } from "../src/core/mission2";
+import { createMission3Grid } from "../src/core/mission3";
 import { useGameStore } from "../src/store/useGameStore";
 import { text } from "../src/i18n/runtime";
 
@@ -223,4 +227,57 @@ test("ui.epilogue.defeatMeta renders distinct copy for zero_hp, all_companions_f
   assert.ok(zeroHp.includes("podlehl zraněním"));
   assert.ok(companions.includes("Celá eskorta padla"));
   assert.ok(detained.includes("zadržen po 2 kola"));
+});
+
+test("resolveShotImpactMetadata does not classify Mission 2/3 z>=15 misses as palace stucco or wood", () => {
+  const m2Grid = createMission2Grid();
+  const m3Grid = createMission3Grid();
+  const res2 = resolveShotImpactMetadata(
+    m2Grid,
+    { x: 11, y: 0, z: 14 },
+    { x: 14, y: 0, z: 16 },
+    { hit: false, critical: false, misfired: false, damage: 0, armorShredded: 0, armorAbsorbed: 0, killed: false },
+  );
+  const res3 = resolveShotImpactMetadata(
+    m3Grid,
+    { x: 10, y: 0, z: 13 },
+    { x: 12, y: 0, z: 15 },
+    { hit: false, critical: false, misfired: false, damage: 0, armorShredded: 0, armorAbsorbed: 0, killed: false },
+  );
+  assert.notEqual(res2.impactObstacle, "palace_stucco");
+  assert.notEqual(res2.impactObstacle, "palace_wood");
+  assert.notEqual(res3.impactObstacle, "palace_stucco");
+  assert.notEqual(res3.impactObstacle, "palace_wood");
+});
+
+test("preferredRenderMode defaults to 2D_SPRITE across all 3 missions and persists across switches", () => {
+  const store = useGameStore.getState();
+  store.setRenderMode("2D_SPRITE");
+  for (const sc of ["mission1", "mission2", "mission3"] as const) {
+    store.beginScenario(sc);
+    assert.equal(useGameStore.getState().renderMode, "2D_SPRITE", `${sc} should default to 2D_SPRITE`);
+  }
+  useGameStore.getState().toggleRenderMode();
+  assert.equal(useGameStore.getState().renderMode, "3D_MODEL");
+  useGameStore.getState().beginScenario("mission1");
+  assert.equal(useGameStore.getState().renderMode, "3D_MODEL", "preferredRenderMode should persist across beginScenario");
+  useGameStore.getState().setRenderMode("2D_SPRITE");
+});
+
+test("GridSystem flat lookup & cached getMission1EscapeTile match tile iteration", () => {
+  const grid = createInitialGrid();
+  const escape = getMission1EscapeTile(grid);
+  assert.ok(escape, "Mission 1 grid should have an escape tile");
+  assert.equal(escape.coord.x, 3);
+  assert.equal(escape.coord.y, 0);
+  assert.equal(escape.coord.z, 2);
+  assert.equal(grid.getTile(escape.coord), escape);
+});
+
+test("GrandPrioryPalaceDressing contains zero non-diegetic pointLight tags (ADR-0015)", () => {
+  const src = fs.readFileSync(
+    path.resolve(process.cwd(), "src/components/canvas/GrandPrioryPalaceDressing.tsx"),
+    "utf8",
+  );
+  assert.equal(src.includes("<pointLight"), false, "GrandPrioryPalaceDressing must not mount extra pointLights");
 });

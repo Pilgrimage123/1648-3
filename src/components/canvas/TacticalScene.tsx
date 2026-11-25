@@ -7,7 +7,7 @@
  */
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { getMission1EscapeTile } from "../../core/GridSystem";
@@ -37,44 +37,36 @@ import {
   selectSteadySlots,
   type PracticalSample,
 } from "./diegeticLights";
-import { BridgeTowerDressing } from "./BridgeTowerDressing";
 import { PragueSurroundings } from "./PragueSurroundings";
-import { GrandPrioryPalaceDressing } from "./GrandPrioryPalaceDressing";
-import { PowderYardDressing } from "./PowderYardDressing";
 import { InstancedBattlefield } from "./InstancedBattlefield";
 import { RainParticles } from "./RainParticles";
 import { TacticalCamera } from "./TacticalCamera";
 import { UnitActor } from "./UnitActor";
 import { continuousGridToWorld, gridToWorld } from "./worldCoords";
 
-let cachedSoftwareGl: boolean | null = null;
-function isSoftwareWebGL(): boolean {
-  if (cachedSoftwareGl !== null) return cachedSoftwareGl;
-  if (typeof document === "undefined") {
-    cachedSoftwareGl = false;
-    return false;
-  }
+const GrandPrioryPalaceDressing = lazy(() =>
+  import("./GrandPrioryPalaceDressing").then((m) => ({ default: m.GrandPrioryPalaceDressing })),
+);
+const BridgeTowerDressing = lazy(() =>
+  import("./BridgeTowerDressing").then((m) => ({ default: m.BridgeTowerDressing })),
+);
+const PowderYardDressing = lazy(() =>
+  import("./PowderYardDressing").then((m) => ({ default: m.PowderYardDressing })),
+);
+
+function detectSoftwareRenderer(gl: THREE.WebGLRenderer): boolean {
   try {
-    const canvas = document.createElement("canvas");
-    const gl =
-      canvas.getContext("webgl2") ??
-      canvas.getContext("webgl");
-    if (!gl) {
-      cachedSoftwareGl = false;
-      return false;
-    }
-    const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
+    const ctx = gl.getContext();
+    const debugInfo = ctx.getExtension("WEBGL_debug_renderer_info");
     const renderer = String(
       debugInfo
-        ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL)
-        : gl.getParameter(gl.RENDERER),
+        ? ctx.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL)
+        : ctx.getParameter(ctx.RENDERER),
     );
-    cachedSoftwareGl = /SwiftShader|llvmpipe|Software|Mesa OffScreen/i.test(renderer);
-    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    return /SwiftShader|llvmpipe|Software|Mesa OffScreen/i.test(renderer);
   } catch {
-    cachedSoftwareGl = false;
+    return false;
   }
-  return cachedSoftwareGl;
 }
 
 /**
@@ -126,7 +118,7 @@ function assignSlot(
 ) {
   if (!light) return;
   if (!sample || sample.intensity <= 0.01) {
-    light.visible = false;
+    light.intensity = 0;
     return;
   }
   const speed =
@@ -141,7 +133,6 @@ function assignSlot(
           : 0.13;
   const phase = sample.position.x * 0.7 + sample.position.z;
   const wave = Math.sin(t * speed + phase);
-  light.visible = true;
   light.color.set(sample.color);
   light.intensity = sample.intensity * (1 + wave * amp);
   light.distance = sample.radius;
@@ -245,7 +236,13 @@ function VolumetricGodRay({ spec }: { spec: VolumetricShaftSpec }) {
   );
 }
 
-function DiegeticLightingRig({ weather }: { weather: WeatherType }) {
+function DiegeticLightingRig({
+  weather,
+  softwareGl,
+}: {
+  weather: WeatherType;
+  softwareGl: boolean;
+}) {
   const candleRefs = useRef<(THREE.PointLight | null)[]>([]);
   const torchRefs = useRef<(THREE.PointLight | null)[]>([]);
   const cordRefs = useRef<(THREE.PointLight | null)[]>([]);
@@ -351,7 +348,7 @@ function DiegeticLightingRig({ weather }: { weather: WeatherType }) {
         position={isMorningBridge ? [...MISSION2_SUN_POSITION] : [...MISSION1_MOON_POSITION]}
         intensity={profile.keyIntensity}
         color={profile.keyColor}
-        castShadow={!isSoftwareWebGL()}
+        castShadow={!softwareGl}
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-24}
         shadow-camera-right={24}
@@ -379,7 +376,6 @@ function DiegeticLightingRig({ weather }: { weather: WeatherType }) {
           color="#fde68a"
           decay={1.25}
           intensity={0}
-          visible={false}
         />
       ))}
       {Array.from({ length: MAX_TORCH_SLOTS }, (_, i) => (
@@ -391,7 +387,6 @@ function DiegeticLightingRig({ weather }: { weather: WeatherType }) {
           color="#f97316"
           decay={1.25}
           intensity={0}
-          visible={false}
         />
       ))}
       {Array.from({ length: MAX_MATCHCORD_SLOTS }, (_, i) => (
@@ -403,7 +398,6 @@ function DiegeticLightingRig({ weather }: { weather: WeatherType }) {
           color="#ea580c"
           decay={1.25}
           intensity={0}
-          visible={false}
         />
       ))}
 
@@ -449,14 +443,13 @@ function DynamicLightFlashPool() {
         const age = now - b.createdAt;
         const p = Math.min(1, Math.max(0, age / b.durationMs));
         const decay = Math.pow(1 - p, 2);
-        flash1Ref.current.visible = decay > 0.01;
-        flash1Ref.current.intensity = b.intensity * decay;
+        flash1Ref.current.intensity = decay > 0.01 ? b.intensity * decay : 0;
         flash1Ref.current.distance = b.radius;
         const [wx, wy, wz] = gridToWorld(b.coord);
         const origin = b.world ?? { x: wx, y: wy + 0.6, z: wz };
         flash1Ref.current.position.set(origin.x, origin.y, origin.z);
       } else {
-        flash1Ref.current.visible = false;
+        flash1Ref.current.intensity = 0;
       }
     }
 
@@ -466,14 +459,13 @@ function DynamicLightFlashPool() {
         const age = now - b.createdAt;
         const p = Math.min(1, Math.max(0, age / b.durationMs));
         const decay = Math.pow(1 - p, 2);
-        flash2Ref.current.visible = decay > 0.01;
-        flash2Ref.current.intensity = b.intensity * decay;
+        flash2Ref.current.intensity = decay > 0.01 ? b.intensity * decay : 0;
         flash2Ref.current.distance = b.radius;
         const [wx, wy, wz] = gridToWorld(b.coord);
         const origin = b.world ?? { x: wx, y: wy + 0.6, z: wz };
         flash2Ref.current.position.set(origin.x, origin.y, origin.z);
       } else {
-        flash2Ref.current.visible = false;
+        flash2Ref.current.intensity = 0;
       }
     }
 
@@ -483,31 +475,31 @@ function DynamicLightFlashPool() {
         const age = now - m.createdAt;
         const p = Math.min(1, Math.max(0, age / m.durationMs));
         const decay = Math.pow(1 - p, 2);
-        muzzleRef.current.visible = decay > 0.01;
-        muzzleRef.current.intensity = m.intensity * decay;
+        muzzleRef.current.intensity = decay > 0.01 ? m.intensity * decay : 0;
         muzzleRef.current.distance = m.radius;
         const [wx, wy, wz] = gridToWorld(m.coord);
         const origin = m.world ?? { x: wx, y: wy + 1.05, z: wz };
         muzzleRef.current.position.set(origin.x, origin.y, origin.z);
       } else {
-        muzzleRef.current.visible = false;
+        muzzleRef.current.intensity = 0;
       }
     }
   });
 
   return (
     <group>
-      <pointLight ref={flash1Ref} color="#f97316" decay={2} visible={false} />
-      <pointLight ref={flash2Ref} color="#f97316" decay={2} visible={false} />
-      <pointLight ref={muzzleRef} color="#fde047" decay={2} visible={false} />
+      <pointLight ref={flash1Ref} color="#f97316" decay={2} intensity={0} />
+      <pointLight ref={flash2Ref} color="#f97316" decay={2} intensity={0} />
+      <pointLight ref={muzzleRef} color="#fde047" decay={2} intensity={0} />
     </group>
   );
 }
 
-export function TacticalScene() {
+export function TacticalScene({ paused = false }: { paused?: boolean }) {
   const units = useGameStore((s) => s.units);
   const weather = useGameStore((s) => s.weather);
   const scenario = useGameStore((s) => s.scenario);
+  const [softwareGl, setSoftwareGl] = useState(false);
 
   const lightingProfile = useMemo(
     () => getBaroqueLightingProfile(scenario, weather),
@@ -517,12 +509,11 @@ export function TacticalScene() {
     () => getBaroqueChiaroscuroFrameStyle(scenario),
     [scenario],
   );
-  const softwareGl = useMemo(() => isSoftwareWebGL(), []);
 
   return (
     <div className="relative w-full h-full bg-slate-950 select-none overflow-hidden">
       <Canvas
-        frameloop={softwareGl ? "demand" : "always"}
+        frameloop={paused ? "never" : softwareGl ? "demand" : "always"}
         shadows={softwareGl ? false : "percentage"}
         dpr={softwareGl ? 1 : [1, 2]}
         camera={{ fov: 38, near: 0.5, far: 160, position: [14, 18, 14] }}
@@ -531,8 +522,13 @@ export function TacticalScene() {
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: lightingProfile.exposure,
         }}
+        onCreated={({ gl }) => {
+          if (detectSoftwareRenderer(gl)) {
+            setSoftwareGl(true);
+          }
+        }}
       >
-        {softwareGl && <SoftwareGlTicker />}
+        {softwareGl && !paused && <SoftwareGlTicker />}
         <BaroqueEnvironmentRig scenario={scenario} weather={weather} />
         <color attach="background" args={[lightingProfile.fogColor]} />
         <fog
@@ -542,7 +538,7 @@ export function TacticalScene() {
 
         <PragueSurroundings />
 
-        <DiegeticLightingRig weather={weather} />
+        <DiegeticLightingRig weather={weather} softwareGl={softwareGl} />
         <DynamicLightFlashPool />
 
         {/* Sjednocené částicové pole černoprachového dýmu, omítkového prachu a jisker (ADR-0011) */}
@@ -553,9 +549,11 @@ export function TacticalScene() {
 
         <TacticalCamera />
         <InstancedBattlefield />
-        {scenario === "mission1" && <GrandPrioryPalaceDressing />}
-        {scenario === "mission2" && <BridgeTowerDressing />}
-        {scenario === "mission3" && <PowderYardDressing />}
+        <Suspense fallback={null}>
+          {scenario === "mission1" && <GrandPrioryPalaceDressing />}
+          {scenario === "mission2" && <BridgeTowerDressing />}
+          {scenario === "mission3" && <PowderYardDressing />}
+        </Suspense>
         <CombatLines3D />
 
         {units.map((unit) => (

@@ -141,7 +141,8 @@ export function WorldHtml({
   useEffect(() => {
     if (!groupRef.current || !target) return;
 
-    scene.updateMatrixWorld();
+    camera.updateMatrixWorld();
+    groupRef.current.updateWorldMatrix(true, false);
     const vec = calculateScreenPosition(groupRef.current, camera, size);
     const rawScale =
       distanceFactor === undefined

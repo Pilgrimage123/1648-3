@@ -1772,6 +1772,8 @@ let cachedTextures: BaroqueTextureSet | null = null;
 export function getBaroqueTextureSet(maxAnisotropy = 4): BaroqueTextureSet {
   if (cachedTextures) return cachedTextures;
   const aniso = Math.max(1, Math.min(8, maxAnisotropy));
+  let lazyPaintings: (THREE.CanvasTexture | null)[] | null = null;
+  let lazyTapestry: THREE.CanvasTexture | null | undefined = undefined;
   cachedTextures = {
     floorMicroReliefBump: createFloorMicroReliefBump(aniso),
     floorParquetAlbedo: createFloorParquetAlbedo(aniso),
@@ -1796,13 +1798,23 @@ export function getBaroqueTextureSet(maxAnisotropy = 4): BaroqueTextureSet {
     carvedWalnutBump: createCarvedWalnutBump(aniso),
     gildedFiligreeBump: createGildedFiligreeBump(aniso),
     waterRippleBump: createWaterRippleBump(aniso),
-    paintingTextures: [
-      createChiaroscuroPainting(0, aniso),
-      createChiaroscuroPainting(1, aniso),
-      createChiaroscuroPainting(2, aniso),
-      createChiaroscuroPainting(3, aniso),
-    ],
-    malteseTapestryTexture: createMalteseTapestryTexture(aniso),
+    get paintingTextures() {
+      if (!lazyPaintings) {
+        lazyPaintings = [
+          createChiaroscuroPainting(0, aniso),
+          createChiaroscuroPainting(1, aniso),
+          createChiaroscuroPainting(2, aniso),
+          createChiaroscuroPainting(3, aniso),
+        ];
+      }
+      return lazyPaintings;
+    },
+    get malteseTapestryTexture() {
+      if (lazyTapestry === undefined) {
+        lazyTapestry = createMalteseTapestryTexture(aniso);
+      }
+      return lazyTapestry;
+    },
   };
   return cachedTextures;
 }

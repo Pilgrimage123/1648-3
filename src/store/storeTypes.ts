@@ -147,6 +147,7 @@ export interface GameStoreState {
   selectedUnitId: string | null;
   activeFloor: FloorLevel;
   renderMode: RenderMode;
+  preferredRenderMode: RenderMode;
   cameraStep: number;
   isFullscreen: boolean;
 

@@ -235,10 +235,7 @@ export function RainParticles() {
         dummy.scale.set(0.025, drop.scaleY, 0.025);
         dummy.updateMatrix();
         rainMesh.setMatrixAt(i, dummy.matrix);
-        const glint = rainGlintStrength(
-          { x: drop.x, y: drop.y, z: drop.z },
-          glintSources,
-        );
+        const glint = rainGlintStrength(drop, glintSources);
         dropColor.copy(rainColor).lerp(glintColor, glint * 0.55);
         rainMesh.setColorAt(i, dropColor);
       });

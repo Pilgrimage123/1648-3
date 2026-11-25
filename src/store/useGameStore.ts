@@ -86,7 +86,7 @@ import {
   playRicochetSound,
   playSpecialAbilitySound,
 } from "../utils/audioSystem";
-import { muzzleFlashDraft } from "../components/canvas/diegeticLights";
+import { muzzleFlashDraft } from "../core/diegeticLights";
 import type {
   ActionMode,
   CaptureReason,
@@ -129,6 +129,7 @@ import {
 } from "./storeUtils";
 import {
   advanceColloredoDetentionTurn,
+  advanceReloadState,
   appendVictoryLog,
   buildUnitCombatLoss,
   checkMissionOutcome,
@@ -148,7 +149,7 @@ import {
   withSilenceRound,
 } from "./combatResolution";
 import {
-  createInitialMission1Snapshot,
+  createIdleBriefingSnapshot,
   createScenarioLifecycleActions,
   mirrorTutorialFields,
 } from "./scenarioLifecycle";
@@ -174,8 +175,11 @@ export {
   resolveShotImpactMetadata,
 };
 
+const EMPTY_PATH: GridCoord[] = [];
+const EMPTY_IDS: string[] = [];
+
 export const useGameStore = create<GameStoreState>((set, get) => {
-  const { initialGrid, initialWeather, firstPlayerId, derived, tutorialMirrors } = createInitialMission1Snapshot();
+  const { initialGrid, initialWeather, firstPlayerId, derived, tutorialMirrors } = createIdleBriefingSnapshot();
 
   const triggerUnitFx = (
     unitId: string,
@@ -1021,6 +1025,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     selectedUnitId: firstPlayerId,
     activeFloor: 1,
     renderMode: "2D_SPRITE",
+    preferredRenderMode: "2D_SPRITE",
     cameraStep: 0,
     isFullscreen: false,
     actionCamEnabled: true,
@@ -1195,13 +1200,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     },
 
     setRenderMode: (mode: RenderMode) => {
-      set({ renderMode: mode });
+      set({ renderMode: mode, preferredRenderMode: mode });
     },
 
     toggleRenderMode: () => {
-      set((s) => ({
-        renderMode: s.renderMode === "2D_SPRITE" ? "3D_MODEL" : "2D_SPRITE",
-      }));
+      set((s) => {
+        const next: RenderMode = s.renderMode === "2D_SPRITE" ? "3D_MODEL" : "2D_SPRITE";
+        return { renderMode: next, preferredRenderMode: next };
+      });
     },
 
     setWeather: (weather: WeatherType) => {
@@ -1610,7 +1616,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           state.hoveredPath.length > 0 ||
           state.hoveredSpottedEnemyIds.length > 0
         ) {
-          set({ hoveredTile: null, hoveredPath: [], hoveredSpottedEnemyIds: [] });
+          set({ hoveredTile: null, hoveredPath: EMPTY_PATH, hoveredSpottedEnemyIds: EMPTY_IDS });
         }
         return;
       }
@@ -1623,14 +1629,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         state.actionMode !== "move" ||
         !state.selectedUnitId
       ) {
-        set({ hoveredTile: coord, hoveredPath: [], hoveredSpottedEnemyIds: [] });
+        set({ hoveredTile: coord, hoveredPath: EMPTY_PATH, hoveredSpottedEnemyIds: EMPTY_IDS });
         return;
       }
 
       const unit = state.units.find((u) => u.id === state.selectedUnitId);
       const reachable = state.reachableTiles.get(coordKey(coord));
       if (!unit || !reachable) {
-        set({ hoveredTile: coord, hoveredPath: [], hoveredSpottedEnemyIds: [] });
+        set({ hoveredTile: coord, hoveredPath: EMPTY_PATH, hoveredSpottedEnemyIds: EMPTY_IDS });
         return;
       }
 
@@ -1664,7 +1670,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           state.hoveredPath.length > 0 ||
           state.hoveredSpottedEnemyIds.length > 0
         ) {
-          set({ hoveredTile: null, hoveredPath: [], hoveredSpottedEnemyIds: [] });
+          set({ hoveredTile: null, hoveredPath: EMPTY_PATH, hoveredSpottedEnemyIds: EMPTY_IDS });
         }
         return;
       }
@@ -2801,21 +2807,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
       playSpecialAbilitySound("klementinum_verdict");
 
-      const requiredAp = unit.weapon.reloadApCost ?? 2;
-      const prevProgress = unit.reloadProgress ?? 0;
-      const nextProgress = Math.min(requiredAp, prevProgress + 1);
-      const isNowLoaded = nextProgress >= requiredAp;
+      const { requiredAp, nextProgress, isNowLoaded, patch } = advanceReloadState(unit, 1);
 
       const updatedUnits = state.units.map((u) =>
-        u.id === unit.id
-          ? {
-              ...u,
-              ap: Math.max(0, u.ap - 1),
-              isOverwatch: false,
-              reloadProgress: isNowLoaded ? 0 : nextProgress,
-              firearmLoaded: isNowLoaded,
-            }
-          : u,
+        u.id === unit.id ? { ...u, ...patch } : u,
       );
 
       const autoNextUnit = findNextAvailablePlayerUnit(updatedUnits, unit.id);

@@ -4,13 +4,27 @@
  */
 
 import { Flame, Shield, Swords } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import { text, useLocale } from "../../i18n";
 import { useGameStore } from "../../store/useGameStore";
 
-export function TitleScreen() {
+export function TitleScreen({
+  prefetchWorkspace,
+}: {
+  prefetchWorkspace?: () => Promise<unknown>;
+}) {
   const locale = useLocale();
   const beginScenario = useGameStore((s) => s.beginScenario);
+
+  useEffect(() => {
+    if (!prefetchWorkspace) return;
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(() => void prefetchWorkspace());
+      return () => window.cancelIdleCallback(id);
+    }
+    const timer = setTimeout(() => void prefetchWorkspace(), 350);
+    return () => clearTimeout(timer);
+  }, [prefetchWorkspace]);
 
   return (
     <div className="relative min-h-dvh">
@@ -84,6 +98,7 @@ export function TitleScreen() {
             body={text("ui.briefing.mission1.body", undefined, locale)}
             chip={text("ui.mission.boat", undefined, locale)}
             start={text("ui.briefing.start", undefined, locale)}
+            onPrefetch={prefetchWorkspace}
             onStart={() => beginScenario("mission1")}
           />
           <MissionCard
@@ -95,6 +110,7 @@ export function TitleScreen() {
             body={text("ui.briefing.mission2.body", undefined, locale)}
             chip={text("ui.briefing.mission2.chip", undefined, locale)}
             start={text("ui.briefing.start", undefined, locale)}
+            onPrefetch={prefetchWorkspace}
             onStart={() => beginScenario("mission2")}
           />
           <MissionCard
@@ -106,6 +122,7 @@ export function TitleScreen() {
             body={text("ui.briefing.mission3.body", undefined, locale)}
             chip={text("ui.briefing.mission3.chip", undefined, locale)}
             start={text("ui.briefing.start", undefined, locale)}
+            onPrefetch={prefetchWorkspace}
             onStart={() => beginScenario("mission3")}
           />
         </div>
@@ -123,6 +140,7 @@ function MissionCard({
   body,
   chip,
   start,
+  onPrefetch,
   onStart,
 }: {
   icon: ReactNode;
@@ -133,11 +151,14 @@ function MissionCard({
   body: string;
   chip: string;
   start: string;
+  onPrefetch?: () => Promise<unknown>;
   onStart: () => void;
 }) {
   return (
     <button
       type="button"
+      onMouseEnter={() => void onPrefetch?.()}
+      onFocus={() => void onPrefetch?.()}
       onClick={onStart}
       className="title-mission baroque-cartouche baroque-border group flex min-w-0 cursor-pointer flex-col rounded-xl bg-slate-950/90 p-4 text-left text-amber-50 shadow-[0_8px_32px_rgba(0,0,0,0.92)] backdrop-blur-md"
     >

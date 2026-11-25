@@ -391,8 +391,20 @@ export function TacticalCamera() {
       }
     };
 
+    const onBlur = () => {
+      keysPressedRef.current.clear();
+      isRightDraggingRef.current = false;
+      rightDragExceededThresholdRef.current = false;
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) onBlur();
+    };
+
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     dom.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
@@ -402,9 +414,11 @@ export function TacticalCamera() {
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       dom.removeEventListener("pointerdown", onPointerDown);
-      dom.removeEventListener("pointermove", onPointerMove);
-      dom.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
       dom.removeEventListener("wheel", onWheel);
       dom.removeEventListener("contextmenu", onContextMenu);
     };

@@ -1,5 +1,5 @@
 import type { Phrase } from "../i18n/runtime";
-import { retainFlashes } from "../components/canvas/diegeticLights";
+import { retainFlashes } from "../core/diegeticLights";
 import { browserCampaignStorage, saveCampaign } from "../core/campaignStorage";
 import type { CampaignState as PersistedCampaign } from "../core/mission3";
 import type { ActiveLightFlash, CombatLogEntry, Faction } from "../core/types";
@@ -30,10 +30,6 @@ export function isStaleSession(epoch: number): boolean {
 export function registerTimer(timer: ReturnType<typeof setTimeout>): void {
   activeTimers.add(timer);
   (timer as unknown as { unref?: () => void }).unref?.();
-}
-
-export function unregisterTimer(timer: ReturnType<typeof setTimeout>): void {
-  activeTimers.delete(timer);
 }
 
 export function clearRegisteredTimers(): void {

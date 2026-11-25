@@ -266,13 +266,15 @@ export function resolveShotImpactMetadata(
     to,
   ];
 
+  const isPalace = grid.getRoofKind() === null;
+
   for (const cand of candidates) {
     const t = grid.getTile(cand);
     if (!t) continue;
     if (t.obstacle === "high_wall") {
       return {
         bloodSeverity,
-        impactObstacle: cand.z >= 15 ? "palace_stucco" : "high_wall",
+        impactObstacle: isPalace && cand.z >= 15 ? "palace_stucco" : "high_wall",
         missImpactCoord: cand,
       };
     }
@@ -286,7 +288,7 @@ export function resolveShotImpactMetadata(
     if (t.obstacle === "low_wall") {
       return {
         bloodSeverity,
-        impactObstacle: cand.z >= 15 ? "palace_wood" : "low_wall",
+        impactObstacle: isPalace && cand.z >= 15 ? "palace_wood" : "low_wall",
         missImpactCoord: cand,
       };
     }
@@ -299,7 +301,7 @@ export function resolveShotImpactMetadata(
   };
   return {
     bloodSeverity,
-    impactObstacle: to.z >= 15 ? "palace_stucco" : "cobble",
+    impactObstacle: isPalace && to.z >= 15 ? "palace_stucco" : "cobble",
     missImpactCoord: fallbackCoord,
   };
 }
@@ -886,12 +888,31 @@ export function processExplosions(
   return { ...result, nextUnits };
 }
 
-export function countPowderKegsAround(grid: GridSystem, center: GridCoord): number {
-  let count = 0;
-  for (const tile of grid.getAllTiles()) {
-    if (tile.obstacle === "powder_keg" && tile.coord.y === center.y && gridDistance3D(center, tile.coord) <= 3) {
-      count += 1;
-    }
-  }
-  return count;
+export function advanceReloadState(
+  unit: UnitData,
+  stepsToSpend = 1,
+): {
+  requiredAp: number;
+  stepsSpent: number;
+  nextProgress: number;
+  isNowLoaded: boolean;
+  patch: Pick<UnitData, "ap" | "isOverwatch" | "reloadProgress" | "firearmLoaded">;
+} {
+  const requiredAp = unit.weapon.reloadApCost ?? 2;
+  const prevProgress = unit.reloadProgress ?? 0;
+  const stepsSpent = Math.min(unit.ap, Math.max(1, stepsToSpend));
+  const nextProgress = Math.min(requiredAp, prevProgress + stepsSpent);
+  const isNowLoaded = nextProgress >= requiredAp;
+  return {
+    requiredAp,
+    stepsSpent,
+    nextProgress,
+    isNowLoaded,
+    patch: {
+      ap: Math.max(0, unit.ap - stepsSpent),
+      isOverwatch: false,
+      reloadProgress: isNowLoaded ? 0 : nextProgress,
+      firearmLoaded: isNowLoaded,
+    },
+  };
 }

@@ -48,10 +48,11 @@ import {
   playMisfireSound,
   playRicochetSound,
 } from "../utils/audioSystem";
-import { muzzleFlashDraft } from "../components/canvas/diegeticLights";
+import { muzzleFlashDraft } from "../core/diegeticLights";
 import { mirrorTutorialFields } from "./scenarioLifecycle";
 import {
   advanceColloredoDetentionTurn,
+  advanceReloadState,
   appendVictoryLog,
   buildUnitCombatLoss,
   checkMissionOutcome,
@@ -755,23 +756,16 @@ export function createAiTurnRunner(
 
             const reqReloadAp = updatedEnemy.weapon.reloadApCost ?? 2;
             const curReload = updatedEnemy.reloadProgress ?? 0;
-            const stepsSpent = Math.min(
-              updatedEnemy.ap,
+            const reloadStep = advanceReloadState(
+              updatedEnemy,
               Math.max(1, reqReloadAp - curReload),
             );
-            const nextReload = Math.min(reqReloadAp, curReload + stepsSpent);
-            const isNowLoaded = nextReload >= reqReloadAp;
+            const nextReload = reloadStep.nextProgress;
+            const isNowLoaded = reloadStep.isNowLoaded;
 
             set((s) => ({
               units: s.units.map((u) =>
-                u.id === updatedEnemy.id
-                  ? {
-                      ...u,
-                      ap: Math.max(0, u.ap - stepsSpent),
-                      reloadProgress: isNowLoaded ? 0 : nextReload,
-                      firearmLoaded: isNowLoaded,
-                    }
-                  : u,
+                u.id === updatedEnemy.id ? { ...u, ...reloadStep.patch } : u,
               ),
               combatLog: [
                 ...s.combatLog,
@@ -1164,16 +1158,11 @@ export function createAiTurnRunner(
                 (u) => u.id === updatedEnemy.id && u.alive && u.ap >= 1,
               );
               if (afterShotEnemy && afterShotEnemy.firearmLoaded === false) {
-                const reqAp = afterShotEnemy.weapon.reloadApCost ?? 2;
+                const reloadStep = advanceReloadState(afterShotEnemy, 1);
                 set((s) => ({
                   units: s.units.map((u) =>
                     u.id === afterShotEnemy.id
-                      ? {
-                          ...u,
-                          ap: 0,
-                          reloadProgress: 1,
-                          firearmLoaded: 1 >= reqAp,
-                        }
+                      ? { ...u, ...reloadStep.patch, ap: 0 }
                       : u,
                   ),
                 }));

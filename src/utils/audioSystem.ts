@@ -9,6 +9,17 @@
  */
 
 let audioCtx: AudioContext | null = null;
+const pendingAudioTimers = new Set<ReturnType<typeof setTimeout>>();
+
+export function suspendAudio(): void {
+  for (const t of pendingAudioTimers) {
+    clearTimeout(t);
+  }
+  pendingAudioTimers.clear();
+  if (audioCtx && audioCtx.state === "running") {
+    void audioCtx.suspend();
+  }
+}
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -365,9 +376,11 @@ export function playSpecialAbilitySound(
     noise.stop(now + 0.16);
 
     // Blast delayed slightly by 80ms
-    setTimeout(() => {
+    const t = setTimeout(() => {
+      pendingAudioTimers.delete(t);
       playExplosionSound();
     }, 80);
+    pendingAudioTimers.add(t);
     return;
   }
 

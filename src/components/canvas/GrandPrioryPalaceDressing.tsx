@@ -48,66 +48,6 @@ const WALNUT_MID = "#4d3120";
 const STUCCO_WARM = "#a69786";
 const LIMESTONE_TRIM = "#75695d";
 
-interface PalaceChandelierLightSpec {
-  position: [number, number, number];
-  color: string;
-  intensity: number;
-  distance: number;
-  decay: number;
-}
-
-function makeLightPos(
-  x: number,
-  y: 0 | 1 | 2,
-  z: number,
-  yOffset: number,
-): [number, number, number] {
-  const [wx, wy, wz] = continuousGridToWorld(x, y, z);
-  return [wx, wy + yOffset, wz];
-}
-
-const PALACE_LIGHTS_P1: (PalaceChandelierLightSpec | null)[] = [
-  {
-    position: makeLightPos(11.5, 1, 21.5, 2.5),
-    color: "#ffd27d",
-    intensity: 4.8,
-    distance: 18.0,
-    decay: 1.35,
-  },
-  {
-    position: makeLightPos(5.0, 1, 22.0, 2.4),
-    color: "#ffbe55",
-    intensity: 4.5,
-    distance: 15.0,
-    decay: 1.35,
-  },
-  {
-    position: makeLightPos(18.0, 1, 21.5, 2.4),
-    color: "#ffca68",
-    intensity: 4.2,
-    distance: 15.0,
-    decay: 1.4,
-  },
-];
-
-const PALACE_LIGHTS_P0: (PalaceChandelierLightSpec | null)[] = [
-  {
-    position: makeLightPos(11.5, 0, 20.5, 2.0),
-    color: "#ffd27d",
-    intensity: 4.2,
-    distance: 16.0,
-    decay: 1.4,
-  },
-  {
-    position: makeLightPos(5.5, 0, 21.0, 1.95),
-    color: "#ffbe55",
-    intensity: 3.8,
-    distance: 14.0,
-    decay: 1.4,
-  },
-  null,
-];
-
 /**
  * Framed Chiaroscuro Oil Painting (Caravaggio / Rembrandt style) with procedural oil canvas,
  * chased gilded Baroque frame, corner rosettes, and crest cartouche.
@@ -588,30 +528,8 @@ export function GrandPrioryPalaceDressing() {
   // When viewing P0, P1 interior dressing hides/fades so P0 is 100% unobstructed.
   const p1Opacity = activeFloor < 1 ? 0.03 : isShootingView ? 0.45 : 1.0;
 
-  const activeChandelierLights =
-    activeFloor >= 1 ? PALACE_LIGHTS_P1 : PALACE_LIGHTS_P0;
-
   return (
     <group>
-      {/* =====================================================================
-          1. WARM BAROQUE CHANDELIER INTERIOR LIGHTS (Warm-vs-Cool Chiaroscuro)
-             Fixed 3-slot pool toggled via visible/intensity to avoid shader recompilation.
-         ===================================================================== */}
-      {[0, 1, 2].map((slotIdx) => {
-        const cfg = activeChandelierLights[slotIdx];
-        return (
-          <pointLight
-            key={`palace-chandelier-light-${slotIdx}`}
-            position={cfg ? cfg.position : [0, -10, 0]}
-            color={cfg ? cfg.color : "#ffd27d"}
-            intensity={cfg ? cfg.intensity : 0}
-            distance={cfg ? cfg.distance : 1}
-            decay={cfg ? cfg.decay : 1.4}
-            visible={Boolean(cfg)}
-          />
-        );
-      })}
-
       {/* =====================================================================
           3. GRAND PRIOR COLLOREDO'S BEDCHAMBER & STUDY (P1: x: 3..7, z: 22..26)
              Strictly Perimeter-Aligned so walkable tiles stay 100% clear!

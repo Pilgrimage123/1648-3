@@ -91,6 +91,7 @@ export function CombatAtmosphereField() {
   const amberScatter = useMemo(() => new THREE.Color("#fb923c"), []);
   const warmDust = useMemo(() => new THREE.Color("#e4d2c2"), []);
   const softPuffTexture = useMemo(() => createSoftPuffTexture(), []);
+  useEffect(() => () => softPuffTexture.dispose(), [softPuffTexture]);
 
   // 1. Přepočet instancí černoprachového dýmu při změně mřížky / kouře
   const smokePuffs = useMemo(() => {

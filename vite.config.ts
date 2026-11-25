@@ -12,7 +12,24 @@ export default defineConfig(() => {
       },
     },
     build: {
-      chunkSizeWarningLimit: 1800,
+      chunkSizeWarningLimit: 1200,
+      rolldownOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules/three') || id.includes('node_modules/@react-three')) {
+              return 'vendor-3d';
+            }
+            if (
+              id.includes('node_modules/react') ||
+              id.includes('node_modules/react-dom') ||
+              id.includes('node_modules/zustand') ||
+              id.includes('node_modules/lucide-react')
+            ) {
+              return 'vendor-ui';
+            }
+          },
+        },
+      },
     },
     optimizeDeps: {
       include: [

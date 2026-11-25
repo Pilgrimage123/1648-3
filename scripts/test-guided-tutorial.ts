@@ -5,17 +5,18 @@
 
 import assert from "node:assert";
 import { GUIDED_TUTORIAL_STEPS, getGuidedStepData, getGuidedTutorialBeacon, isTileAllowedForGuidedMove } from "../src/core/GuidedTutorialSystem";
+import type { GuidedTutorialStep } from "../src/core/types";
 import { createInitialGrid, createInitialUnits } from "../src/core/GridSystem";
 import { useGameStore } from "../src/store/useGameStore";
 
 console.log("=== TEST GUIDED TUTORIAL SYSTEM (XCOM 2 STYLE) ===");
 
 // 1. Ověření definice všech 9 mikrokroků
-const stepKeys = Object.keys(GUIDED_TUTORIAL_STEPS);
+const stepKeys = Object.keys(GUIDED_TUTORIAL_STEPS) as GuidedTutorialStep[];
 assert.strictEqual(stepKeys.length, 9, "Musí existovat přesně 9 mikrokroků tutoriálu");
 
 for (const key of stepKeys) {
-  const step = getGuidedStepData(key as any);
+  const step = getGuidedStepData(key);
   assert(step.speaker, `Krok ${key} musí mít mluvčího`);
   assert(step.role, `Krok ${key} musí mít roli`);
   assert(step.title, `Krok ${key} musí mít titul`);

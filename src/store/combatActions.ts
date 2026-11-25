@@ -28,7 +28,7 @@ import {
   playRicochetSound,
   playSpecialAbilitySound,
 } from "../utils/audioSystem";
-import { muzzleFlashDraft } from "../components/canvas/diegeticLights";
+import { muzzleFlashDraft } from "../core/diegeticLights";
 import {
   appendVictoryLog,
   buildUnitCombatLoss,
@@ -74,6 +74,7 @@ export function executeKegShot(
       activeUnit.facing,
     );
     playGunshotSound(activeUnit.weapon.lockType === "wheellock");
+    deps.noteMission3Noise("shot");
     get().grid.addSmoke(
       activeUnit.pos,
       0,
@@ -84,7 +85,7 @@ export function executeKegShot(
     set((s) => ({
       isBusy: true,
       smokeVersion: s.smokeVersion + 1,
-      combatIntensity: s.combatIntensity + 3,
+      combatIntensity: s.combatIntensity + 1,
       blastZones: [
         ...s.blastZones.slice(-18),
         {
@@ -94,14 +95,6 @@ export function executeKegShot(
           baseRadius: 1.5,
           maxRadius: 4.0,
           isExplosion: false,
-        },
-        {
-          id: nextFxId(),
-          coord,
-          createdAt: nowTs,
-          baseRadius: 2.8,
-          maxRadius: 7.5,
-          isExplosion: true,
         },
       ],
       units: s.units.map((u) =>
@@ -132,18 +125,8 @@ export function executeKegShot(
         detonatedKegs: [coord],
       },
       lightFlashes: addLightFlash(
-        addLightFlash(
-          s.lightFlashes,
-          muzzleFlashDraft(activeUnit.pos, newFacing, false),
-        ),
-        {
-          kind: "blast",
-          coord,
-          color: "#f97316",
-          intensity: 14,
-          radius: 12,
-          durationMs: 550,
-        },
+        s.lightFlashes,
+        muzzleFlashDraft(activeUnit.pos, newFacing, false),
       ),
     }));
 
@@ -158,6 +141,7 @@ export function executeKegShot(
 
     const beforeUnitsKeg = get().units;
     deps.noteMission3Noise("blast");
+    const impactTs = performance.now();
     const blast = processExplosions(
       get().grid,
       beforeUnitsKeg,
@@ -209,11 +193,34 @@ export function executeKegShot(
       const tutorialPatch = mirrorTutorialFields(
         { ...s.guidedTutorial, currentStep: nextGuidedStep },
         s.scenario,
-        s.tutorialStep === 3 ? 4 : s.tutorialStep,
       );
       return {
         gridVersion: s.gridVersion + 1,
         smokeVersion: s.smokeVersion + 2,
+        combatIntensity: s.combatIntensity + 2,
+        blastZones: [
+          ...s.blastZones.slice(-18),
+          {
+            id: nextFxId(),
+            coord,
+            createdAt: impactTs,
+            baseRadius: 2.8,
+            maxRadius: 7.5,
+            isExplosion: true,
+          },
+        ],
+        lightFlashes: addLightFlash(
+          s.lightFlashes,
+          {
+            kind: "blast",
+            coord,
+            color: "#f97316",
+            intensity: 14,
+            radius: 12,
+            durationMs: 550,
+          },
+          impactTs,
+        ),
         m3: bearerDrop.m3,
         units: syncedUnits,
         ...tutorialPatch,
