@@ -1,21 +1,29 @@
 /**
- * HTML5 2D Canvas Cut-out Skeletal Renderer for 1648 Swedish Troops
+ * HTML5 2D Canvas Cut-out Skeletal Renderer for 1648 Prague Defenders & Swedish Troops
  * (/src/utils/swedishCanvasRenderer.ts).
  *
  * Implements:
- * - Heroic 3/4 Baroque silhouette proportions matching Bohemian defenders (broad shoulders,
- *   full gathered Pluderhosen breeches, sturdy boots/skor, crisp 3.2-3.8px ink contours,
- *   ground contact shadow, and warm chiaroscuro rim-light vs. deep fold shadows)
- * - Camera-relative horizontal facing flip (`facingSign: 1 | -1`) with balanced forward margin
- * - Authentic distinction between:
- *   * Modernized Swedish M1624 Lightened Musket (NO furketa, sleek balanced barrel, fired offhand
- *     with both 2-bone IK arms, waist leather `patronkök` cartridge box with white paper cartridges,
- *     and paper-cartridge bite / wooden ramrod reload animation)
- *   * Older Heavy Matchlock (longer thicker barrel braced in a planted wooden `furketa` with iron
- *     ground-spike & brass U-fork + full 12 Apostles powder-flask bandolier)
- * - Matte vadmal wool / buff-leather gradients vs. shifting specular highlights on steel & brass
- * - Deterministic 1648 campaign weathering (trench mud spatters on hems/boots + armor scratches)
- * - Multi-stage black-powder firing VFX (pan flash -> +0.10s muzzle blast -> billowing white smoke)
+ * - Heroic 3/4 Baroque silhouette proportions for both Prague Defenders (Pražané) and Swedish Army
+ * - Authentic 1648 Prague Defender costumes & gear:
+ *   * Field Marshal Rudolf Count Colloredo: billowing pleated white linen nightshirt (`noční košile`)
+ *     reaching below the knees with gold embroidered hem, ruffled lace collar, scarlet Order of Malta
+ *     Grand Prior ribbon & 8-pointed white Maltese cross pendant, wax-sealed parchment scroll,
+ *     crimson velvet nightcap with silver hair curls, bare lower legs in crimson velvet slippers (`trepky`)
+ *     with gold buckles, carved walking cane with golden knob, and silver wheellock pistol
+ *   * Father Jiří Plachý S.J.: towering (~2m) black Jesuit cassock (`sutana`) with 20 buttons,
+ *     steel military gorget (`nákrčník`), 4-ridged black Jesuit biretta (`biret`), raised gilded crucifix
+ *     in left hand, and wheellock pistol in right hand
+ *   * Havel Řezáč (Old Town Butchers' Guild): russet-brown artisan tunic, blood-stained cream linen
+ *     butcher's apron, wide felt burgher hat, heavy steel butcher's cleaver (`řeznický sekáč`), & pistol
+ *   * Ondřej Štěrba (rooftop & rope scout): dark slate cloak, diagonal coiled hemp climbing rope across
+ *     chest, low cavalier cap, rope knife, & wheellock pistol
+ *   * Clementinum Student Legion (`Václav z Michalovic`, `Žák Klementina`): dark academic coat with
+ *     gold university trim, white scholar collar, Bohemian red-white ribbon cockade, captured M1624
+ *     lightened musket or student wheellock pistol
+ *   * Valet Jan Matěj & Maltese Master Armorer Brother Bartoloměj: buff coat / three-quarter plate
+ *     cuirass with white 8-pointed Maltese cross, wheellock dragoon carbine, or heavy matchlock + furketa
+ * - Camera-relative horizontal facing flip (`facingSign: 1 | -1`)
+ * - Two-bone IK arms, damped secondary motion physics, and multi-stage black-powder firing VFX
  */
 
 import {
@@ -33,7 +41,6 @@ export const SWEDISH_CANVAS_H = 420;
 const OUTLINE = "#0b0908";
 const RIM_HIGHLIGHT = "rgba(255, 245, 214, 0.34)";
 
-/** Deterministic pseudo-random 0..1 helper for weathering scratches & mud spots */
 function seeded01(seed: number, idx: number): number {
   const x = Math.sin(seed * 12.9898 + idx * 78.233) * 43758.5453;
   return x - Math.floor(x);
@@ -125,10 +132,46 @@ function drawMetalScratches(
   ctx.restore();
 }
 
+/** Draws an 8-pointed white Order of Malta cross (`Maltézský kříž`) centered at (cx, cy). */
+function drawMalteseCross(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  radius: number,
+  strokeColor = "#991b1b",
+) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.fillStyle = "#ffffff";
+  ctx.strokeStyle = strokeColor;
+  ctx.lineWidth = 1.6;
+
+  for (let arm = 0; arm < 4; arm++) {
+    ctx.save();
+    ctx.rotate((arm * Math.PI) / 2);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(-radius * 0.42, -radius);
+    ctx.lineTo(0, -radius * 0.72);
+    ctx.lineTo(radius * 0.42, -radius);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  ctx.fillStyle = "#facc15";
+  ctx.beginPath();
+  ctx.arc(0, 0, radius * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 /**
  * Draws an articulated heroic-proportion 1648 leg:
- * Pelvis -> full pleated Pluderhosen breeches gathered at knee -> sturdy wool stocking
- * -> square-toed buckled infantry `skor` OR bucket-cuffed cavalry `riding_boots` with brass spur.
+ * - Standard: Pluderhosen breeches gathered at knee -> wool stocking -> `skor` or `riding_boots`
+ * - Colloredo (`night_slippers`): white nightshirt inner fold -> bare lower calf -> crimson velvet
+ *   bedroom slippers (`trepky`) with gold buckle!
  */
 function drawLeg(
   ctx: CanvasRenderingContext2D,
@@ -146,11 +189,11 @@ function drawLeg(
   ctx.translate(hipX, hipY);
   ctx.rotate(hipAngle);
 
-  // 1. Full knee-length Pluderhosen / Pumphosen breeches with baroque drape folds
+  // 1. Upper leg (Pluderhosen breeches OR inner linen fold of nightshirt/cassock)
   const breechGrad = ctx.createLinearGradient(-18, 0, 18, thighLen);
   breechGrad.addColorStop(0, isBack ? profile.breechesShadow : profile.breechesColor);
   breechGrad.addColorStop(0.65, profile.breechesShadow);
-  breechGrad.addColorStop(1, "#16110e");
+  breechGrad.addColorStop(1, profile.garmentCut === "nightshirt" ? "#94a3b8" : "#16110e");
 
   ctx.beginPath();
   ctx.moveTo(-15, -3);
@@ -164,29 +207,79 @@ function drawLeg(
   ctx.lineWidth = 3.2;
   ctx.stroke();
 
-  // Vertical cloth fold creases on gathered breeches
-  ctx.strokeStyle = "rgba(10, 8, 8, 0.34)";
-  ctx.lineWidth = 1.6;
-  ctx.beginPath();
-  ctx.moveTo(-6, 4);
-  ctx.quadraticCurveTo(-9, thighLen * 0.5, -5, thighLen - 4);
-  ctx.moveTo(6, 4);
-  ctx.quadraticCurveTo(9, thighLen * 0.5, 5, thighLen - 4);
-  ctx.stroke();
+  if (profile.garmentCut === "kabatec") {
+    // Vertical cloth fold creases on gathered breeches
+    ctx.strokeStyle = "rgba(10, 8, 8, 0.34)";
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(-6, 4);
+    ctx.quadraticCurveTo(-9, thighLen * 0.5, -5, thighLen - 4);
+    ctx.moveTo(6, 4);
+    ctx.quadraticCurveTo(9, thighLen * 0.5, 5, thighLen - 4);
+    ctx.stroke();
 
-  // Knee garter ribbon tying breeches just below knee
-  ctx.fillStyle = profile.ribbonColor;
-  ctx.fillRect(-14, thighLen - 5, 28, 6.5);
-  ctx.strokeStyle = OUTLINE;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(-14, thighLen - 5, 28, 6.5);
+    // Knee garter ribbon tying breeches just below knee
+    ctx.fillStyle = profile.ribbonColor;
+    ctx.fillRect(-14, thighLen - 5, 28, 6.5);
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-14, thighLen - 5, 28, 6.5);
+  }
 
-  // 2. Knee joint -> lower leg (stockings & footwear)
+  // 2. Knee joint -> lower leg (stockings/bare calves & footwear)
   ctx.translate(0, thighLen);
   ctx.rotate(kneeAngle);
 
-  if (profile.footwear === "riding_boots") {
-    // High cuffed cowhide riding boot with wide knee bucket cuff & brass spur
+  if (profile.footwear === "night_slippers") {
+    // Field Marshal Colloredo: bare lower calves/ankles emerging from his nightshirt + crimson velvet slippers!
+    const calfGrad = ctx.createLinearGradient(-10, 0, 11, shinLen);
+    calfGrad.addColorStop(0, isBack ? "#c99f7d" : profile.stockingsColor);
+    calfGrad.addColorStop(1, isBack ? "#a67d5e" : "#dfa982");
+    drawRoundedLimb(ctx, 0, 0, 0, shinLen - 3, 17.5, 13, calfGrad, OUTLINE, 2.7);
+
+    // White linen bandage wrapped around his Lützen 1632 wounded back calf (with faint dried-blood spot)
+    if (isBack && profile.hasLimp) {
+      ctx.fillStyle = "#f8fafc";
+      ctx.strokeStyle = OUTLINE;
+      ctx.lineWidth = 1.9;
+      ctx.beginPath();
+      ctx.roundRect(-9.2, 8, 18.4, 18, 3);
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-8.5, 13);
+      ctx.lineTo(8.5, 16);
+      ctx.moveTo(-8.5, 19);
+      ctx.lineTo(8.5, 22);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(185, 28, 28, 0.52)";
+      ctx.beginPath();
+      ctx.ellipse(2, 17, 3.6, 2.4, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Aristocratic crimson velvet bedroom slipper (`trepka`) with gold buckle
+    ctx.beginPath();
+    ctx.moveTo(-10, shinLen - 6);
+    ctx.quadraticCurveTo(4, shinLen - 11, 24, shinLen - 1);
+    ctx.lineTo(24, shinLen + 8.5);
+    ctx.lineTo(-12, shinLen + 8.5);
+    ctx.closePath();
+    ctx.fillStyle = isBack ? "#7f1d1d" : profile.bootColor;
+    ctx.fill();
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2.8;
+    ctx.stroke();
+
+    // Gold slipper trim & buckle
+    ctx.fillStyle = "#facc15";
+    ctx.fillRect(3, shinLen - 6, 7.5, 5.5);
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 1.4;
+    ctx.strokeRect(3, shinLen - 6, 7.5, 5.5);
+  } else if (profile.footwear === "riding_boots") {
     const bootGrad = ctx.createLinearGradient(-14, 0, 16, shinLen);
     bootGrad.addColorStop(0, isBack ? "#18110c" : "#442e20");
     bootGrad.addColorStop(0.55, profile.bootColor);
@@ -205,10 +298,8 @@ function drawLeg(
     ctx.lineWidth = 2.8;
     ctx.stroke();
 
-    // Sturdy boot shaft
     drawRoundedLimb(ctx, 0, 9, 1, shinLen + 2, 23, 18, bootGrad, OUTLINE, 3.0);
 
-    // Square-toed riding boot foot
     ctx.beginPath();
     ctx.moveTo(-10, shinLen - 5);
     ctx.lineTo(25, shinLen - 1);
@@ -233,7 +324,7 @@ function drawLeg(
     ctx.arc(-21, shinLen + 1, 3.0, 0, Math.PI * 2);
     ctx.fill();
   } else {
-    // Contrasting knitted wool stockings + low square-toed infantry shoes (`skor`) with buckle
+    // Contrasting knitted wool stockings + low square-toed shoes (`skor`) with brass buckle
     const stockGrad = ctx.createLinearGradient(-11, 0, 12, shinLen);
     stockGrad.addColorStop(0, isBack ? "#2b2624" : profile.stockingsColor);
     stockGrad.addColorStop(1, isBack ? "#171413" : profile.stockingsColor);
@@ -243,7 +334,6 @@ function drawLeg(
       ctx.fillStyle = "rgba(10, 10, 14, 0.36)";
       ctx.fillRect(-10, 0, 20, shinLen - 4);
     } else {
-      // Subtle highlight along front shin muscle
       ctx.strokeStyle = "rgba(255, 250, 235, 0.22)";
       ctx.lineWidth = 2.2;
       ctx.beginPath();
@@ -252,11 +342,10 @@ function drawLeg(
       ctx.stroke();
     }
 
-    // Low leather shoe (`skor`) with wide square toe, raised leather tongue & brass buckle
     ctx.beginPath();
     ctx.moveTo(-10, shinLen - 8);
-    ctx.lineTo(6, shinLen - 12); // raised tongue
-    ctx.lineTo(24, shinLen - 1); // wide square toe
+    ctx.lineTo(6, shinLen - 12);
+    ctx.lineTo(24, shinLen - 1);
     ctx.lineTo(24, shinLen + 9);
     ctx.lineTo(-12, shinLen + 9);
     ctx.closePath();
@@ -266,13 +355,11 @@ function drawLeg(
     ctx.lineWidth = 3.0;
     ctx.stroke();
 
-    // Brass shoe buckle
     ctx.strokeStyle = "#facc15";
     ctx.lineWidth = 2.2;
     ctx.strokeRect(2, shinLen - 6, 7.5, 5.5);
   }
 
-  // Trench mud splatters along lower shin & footwear
   drawMudSplatters(
     ctx,
     2,
@@ -288,9 +375,8 @@ function drawLeg(
 }
 
 /**
- * Draws an arm using two-bone IK results (shoulder -> elbow -> hand),
- * featuring heroic broad wool sleeve, contrasting regimental cuff (`vyložení`),
- * and peeking white linen shirt cuff underneath.
+ * Draws an arm using two-bone IK results (shoulder -> elbow -> hand).
+ * For Colloredo's `nightshirt`, draws billowing white linen sleeves gathered at the wrist with lace ruffles!
  */
 function drawIKArm(
   ctx: CanvasRenderingContext2D,
@@ -301,50 +387,73 @@ function drawIKArm(
   const { shoulder, elbow, hand } = ik;
 
   ctx.save();
-  // Upper arm sleeve
   const upperGrad = ctx.createLinearGradient(shoulder.x, shoulder.y - 12, elbow.x, elbow.y + 12);
   upperGrad.addColorStop(0, isBack ? profile.coatShadow : profile.coatLight);
   upperGrad.addColorStop(0.58, isBack ? profile.coatShadow : profile.coatBase);
   upperGrad.addColorStop(1, profile.coatShadow);
-  drawRoundedLimb(ctx, shoulder.x, shoulder.y, elbow.x, elbow.y, 22, 18, upperGrad, OUTLINE, 3.0);
 
-  // Forearm sleeve stopping short to reveal turned-back regimental cuff & linen shirt sleeve
-  const forearmDx = hand.x - elbow.x;
-  const forearmDy = hand.y - elbow.y;
-  const cuffStartX = elbow.x + forearmDx * 0.54;
-  const cuffStartY = elbow.y + forearmDy * 0.54;
-  const cuffEndX = elbow.x + forearmDx * 0.84;
-  const cuffEndY = elbow.y + forearmDy * 0.84;
+  if (profile.garmentCut === "nightshirt") {
+    // Billowing white linen nightshirt sleeves with soft pleats & ruffled lace wrist cuff
+    drawRoundedLimb(ctx, shoulder.x, shoulder.y, elbow.x, elbow.y, 24, 21, upperGrad, OUTLINE, 3.0);
+    drawRoundedLimb(ctx, elbow.x, elbow.y, hand.x, hand.y, 21, 14, upperGrad, OUTLINE, 2.8);
 
-  drawRoundedLimb(ctx, elbow.x, elbow.y, cuffStartX, cuffStartY, 18, 16.5, upperGrad, OUTLINE, 2.8);
+    // Ruffled gold-trimmed nightshirt wrist cuff
+    const forearmDx = hand.x - elbow.x;
+    const forearmDy = hand.y - elbow.y;
+    const cuffX = elbow.x + forearmDx * 0.78;
+    const cuffY = elbow.y + forearmDy * 0.78;
+    drawRoundedLimb(
+      ctx,
+      cuffX,
+      cuffY,
+      hand.x,
+      hand.y,
+      18,
+      15,
+      isBack ? "#e2e8f0" : "#ffffff",
+      OUTLINE,
+      2.2,
+    );
+  } else {
+    drawRoundedLimb(ctx, shoulder.x, shoulder.y, elbow.x, elbow.y, 22, 18, upperGrad, OUTLINE, 3.0);
 
-  // Turned-back regimental sleeve cuff (`vyložení rukávů`)
-  drawRoundedLimb(
-    ctx,
-    cuffStartX,
-    cuffStartY,
-    cuffEndX,
-    cuffEndY,
-    19.5,
-    20.5,
-    isBack ? profile.liningColor : profile.cuffColor,
-    OUTLINE,
-    2.8,
-  );
+    const forearmDx = hand.x - elbow.x;
+    const forearmDy = hand.y - elbow.y;
+    const cuffStartX = elbow.x + forearmDx * 0.54;
+    const cuffStartY = elbow.y + forearmDy * 0.54;
+    const cuffEndX = elbow.x + forearmDx * 0.84;
+    const cuffEndY = elbow.y + forearmDy * 0.84;
 
-  // White linen shirt sleeve peeking out beneath the wool cuff
-  drawRoundedLimb(
-    ctx,
-    cuffEndX,
-    cuffEndY,
-    hand.x,
-    hand.y,
-    14,
-    11.5,
-    isBack ? "#bdb5a5" : profile.shirtColor,
-    OUTLINE,
-    2.2,
-  );
+    drawRoundedLimb(ctx, elbow.x, elbow.y, cuffStartX, cuffStartY, 18, 16.5, upperGrad, OUTLINE, 2.8);
+
+    // Turned-back regimental / guild sleeve cuff (`vyložení rukávů`)
+    drawRoundedLimb(
+      ctx,
+      cuffStartX,
+      cuffStartY,
+      cuffEndX,
+      cuffEndY,
+      19.5,
+      20.5,
+      isBack ? profile.liningColor : profile.cuffColor,
+      OUTLINE,
+      2.8,
+    );
+
+    // White linen shirt sleeve peeking out beneath the wool cuff
+    drawRoundedLimb(
+      ctx,
+      cuffEndX,
+      cuffEndY,
+      hand.x,
+      hand.y,
+      14,
+      11.5,
+      isBack ? "#bdb5a5" : profile.shirtColor,
+      OUTLINE,
+      2.2,
+    );
+  }
 
   // Hand / leather gauntlet gripping weapon
   ctx.beginPath();
@@ -356,7 +465,7 @@ function drawIKArm(
   ctx.stroke();
 
   if (isBack) {
-    ctx.fillStyle = "rgba(10, 12, 18, 0.24)";
+    ctx.fillStyle = "rgba(10, 12, 18, 0.22)";
     ctx.beginPath();
     ctx.arc(hand.x, hand.y, 8.0, 0, Math.PI * 2);
     ctx.fill();
@@ -365,7 +474,7 @@ function drawIKArm(
 }
 
 /**
- * Draws the wide circular heavy wool rain cloak (`Kapp`) behind the torso,
+ * Draws the wide circular heavy wool rain cloak (`Kapp` / `plášť`) behind the torso,
  * billowing dynamically with `pose.cloakSwing`.
  */
 function drawBackCloak(
@@ -395,7 +504,6 @@ function drawBackCloak(
   ctx.lineWidth = 3.4;
   ctx.stroke();
 
-  // Subtle glimpse of colored regimental cloak lining along billowing trailing fold
   ctx.beginPath();
   ctx.moveTo(-54 + sway + ripple, 55);
   ctx.quadraticCurveTo(-34 + sway * 0.6, 20, -28, -42);
@@ -406,7 +514,6 @@ function drawBackCloak(
   ctx.fill();
   ctx.globalAlpha = 1;
 
-  // Deep fold shadow lines across cloak
   ctx.strokeStyle = "rgba(8, 8, 12, 0.35)";
   ctx.lineWidth = 2.4;
   ctx.beginPath();
@@ -432,7 +539,6 @@ function drawBackBanner(ctx: CanvasRenderingContext2D, pose: SwedishRigPose) {
   ctx.lineTo(-40, -162);
   ctx.stroke();
 
-  // Crossbar
   ctx.strokeStyle = "#facc15";
   ctx.lineWidth = 4.2;
   ctx.beginPath();
@@ -440,7 +546,6 @@ function drawBackBanner(ctx: CanvasRenderingContext2D, pose: SwedishRigPose) {
   ctx.lineTo(-16, -146);
   ctx.stroke();
 
-  // Fluttering blue-gold war standard
   ctx.beginPath();
   ctx.moveTo(-62, -150);
   ctx.lineTo(-18, -145);
@@ -462,10 +567,15 @@ function drawBackBanner(ctx: CanvasRenderingContext2D, pose: SwedishRigPose) {
 }
 
 /**
- * Draws the broad mid-thigh 1648 Kabátec (vadmal wool coat) or Buff Coat (Kolet),
- * flexing skirts with `pose.coatHemSwing`, tin/brass buttons, waist belt,
- * sidearm hilt, optional cuirass/tassets with shifting specular highlight,
- * or Artillery Constable's leather spark apron & tool satchel.
+ * Draws the torso garment & body armor layer:
+ * - `nightshirt` (Field Marshal Colloredo): Long billowing white-cream linen nightshirt (`noční košile`)
+ *   reaching below the knees (`y = +54`), vertical linen pleats, golden embroidered lower border,
+ *   open V-neck with lace tie, and NO waist armor/belt!
+ * - `jesuit_cassock` (Father Jiří Plachý): Long ankle-length black Jesuit cassock (`sutana`) reaching
+ *   `y = +60` with 14 small black cassock buttons down the front and black cincture sash at waist.
+ * - `kabatec`: Broad mid-thigh 1648 Kabátec (vadmal wool coat, scholar tunic, or buff-leather Kolet),
+ *   flexing skirts with `pose.coatHemSwing`, tin/brass buttons, waist belt, optional butcher's blood-stained
+ *   linen apron (Havel), leather spark apron (Constable), or blackened iron cuirass/tassets.
  */
 function drawTorsoAndArmor(
   ctx: CanvasRenderingContext2D,
@@ -477,129 +587,301 @@ function drawTorsoAndArmor(
 
   ctx.save();
 
-  // 1. Broad Heroic Mid-thigh Kabátec (Wams / Jupon) transitioning toward early Justaucorps
-  const coatGrad = ctx.createLinearGradient(-44, -76, 44, 48);
-  coatGrad.addColorStop(0, profile.coatLight);
-  coatGrad.addColorStop(0.45, profile.coatBase);
-  coatGrad.addColorStop(1, profile.coatShadow);
+  if (profile.garmentCut === "nightshirt") {
+    // --- FIELD MARSHAL COLLOREDO'S FLOWING WHITE LINEN NIGHTSHIRT (`NOČNÍ KOŠILE`) ---
+    const shirtGrad = ctx.createLinearGradient(-44, -74, 46, 56);
+    shirtGrad.addColorStop(0, "#ffffff");
+    shirtGrad.addColorStop(0.55, profile.coatBase);
+    shirtGrad.addColorStop(1, profile.coatShadow);
 
-  ctx.beginPath();
-  ctx.moveTo(-33, -72 - breath * 0.5);
-  ctx.lineTo(33, -72 - breath * 0.5);
-  ctx.quadraticCurveTo(40, -24, 46 + hemSwing * 0.85, 36);
-  // Split front skirt tails fluttering independently
-  ctx.lineTo(13 + hemSwing * 0.5, 39);
-  ctx.lineTo(4, 10);
-  ctx.lineTo(-7 + hemSwing * 0.4, 39);
-  ctx.lineTo(-44 + hemSwing * 0.9, 34);
-  ctx.quadraticCurveTo(-38, -24, -33, -72 - breath * 0.5);
-  ctx.closePath();
-  ctx.fillStyle = coatGrad;
-  ctx.fill();
-  ctx.strokeStyle = OUTLINE;
-  ctx.lineWidth = 3.5;
-  ctx.stroke();
+    const ripple = Math.sin(pose.time * 4.5 + pose.stridePhase) * 3.5;
 
-  // Warm Baroque Chiaroscuro rim highlight along top-left shoulder & skirt edge
-  ctx.strokeStyle = RIM_HIGHLIGHT;
-  ctx.lineWidth = 2.6;
-  ctx.beginPath();
-  ctx.moveTo(-30, -69 - breath * 0.5);
-  ctx.quadraticCurveTo(-35, -26, -40 + hemSwing * 0.82, 28);
-  ctx.stroke();
-
-  // Regimental lining peeking at lower coat turnbacks
-  ctx.beginPath();
-  ctx.moveTo(-44 + hemSwing * 0.9, 34);
-  ctx.lineTo(-29 + hemSwing * 0.7, 17);
-  ctx.lineTo(-19 + hemSwing * 0.65, 36);
-  ctx.closePath();
-  ctx.fillStyle = profile.liningColor;
-  ctx.fill();
-  ctx.strokeStyle = OUTLINE;
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(46 + hemSwing * 0.85, 36);
-  ctx.lineTo(31 + hemSwing * 0.65, 17);
-  ctx.lineTo(23 + hemSwing * 0.6, 37);
-  ctx.closePath();
-  ctx.fillStyle = profile.liningColor;
-  ctx.fill();
-  ctx.stroke();
-
-  // Center front seam + row of tin/brass buttons (or leather lacing on Buff Coat)
-  ctx.strokeStyle = "rgba(15, 12, 10, 0.48)";
-  ctx.lineWidth = 2.0;
-  ctx.beginPath();
-  ctx.moveTo(4, -66 - breath * 0.4);
-  ctx.lineTo(4, 13);
-  ctx.stroke();
-
-  if (profile.isBuffLeather) {
-    // Buff coat (Kolet) thick leather tie laces down front
-    ctx.strokeStyle = "#4d3114";
-    ctx.lineWidth = 2.4;
-    for (let y = -54; y <= -2; y += 11) {
-      ctx.beginPath();
-      ctx.moveTo(-3, y);
-      ctx.lineTo(11, y);
-      ctx.stroke();
-    }
-  } else {
-    // Row of tin or brass coat buttons
-    ctx.fillStyle = profile.buttonColor;
+    ctx.beginPath();
+    ctx.moveTo(-33, -72 - breath * 0.5);
+    ctx.lineTo(33, -72 - breath * 0.5);
+    ctx.quadraticCurveTo(43, -14, 50 + hemSwing * 0.95, 41);
+    // Scalloped billowing knee-length nightshirt hem revealing bare calves, bandage & crimson slippers
+    ctx.quadraticCurveTo(24 + hemSwing * 0.85, 47 + ripple, 0 + hemSwing * 0.75, 42 - ripple * 0.5);
+    ctx.quadraticCurveTo(-24 + hemSwing * 0.85, 47 - ripple, -48 + hemSwing * 0.95, 39);
+    ctx.quadraticCurveTo(-41, -14, -33, -72 - breath * 0.5);
+    ctx.closePath();
+    ctx.fillStyle = shirtGrad;
+    ctx.fill();
     ctx.strokeStyle = OUTLINE;
-    ctx.lineWidth = 1.3;
-    for (let y = -56; y <= 6; y += 10.5) {
+    ctx.lineWidth = 3.5;
+    ctx.stroke();
+
+    // Vertical soft linen drape pleats down the nightshirt
+    ctx.strokeStyle = "rgba(100, 116, 139, 0.42)";
+    ctx.lineWidth = 2.0;
+    for (const px of [-24, -10, 8, 24]) {
       ctx.beginPath();
-      ctx.arc(5, y - breath * 0.25, 2.9, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(px * 0.75, -52);
+      ctx.quadraticCurveTo(px + hemSwing * 0.45, 0, px * 1.32 + hemSwing * 0.85, 37);
       ctx.stroke();
     }
+
+    // Aristocratic gold brocade embroidery along the bottom hem of the nightshirt
+    ctx.strokeStyle = "#eab308";
+    ctx.lineWidth = 4.2;
+    ctx.beginPath();
+    ctx.moveTo(-45 + hemSwing * 0.92, 34);
+    ctx.quadraticCurveTo(0 + hemSwing * 0.78, 41, 47 + hemSwing * 0.92, 35);
+    ctx.stroke();
+
+    // Unbuttoned V-neck placket at chest with dangling golden bed-cord ties
+    ctx.fillStyle = profile.skinTone;
+    ctx.beginPath();
+    ctx.moveTo(-7, -68 - breath * 0.4);
+    ctx.lineTo(7, -68 - breath * 0.4);
+    ctx.lineTo(1, -46 - breath * 0.3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2.0;
+    ctx.stroke();
+
+    ctx.strokeStyle = "#eab308";
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(-4, -56);
+    ctx.quadraticCurveTo(-11 + hemSwing * 0.3, -44, -9 + hemSwing * 0.4, -36);
+    ctx.moveTo(5, -56);
+    ctx.quadraticCurveTo(12 + hemSwing * 0.3, -44, 10 + hemSwing * 0.4, -36);
+    ctx.stroke();
+
+    ctx.restore();
+    return;
   }
 
-  // Deep matte-wool fold shadows near waist & skirt pleats
-  ctx.strokeStyle = "rgba(10, 10, 14, 0.28)";
-  ctx.lineWidth = 2.4;
-  ctx.beginPath();
-  ctx.moveTo(-29, -18);
-  ctx.quadraticCurveTo(0, -12, 29, -18);
-  ctx.moveTo(-18, -2);
-  ctx.lineTo(-24 + hemSwing * 0.7, 30);
-  ctx.moveTo(22, -2);
-  ctx.lineTo(28 + hemSwing * 0.7, 30);
-  ctx.stroke();
+  if (profile.garmentCut === "jesuit_cassock") {
+    // --- FATHER JIŘÍ PLACHÝ'S ANKLE-LENGTH BLACK JESUIT CASSOCK (`SUTANA`) ---
+    const cassockGrad = ctx.createLinearGradient(-44, -76, 44, 62);
+    cassockGrad.addColorStop(0, "#3f434d");
+    cassockGrad.addColorStop(0.42, profile.coatBase);
+    cassockGrad.addColorStop(1, profile.coatShadow);
 
-  // 1648 Trench mud weathering along lower coat skirt
-  drawMudSplatters(ctx, hemSwing * 0.5, 14, 78, 22, profile.mudIntensity, profile.scratchSeed + 11, 9);
+    ctx.beginPath();
+    ctx.moveTo(-33, -72 - breath * 0.5);
+    ctx.lineTo(33, -72 - breath * 0.5);
+    ctx.quadraticCurveTo(42, -12, 50 + hemSwing * 0.9, 58);
+    ctx.lineTo(10 + hemSwing * 0.65, 60);
+    ctx.lineTo(2, 22);
+    ctx.lineTo(-6 + hemSwing * 0.6, 60);
+    ctx.lineTo(-48 + hemSwing * 0.9, 56);
+    ctx.quadraticCurveTo(-40, -12, -33, -72 - breath * 0.5);
+    ctx.closePath();
+    ctx.fillStyle = cassockGrad;
+    ctx.fill();
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 3.5;
+    ctx.stroke();
 
-  // 2. Heavy leather waist belt & shifting-glint brass buckle
-  ctx.fillStyle = "#3b2313";
-  ctx.strokeStyle = OUTLINE;
-  ctx.lineWidth = 2.8;
-  ctx.beginPath();
-  ctx.roundRect(-36, -15, 72, 12.5, 3);
-  ctx.fill();
-  ctx.stroke();
+    // Crisp warm chiaroscuro rim highlight so the black cassock separates cleanly from dark night water
+    ctx.strokeStyle = "rgba(226, 232, 240, 0.46)";
+    ctx.lineWidth = 2.8;
+    ctx.beginPath();
+    ctx.moveTo(-30, -69 - breath * 0.5);
+    ctx.quadraticCurveTo(-37, -14, -44 + hemSwing * 0.85, 50);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(254, 240, 138, 0.24)";
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.moveTo(30, -69 - breath * 0.5);
+    ctx.quadraticCurveTo(38, -14, 46 + hemSwing * 0.85, 52);
+    ctx.stroke();
 
-  const buckleGrad = ctx.createLinearGradient(
-    -5 + pose.specularShift * 7,
-    -15,
-    14 + pose.specularShift * 7,
-    -2,
-  );
-  buckleGrad.addColorStop(0, "#a16207");
-  buckleGrad.addColorStop(0.5, "#fef08a");
-  buckleGrad.addColorStop(1, "#854d0e");
-  ctx.fillStyle = buckleGrad;
-  ctx.fillRect(-3, -16.5, 15, 15);
-  ctx.strokeStyle = OUTLINE;
-  ctx.lineWidth = 2.2;
-  ctx.strokeRect(-3, -16.5, 15, 15);
+    // Center cassock seam + dense vertical row of small Jesuit buttons
+    ctx.strokeStyle = "#09090b";
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(3, -64 - breath * 0.4);
+    ctx.lineTo(3, 52);
+    ctx.stroke();
 
-  // 3. Optional Heavy Leather Spark Apron & Tool Satchel (Artillery Constable)
+    ctx.fillStyle = "#3f3f46";
+    for (let y = -56; y <= 38; y += 8.5) {
+      ctx.beginPath();
+      ctx.arc(3.5, y - breath * 0.2, 2.1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Black Jesuit fabric cincture sash tied at waist + leather pistol belt
+    ctx.fillStyle = "#18181b";
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.roundRect(-36, -15, 72, 12, 3);
+    ctx.fill();
+    ctx.stroke();
+
+    // Brass buckle
+    ctx.fillStyle = "#d4a73f";
+    ctx.fillRect(-3, -16, 13, 14);
+    ctx.strokeRect(-3, -16, 13, 14);
+
+    drawMudSplatters(ctx, hemSwing * 0.6, 36, 82, 22, profile.mudIntensity, profile.scratchSeed + 11, 8);
+  } else {
+    // --- STANDARD 1648 KABÁTEC / KOLET / SCHOLAR COAT / ARTISAN TUNIC ---
+    const coatGrad = ctx.createLinearGradient(-44, -76, 44, 48);
+    coatGrad.addColorStop(0, profile.coatLight);
+    coatGrad.addColorStop(0.45, profile.coatBase);
+    coatGrad.addColorStop(1, profile.coatShadow);
+
+    ctx.beginPath();
+    ctx.moveTo(-33, -72 - breath * 0.5);
+    ctx.lineTo(33, -72 - breath * 0.5);
+    ctx.quadraticCurveTo(40, -24, 46 + hemSwing * 0.85, 36);
+    ctx.lineTo(13 + hemSwing * 0.5, 39);
+    ctx.lineTo(4, 10);
+    ctx.lineTo(-7 + hemSwing * 0.4, 39);
+    ctx.lineTo(-44 + hemSwing * 0.9, 34);
+    ctx.quadraticCurveTo(-38, -24, -33, -72 - breath * 0.5);
+    ctx.closePath();
+    ctx.fillStyle = coatGrad;
+    ctx.fill();
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 3.5;
+    ctx.stroke();
+
+    // Warm Baroque Chiaroscuro rim highlight
+    ctx.strokeStyle = RIM_HIGHLIGHT;
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.moveTo(-30, -69 - breath * 0.5);
+    ctx.quadraticCurveTo(-35, -26, -40 + hemSwing * 0.82, 28);
+    ctx.stroke();
+
+    // Regimental / academic lining peeking at lower coat turnbacks
+    ctx.beginPath();
+    ctx.moveTo(-44 + hemSwing * 0.9, 34);
+    ctx.lineTo(-29 + hemSwing * 0.7, 17);
+    ctx.lineTo(-19 + hemSwing * 0.65, 36);
+    ctx.closePath();
+    ctx.fillStyle = profile.liningColor;
+    ctx.fill();
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(46 + hemSwing * 0.85, 36);
+    ctx.lineTo(31 + hemSwing * 0.65, 17);
+    ctx.lineTo(23 + hemSwing * 0.6, 37);
+    ctx.closePath();
+    ctx.fillStyle = profile.liningColor;
+    ctx.fill();
+    ctx.stroke();
+
+    // Center front seam + buttons / laces
+    ctx.strokeStyle = "rgba(15, 12, 10, 0.48)";
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.moveTo(4, -66 - breath * 0.4);
+    ctx.lineTo(4, 13);
+    ctx.stroke();
+
+    if (profile.isBuffLeather) {
+      ctx.strokeStyle = "#4d3114";
+      ctx.lineWidth = 2.4;
+      for (let y = -54; y <= -2; y += 11) {
+        ctx.beginPath();
+        ctx.moveTo(-3, y);
+        ctx.lineTo(11, y);
+        ctx.stroke();
+      }
+    } else {
+      ctx.fillStyle = profile.buttonColor;
+      ctx.strokeStyle = OUTLINE;
+      ctx.lineWidth = 1.3;
+      for (let y = -56; y <= 6; y += 10.5) {
+        ctx.beginPath();
+        ctx.arc(5, y - breath * 0.25, 2.9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    ctx.strokeStyle = "rgba(10, 10, 14, 0.28)";
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(-29, -18);
+    ctx.quadraticCurveTo(0, -12, 29, -18);
+    ctx.moveTo(-18, -2);
+    ctx.lineTo(-24 + hemSwing * 0.7, 30);
+    ctx.moveTo(22, -2);
+    ctx.lineTo(28 + hemSwing * 0.7, 30);
+    ctx.stroke();
+
+    drawMudSplatters(ctx, hemSwing * 0.5, 14, 78, 22, profile.mudIntensity, profile.scratchSeed + 11, 9);
+
+    // 2. Heavy leather waist belt & shifting-glint brass buckle
+    ctx.fillStyle = "#3b2313";
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2.8;
+    ctx.beginPath();
+    ctx.roundRect(-36, -15, 72, 12.5, 3);
+    ctx.fill();
+    ctx.stroke();
+
+    const buckleGrad = ctx.createLinearGradient(
+      -5 + pose.specularShift * 7,
+      -15,
+      14 + pose.specularShift * 7,
+      -2,
+    );
+    buckleGrad.addColorStop(0, "#a16207");
+    buckleGrad.addColorStop(0.5, "#fef08a");
+    buckleGrad.addColorStop(1, "#854d0e");
+    ctx.fillStyle = buckleGrad;
+    ctx.fillRect(-3, -16.5, 15, 15);
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2.2;
+    ctx.strokeRect(-3, -16.5, 15, 15);
+  }
+
+  // 3A. Optional Blood-Stained Cream Linen Butcher's Apron (Havel Řezáč — Old Town Butchers' Guild)
+  if (profile.hasButcherApron) {
+    const apronGrad = ctx.createLinearGradient(-26, -54, 28, 44);
+    apronGrad.addColorStop(0, "#efe8d8");
+    apronGrad.addColorStop(0.6, "#d6cbb5");
+    apronGrad.addColorStop(1, "#a89b84");
+
+    ctx.beginPath();
+    ctx.moveTo(-22, -54);
+    ctx.lineTo(24, -54);
+    ctx.lineTo(31 + hemSwing * 0.55, 43);
+    ctx.lineTo(-29 + hemSwing * 0.55, 43);
+    ctx.closePath();
+    ctx.fillStyle = apronGrad;
+    ctx.fill();
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 3.0;
+    ctx.stroke();
+
+    // Authentic butcher's crimson blood smears & work stains on the linen apron
+    ctx.fillStyle = "rgba(153, 27, 27, 0.55)";
+    ctx.beginPath();
+    ctx.ellipse(-6, -8, 13, 7, 0.35, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(9, 14, 15, 9, -0.25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(127, 29, 29, 0.42)";
+    ctx.beginPath();
+    ctx.ellipse(-2, 24, 11, 6, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Apron waist tie string
+    ctx.strokeStyle = "#dfd6c3";
+    ctx.lineWidth = 3.2;
+    ctx.beginPath();
+    ctx.moveTo(-34, -10);
+    ctx.lineTo(34, -10);
+    ctx.stroke();
+  }
+
+  // 3B. Optional Heavy Leather Spark Apron & Tool Satchel (Artillery Constable)
   if (profile.hasLeatherApron) {
     const apronGrad = ctx.createLinearGradient(-26, -54, 28, 44);
     apronGrad.addColorStop(0, "#85542f");
@@ -628,7 +910,6 @@ function drawTorsoAndArmor(
       ctx.roundRect(-42, -5, 22, 25, 4);
       ctx.fill();
       ctx.stroke();
-      // Brass priming needle & wooden mallet handle peeking from satchel
       ctx.strokeStyle = "#cbd5e1";
       ctx.lineWidth = 2.4;
       ctx.beginPath();
@@ -644,7 +925,7 @@ function drawTorsoAndArmor(
     }
   }
 
-  // 4. Optional Blackened Iron Cuirass & Articulated Tassets (Pikeman / Officer / Inquisitor)
+  // 4. Optional Blackened Iron Cuirass & Articulated Tassets (Jan Matěj / Brother Bartoloměj / Pikeman / Officer)
   if (profile.hasCuirass) {
     const specX = pose.specularShift * 18;
 
@@ -675,7 +956,6 @@ function drawTorsoAndArmor(
       }
     }
 
-    // Blackened iron breastplate (oil & soot anti-rust finish with crisp shifting specular sheen!)
     const plateGrad = ctx.createLinearGradient(-32 + specX, -70, 32 + specX, -8);
     plateGrad.addColorStop(0, "#171c24");
     plateGrad.addColorStop(0.36, "#3b4657");
@@ -687,7 +967,7 @@ function drawTorsoAndArmor(
     ctx.moveTo(-30, -70 - breath * 0.5);
     ctx.lineTo(30, -70 - breath * 0.5);
     ctx.lineTo(26, -14);
-    ctx.lineTo(0, -3); // pointed peascod waist
+    ctx.lineTo(0, -3);
     ctx.lineTo(-26, -14);
     ctx.closePath();
     ctx.fillStyle = plateGrad;
@@ -696,7 +976,6 @@ function drawTorsoAndArmor(
     ctx.lineWidth = 3.2;
     ctx.stroke();
 
-    // Central medial ridge + brass rivets
     ctx.strokeStyle = "rgba(248, 250, 252, 0.58)";
     ctx.lineWidth = 2.0;
     ctx.beginPath();
@@ -713,15 +992,21 @@ function drawTorsoAndArmor(
       }
     }
 
+    // Brother Bartoloměj wears the 8-pointed white Maltese cross enameled on his breastplate!
+    if (profile.hasMalteseCross) {
+      drawMalteseCross(ctx, 0, -39 - breath * 0.35, 13.5, "#0f172a");
+    }
+
     drawMetalScratches(ctx, 0, -38, 44, 44, profile.scratchSeed, 7);
   }
 
-  // 5. Sidearm scabbard & hilt at left hip (rapier / katzbalger / palaš)
+  // 5. Sidearm scabbard & hilt at left hip (rapier / katzbalger / palaš / butcher cleaver)
   if (profile.sidearm !== "none") {
     ctx.save();
     ctx.translate(-29, -4);
     ctx.rotate(0.46 + pose.coatHemSwing * 0.25);
-    const scabbardLen = profile.sidearm === "katzbalger" ? 48 : 66;
+    const scabbardLen =
+      profile.sidearm === "katzbalger" || profile.sidearm === "cleaver" ? 44 : 66;
     ctx.strokeStyle = "#1c1410";
     ctx.lineWidth = 7.5;
     ctx.lineCap = "round";
@@ -736,7 +1021,6 @@ function drawTorsoAndArmor(
     ctx.lineTo(-scabbardLen, 14);
     ctx.stroke();
 
-    // Basket / S-guard sword hilt
     ctx.strokeStyle = profile.sidearm === "palash" ? "#facc15" : "#cbd5e1";
     ctx.lineWidth = 2.8;
     ctx.beginPath();
@@ -760,11 +1044,13 @@ function drawTorsoAndArmor(
 
 /**
  * Draws the curved torso equipment layer:
- * - Modernized Swedish waist leather Cartridge Box (`Patronkök`) with brass royal stud,
- *   peeking white paper cartridges (`papperspatroner`), priming horn, & slender shoulder sling!
- * - Traditional Bandolier ("Dvanáct apoštolů") with 11-12 individually swinging powder flasks!
- * - Curved Officer/Brigade Field Sash (`Šerpa`) with fluttering waist tails & gold fringe.
- * - Broad white falling linen collar (lace-edged for officers).
+ * - Steel Gorget (`Nákrčník` — Father Jiří Plachý, Jan Matěj, Brother Bartoloměj)
+ * - Coiled Hemp Climbing Rope slung across chest (Ondřej Štěrba)
+ * - Traditional Bandolier ("Dvanáct apoštolů") with 11-12 individually swinging powder flasks
+ * - Waist Cartridge Box (`Patronkök` / `Patrontaška`) with paper cartridges & priming horn
+ * - Curved Field Sash (`Šerpa`) or Order of Malta Grand Prior ribbon + 8-pointed Maltese Cross pendant
+ * - Fluttering Imperial Wax-Sealed Parchment Scroll at waist (Colloredo & Václav)
+ * - Broad white falling linen collar (lace-edged for Colloredo, Jan Matěj, & Odowalsky)
  */
 function drawChestEquipment(
   ctx: CanvasRenderingContext2D,
@@ -773,6 +1059,34 @@ function drawChestEquipment(
 ) {
   const breath = pose.chestLift;
   ctx.save();
+
+  // 0A. Coiled Hemp Climbing Rope slung diagonally across chest (Ondřej Štěrba — Thief of Ropes & Roofs)
+  if (profile.hasCoiledRope) {
+    ctx.save();
+    ctx.translate(0, -38 - breath * 0.35);
+    ctx.rotate(-0.42);
+    for (const rOffset of [-3.5, 0, 3.5]) {
+      ctx.strokeStyle = rOffset === 0 ? "#d6b072" : "#9c763c";
+      ctx.lineWidth = 5.2;
+      ctx.beginPath();
+      ctx.ellipse(0, rOffset, 35, 16, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 37, 18.5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    // Hemp rope twist ticks
+    ctx.strokeStyle = "#573c18";
+    ctx.lineWidth = 2.0;
+    ctx.setLineDash([4, 5]);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 35, 16, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
 
   // 1A. Traditional Bandolier ("Dvanáct apoštolů") draped diagonally across chest
   if (profile.hasBandolier) {
@@ -835,7 +1149,6 @@ function drawChestEquipment(
       ctx.restore();
     }
 
-    // Lead-ball leather pouch & curved priming horn at right hip
     ctx.save();
     ctx.translate(31, -2);
     ctx.rotate(pose.apostleSwing * 0.9);
@@ -858,10 +1171,9 @@ function drawChestEquipment(
     ctx.restore();
   }
 
-  // 1B. Modernized 1648 Swedish Waist Cartridge Box (`Patronkök`) & Paper Cartridges!
+  // 1B. Waist Cartridge Box (`Patronkök` / `Patrontaška`) & Paper Cartridges
   if (profile.hasCartridgeBox) {
-    // Slender leather cross-sling supporting the waist cartridge box (when not already wearing bandolier)
-    if (!profile.hasBandolier) {
+    if (!profile.hasBandolier && !profile.hasCoiledRope) {
       ctx.strokeStyle = "#52321b";
       ctx.lineWidth = 7.5;
       ctx.lineCap = "round";
@@ -881,12 +1193,10 @@ function drawChestEquipment(
       ctx.stroke();
     }
 
-    // Curved saddle-leather Patronkök hanging at right hip
     ctx.save();
     ctx.translate(24, -4);
     ctx.rotate(pose.coatHemSwing * 0.38);
 
-    // Box body
     const boxGrad = ctx.createLinearGradient(-12, 0, 14, 24);
     boxGrad.addColorStop(0, "#633c1f");
     boxGrad.addColorStop(0.6, "#3e2310");
@@ -899,16 +1209,16 @@ function drawChestEquipment(
     ctx.fill();
     ctx.stroke();
 
-    // 3 crisp white paper cartridge cylinders (`papperspatroner`) peeking at top edge!
-    ctx.fillStyle = "#f8f4e8";
-    ctx.strokeStyle = OUTLINE;
-    ctx.lineWidth = 1.2;
-    for (let c = 0; c < 3; c++) {
-      ctx.fillRect(-7 + c * 6, -3.5, 4.2, 8);
-      ctx.strokeRect(-7 + c * 6, -3.5, 4.2, 8);
+    if (profile.usesPaperCartridges) {
+      ctx.fillStyle = "#f8f4e8";
+      ctx.strokeStyle = OUTLINE;
+      ctx.lineWidth = 1.2;
+      for (let c = 0; c < 3; c++) {
+        ctx.fillRect(-7 + c * 6, -3.5, 4.2, 8);
+        ctx.strokeRect(-7 + c * 6, -3.5, 4.2, 8);
+      }
     }
 
-    // Curved leather top flap + brass Swedish royal stud clasp
     ctx.fillStyle = "#4d2d16";
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = 2.2;
@@ -926,7 +1236,6 @@ function drawChestEquipment(
     ctx.arc(1, 12, 2.8, 0, Math.PI * 2);
     ctx.fill();
 
-    // Compact priming horn tucked beside patronkök
     if (!profile.hasBandolier) {
       ctx.fillStyle = "#dfd0b0";
       ctx.strokeStyle = OUTLINE;
@@ -942,7 +1251,7 @@ function drawChestEquipment(
     ctx.restore();
   }
 
-  // 2. Curved Field Sash (`Šerpa` — Swedish Yellow/Blue for officer, Crimson for M3/Harrier)
+  // 2. Curved Field Sash (`Šerpa`) or Scarlet Order of Malta Grand Prior Ribbon
   if (profile.sash) {
     ctx.save();
     ctx.strokeStyle = profile.sash.primary;
@@ -971,7 +1280,6 @@ function drawChestEquipment(
     ctx.quadraticCurveTo(8, -31, -25, 1);
     ctx.stroke();
 
-    // Fluttering waist sash knot & fringed tails
     const tailSwing = pose.coatHemSwing * 24 + Math.sin(pose.time * 4.5) * 3.5;
     ctx.beginPath();
     ctx.moveTo(-31, -4);
@@ -991,10 +1299,44 @@ function drawChestEquipment(
     ctx.moveTo(-42 + tailSwing, 28);
     ctx.lineTo(-26 + tailSwing * 0.9, 32);
     ctx.stroke();
+
+    // Order of Malta 8-pointed white Grand Prior Cross pendant suspended over Colloredo's nightshirt!
+    if (profile.hasMalteseCross && !profile.hasCuirass) {
+      drawMalteseCross(ctx, 2, -33 - breath * 0.35, 14.5, "#7f1d1d");
+    }
+
     ctx.restore();
   }
 
-  // 3. Broad White Falling Linen Collar (`překládaný bílý límec`, lace-edged for officers)
+  // 2B. Wax-Sealed Imperial Parchment Scroll fluttering at waist (Colloredo & Scribe Václav)
+  if (profile.hasParchmentScroll) {
+    const scrollSwing = pose.coatHemSwing * 20 + Math.sin(pose.time * 4.2) * 2.5;
+    ctx.save();
+    ctx.translate(28, 4);
+    ctx.rotate(scrollSwing * 0.02);
+    ctx.fillStyle = "#fef3c7";
+    ctx.strokeStyle = "#78350f";
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(18, 6, 16 + scrollSwing * 0.35, 25);
+    ctx.lineTo(3 + scrollSwing * 0.3, 22);
+    ctx.quadraticCurveTo(4, 10, -4, 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // Red imperial wax seal dangling on gold cord
+    ctx.fillStyle = "#dc2626";
+    ctx.strokeStyle = "#450a0a";
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.arc(11 + scrollSwing * 0.32, 22, 4.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 3. Broad White Falling Linen Collar (`překládaný bílý límec`, ruffled lace for Colloredo/officers)
   if (profile.hasFallingCollar) {
     ctx.save();
     ctx.translate(0, -71 - breath * 0.5);
@@ -1028,6 +1370,52 @@ function drawChestEquipment(
     ctx.restore();
   }
 
+  // 4. Steel Military Gorget (`Nákrčník` — worn at the throat by Father Jiří Plachý, Jan Matěj, & Bartoloměj)
+  if (profile.hasGorget) {
+    // White clerical linen tabs (`kolárek`) peeking above Father Jiří Plachý's military gorget
+    if (profile.garmentCut === "jesuit_cassock") {
+      ctx.save();
+      ctx.translate(0, -72 - breath * 0.5);
+      ctx.fillStyle = "#f8fafc";
+      ctx.strokeStyle = OUTLINE;
+      ctx.lineWidth = 2.0;
+      ctx.fillRect(-10, -2, 8.5, 11);
+      ctx.strokeRect(-10, -2, 8.5, 11);
+      ctx.fillRect(1.5, -2, 8.5, 11);
+      ctx.strokeRect(1.5, -2, 8.5, 11);
+      ctx.restore();
+    }
+
+    const specX = pose.specularShift * 14;
+    const gorgetGrad = ctx.createLinearGradient(-22 + specX, -70, 22 + specX, -48);
+    gorgetGrad.addColorStop(0, "#475569");
+    gorgetGrad.addColorStop(0.48, "#f8fafc");
+    gorgetGrad.addColorStop(1, "#1e293b");
+
+    ctx.save();
+    ctx.translate(0, -68 - breath * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(-22, -2);
+    ctx.quadraticCurveTo(0, 10, 22, -2);
+    ctx.lineTo(18, 16);
+    ctx.quadraticCurveTo(0, 24, -18, 16);
+    ctx.closePath();
+    ctx.fillStyle = gorgetGrad;
+    ctx.fill();
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2.6;
+    ctx.stroke();
+
+    // Brass rivets along gorget rim
+    ctx.fillStyle = "#facc15";
+    for (const gx of [-14, 0, 14]) {
+      ctx.beginPath();
+      ctx.arc(gx, 14, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   ctx.restore();
 }
 
@@ -1044,14 +1432,38 @@ function drawHeadAndHeadgear(
   ctx.translate(0, -78 - pose.chestLift * 0.55);
   ctx.rotate(pose.headAngle);
 
-  // 1. Hair locks framing neck & cheeks
+  // 0. Grand Prior Golden Command Aura behind Marshal Colloredo's head
+  if (profile.id === "colloredo_marshal") {
+    ctx.save();
+    ctx.strokeStyle = "rgba(250, 204, 21, 0.75)";
+    ctx.lineWidth = 2.4;
+    ctx.setLineDash([7, 4.5]);
+    ctx.beginPath();
+    ctx.arc(0, -18, 34, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  // 1. Hair locks framing neck & cheeks (extra flowing silver curls for Marshal Colloredo)
   ctx.fillStyle = profile.hairColor;
   ctx.strokeStyle = OUTLINE;
   ctx.lineWidth = 2.8;
-  ctx.beginPath();
-  ctx.ellipse(-2, -10, 23, 20, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
+  if (profile.beard === "silver_marshal") {
+    ctx.beginPath();
+    ctx.moveTo(-22, -22);
+    ctx.quadraticCurveTo(-30, -4, -22, 9);
+    ctx.lineTo(22, 9);
+    ctx.quadraticCurveTo(30, -4, 22, -22);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.ellipse(-2, -10, 23, 20, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
 
   // 2. Expressive face oval with warm chiaroscuro modeling
   const faceGrad = ctx.createLinearGradient(-16, -28, 18, 6);
@@ -1094,7 +1506,6 @@ function drawHeadAndHeadgear(
     ctx.arc(-4.5 + lx * 0.45, -15, 2.5, 0, Math.PI * 2);
     ctx.arc(9 + lx * 0.45, -15, 2.5, 0, Math.PI * 2);
     ctx.fill();
-    // Subtle nose bridge highlight
     ctx.strokeStyle = "rgba(92, 56, 36, 0.45)";
     ctx.lineWidth = 1.6;
     ctx.beginPath();
@@ -1107,7 +1518,26 @@ function drawHeadAndHeadgear(
   ctx.fillStyle = profile.hairColor;
   ctx.strokeStyle = OUTLINE;
   ctx.lineWidth = 1.8;
-  if (profile.beard === "full_nordic") {
+  if (profile.beard === "silver_marshal") {
+    // Distinguished silver-white Grand Marshal mustache & pointed Wallenstein/imperial Van Dyke goatee
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = "#475569";
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(-13, -5);
+    ctx.quadraticCurveTo(2, -11, 16, -5);
+    ctx.quadraticCurveTo(8, -0.5, 2, -4);
+    ctx.quadraticCurveTo(-4, -0.5, -13, -5);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-2.5, -1);
+    ctx.lineTo(6.5, -1);
+    ctx.lineTo(2, 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else if (profile.beard === "full_nordic") {
     ctx.beginPath();
     ctx.moveTo(-12, -5);
     ctx.quadraticCurveTo(2, -10, 14, -5);
@@ -1128,6 +1558,14 @@ function drawHeadAndHeadgear(
     ctx.lineTo(2, 8);
     ctx.closePath();
     ctx.fill();
+  } else if (profile.beard === "clean_youth") {
+    // Young Clementinum university student — clean-shaven face with determined mouth
+    ctx.strokeStyle = "#5c341d";
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.moveTo(-3.5, -4.5);
+    ctx.quadraticCurveTo(2, -6.5, 7.5, -4.5);
+    ctx.stroke();
   } else {
     ctx.fillStyle = "rgba(42, 32, 24, 0.28)";
     ctx.beginPath();
@@ -1161,7 +1599,170 @@ function drawHeadAndHeadgear(
   // 3. Headgear rendered strictly ON TOP of the upper forehead (Pillar 3)
   const specX = pose.specularShift * 14;
 
-  if (profile.headgear === "slokhatt") {
+  if (profile.headgear === "nightcap") {
+    // Field Marshal Colloredo's crimson velvet sleeping cap (`noční čapka`) with gold trim & silver hair curls!
+    const capGrad = ctx.createLinearGradient(-20, -48, 20, -18);
+    capGrad.addColorStop(0, "#dc2626");
+    capGrad.addColorStop(0.55, profile.hatColor);
+    capGrad.addColorStop(1, profile.hatShadow);
+
+    // Softly drooping velvet nightcap crown with golden tassel
+    ctx.beginPath();
+    ctx.moveTo(-21, -21);
+    ctx.quadraticCurveTo(-22, -48, 0, -48);
+    ctx.quadraticCurveTo(18, -48, 21, -21);
+    ctx.closePath();
+    ctx.fillStyle = capGrad;
+    ctx.fill();
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 3.0;
+    ctx.stroke();
+
+    // Silver-white aristocratic hair curls framing his temples beneath the nightcap brim
+    ctx.fillStyle = "#f8fafc";
+    ctx.strokeStyle = "#475569";
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.arc(-18, -16, 6.5, 0, Math.PI * 2);
+    ctx.arc(19, -16, 6.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Golden embroidered headband sitting low over the brow
+    ctx.fillStyle = "#facc15";
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.roundRect(-22, -26, 44, 6.5, 3);
+    ctx.fill();
+    ctx.stroke();
+
+    // Gold tassel at top of nightcap
+    ctx.fillStyle = "#fef08a";
+    ctx.beginPath();
+    ctx.arc(-3, -48, 3.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  } else if (profile.headgear === "jesuit_biretta") {
+    // Father Jiří Plachý's 4-ridged square black Jesuit biretta (`jezuitský biret`) pulled low over brow
+    const birettaGrad = ctx.createLinearGradient(-22, -48, 22, -21);
+    birettaGrad.addColorStop(0, "#3f434d");
+    birettaGrad.addColorStop(0.55, profile.hatColor);
+    birettaGrad.addColorStop(1, "#09090b");
+    ctx.beginPath();
+    ctx.moveTo(-24, -21);
+    ctx.lineTo(-17, -48);
+    ctx.lineTo(0, -43);
+    ctx.lineTo(17, -48);
+    ctx.lineTo(24, -21);
+    ctx.closePath();
+    ctx.fillStyle = birettaGrad;
+    ctx.fill();
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 3.2;
+    ctx.stroke();
+
+    // Highlighted 4-ridge crest seams & black tuft pompon at top
+    ctx.strokeStyle = "#71717a";
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(-17, -48);
+    ctx.lineTo(0, -22);
+    ctx.lineTo(17, -48);
+    ctx.stroke();
+
+    ctx.fillStyle = "#3f3f46";
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.roundRect(-6, -54, 12, 8, 3);
+    ctx.fill();
+    ctx.stroke();
+
+    // Snug black brow band
+    ctx.fillStyle = "#09090b";
+    ctx.fillRect(-24, -25, 48, 5.5);
+    ctx.strokeRect(-24, -25, 48, 5.5);
+  } else if (profile.headgear === "burgher_hat") {
+    // Old Town Prague burgher / guild felt hat (Havel Řezáč & Ondřej Štěrba)
+    const hatGrad = ctx.createLinearGradient(-20, -48, 20, -20);
+    hatGrad.addColorStop(0, profile.hatColor);
+    hatGrad.addColorStop(1, profile.hatShadow);
+
+    ctx.beginPath();
+    ctx.moveTo(-21, -21);
+    ctx.quadraticCurveTo(-19, -48, 0, -47);
+    ctx.quadraticCurveTo(19, -48, 21, -21);
+    ctx.closePath();
+    ctx.fillStyle = hatGrad;
+    ctx.fill();
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 3.0;
+    ctx.stroke();
+
+    ctx.fillStyle = profile.ribbonColor;
+    ctx.fillRect(-20, -27, 40, 5.5);
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 1.6;
+    ctx.strokeRect(-20, -27, 40, 5.5);
+
+    // Wide sturdy burgher brim pulled low over forehead
+    ctx.beginPath();
+    ctx.moveTo(-42, -21);
+    ctx.quadraticCurveTo(0, -28, 42, -21);
+    ctx.quadraticCurveTo(28, -14, -42, -21);
+    ctx.closePath();
+    ctx.fillStyle = profile.hatShadow;
+    ctx.fill();
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 3.0;
+    ctx.stroke();
+  } else if (profile.headgear === "student_hat") {
+    // Clementinum Student Legion hat with golden university band & Bohemian red-white cockade/plume
+    ctx.beginPath();
+    ctx.moveTo(-21, -22);
+    ctx.quadraticCurveTo(-19, -50, 0, -49);
+    ctx.quadraticCurveTo(19, -50, 21, -22);
+    ctx.closePath();
+    ctx.fillStyle = profile.hatColor;
+    ctx.fill();
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 3.0;
+    ctx.stroke();
+
+    // Gold university hatband
+    ctx.fillStyle = "#facc15";
+    ctx.fillRect(-20, -28, 40, 6);
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 1.6;
+    ctx.strokeRect(-20, -28, 40, 6);
+
+    // Wide scholar brim
+    ctx.beginPath();
+    ctx.moveTo(-44, -23);
+    ctx.quadraticCurveTo(0, -17, 44, -20);
+    ctx.quadraticCurveTo(18, -28, -44, -23);
+    ctx.closePath();
+    ctx.fillStyle = profile.hatShadow;
+    ctx.fill();
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 3.0;
+    ctx.stroke();
+
+    if (profile.plumePrimary) {
+      drawJointedPlume(ctx, -16, -26, profile.plumePrimary, profile.plumeSecondary, pose.plumeSwing);
+    }
+
+    // Bohemian Red-White student badge cockade
+    ctx.fillStyle = "#dc2626";
+    ctx.beginPath();
+    ctx.arc(-15, -25, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(-15, -25, 2.0, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (profile.headgear === "slokhatt") {
     const hatGrad = ctx.createLinearGradient(-22, -52, 22, -21);
     hatGrad.addColorStop(0, "#463a31");
     hatGrad.addColorStop(0.55, profile.hatColor);
@@ -1177,14 +1778,12 @@ function drawHeadAndHeadgear(
     ctx.lineWidth = 3.2;
     ctx.stroke();
 
-    // Brigade hatband ribbon
     ctx.fillStyle = profile.ribbonColor;
     ctx.fillRect(-21, -28, 42, 6.2);
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = 1.8;
     ctx.strokeRect(-21, -28, 42, 6.2);
 
-    // Wide sweeping felt brim (upturned on left side with brass pin!)
     ctx.beginPath();
     ctx.moveTo(-50, -30);
     ctx.quadraticCurveTo(-26, -15, 0, -20);
@@ -1210,7 +1809,6 @@ function drawHeadAndHeadgear(
     ctx.lineWidth = 1.6;
     ctx.stroke();
   } else if (profile.headgear === "zischagge") {
-    // Articulated lobster-tail rear neck guard
     ctx.fillStyle = "#1e242e";
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = 2.8;
@@ -1252,7 +1850,6 @@ function drawHeadAndHeadgear(
     ctx.lineWidth = 3.2;
     ctx.stroke();
 
-    // Pointed front peak visor
     ctx.beginPath();
     ctx.moveTo(-23, -22);
     ctx.quadraticCurveTo(5, -29, 34, -18);
@@ -1262,7 +1859,6 @@ function drawHeadAndHeadgear(
     ctx.fill();
     ctx.stroke();
 
-    // Hinged steel cheekpiece (`lícnice`)
     ctx.beginPath();
     ctx.moveTo(-18, -21);
     ctx.lineTo(-21, -2);
@@ -1273,7 +1869,6 @@ function drawHeadAndHeadgear(
     ctx.fill();
     ctx.stroke();
 
-    // Vertical sliding nasal bar (`nánosník`)
     ctx.strokeStyle = "#e2e8f0";
     ctx.lineWidth = 3.6;
     ctx.lineCap = "round";
@@ -1299,7 +1894,6 @@ function drawHeadAndHeadgear(
     morionGrad.addColorStop(0.66, "#334155");
     morionGrad.addColorStop(1, "#0b0e14");
 
-    // Tall morion comb crest
     ctx.beginPath();
     ctx.moveTo(-16, -36);
     ctx.quadraticCurveTo(0, -68, 16, -36);
@@ -1317,7 +1911,6 @@ function drawHeadAndHeadgear(
     ctx.fill();
     ctx.stroke();
 
-    // Sweeping crescent morion brim
     ctx.beginPath();
     ctx.moveTo(-39, -31);
     ctx.quadraticCurveTo(0, -11, 39, -31);
@@ -1352,7 +1945,6 @@ function drawHeadAndHeadgear(
     ctx.lineWidth = 3.2;
     ctx.stroke();
 
-    // Turned thick wool cuff + ear flaps
     ctx.beginPath();
     ctx.moveTo(-24, -24);
     ctx.lineTo(25, -24);
@@ -1449,7 +2041,6 @@ function drawJointedPlume(
   ctx.translate(anchorX, anchorY);
   ctx.rotate(plumeSwing);
 
-  // Primary sweeping ostrich feather
   ctx.beginPath();
   ctx.moveTo(0, 0);
   ctx.bezierCurveTo(-16, -30, -48, -28, -54, -2);
@@ -1461,7 +2052,6 @@ function drawJointedPlume(
   ctx.lineWidth = 2.5;
   ctx.stroke();
 
-  // Central feather quill highlight
   ctx.strokeStyle = "rgba(255, 255, 255, 0.48)";
   ctx.lineWidth = 1.4;
   ctx.beginPath();
@@ -1487,7 +2077,8 @@ function drawJointedPlume(
 
 /**
  * Draws the planted or carried wooden Furketa (heavy musket fork rest with iron ground-spike & brass U-fork).
- * Rendered ONLY for units using an older heavy matchlock (`pose.hasFurketa === true`).
+ * Rendered ONLY for units using an older heavy matchlock (`pose.hasFurketa === true`, e.g. Brother Bartoloměj
+ * and the Belvedere heavy marksman).
  */
 function drawFurketa(
   ctx: CanvasRenderingContext2D,
@@ -1502,7 +2093,6 @@ function drawFurketa(
   const topY = forkY;
   const bottomY = groundY;
 
-  // Wooden ash staff
   ctx.strokeStyle = "#6e441f";
   ctx.lineWidth = 5.5;
   ctx.lineCap = "round";
@@ -1514,7 +2104,6 @@ function drawFurketa(
   ctx.lineWidth = 1.6;
   ctx.stroke();
 
-  // Iron ground-spike at bottom tip
   ctx.fillStyle = "#cbd5e1";
   ctx.beginPath();
   ctx.moveTo(baseBottomX - 3, bottomY - 11);
@@ -1526,7 +2115,6 @@ function drawFurketa(
   ctx.lineWidth = 1.6;
   ctx.stroke();
 
-  // Brass U-shaped cradle fork holding the heavy musket barrel
   ctx.strokeStyle = "#facc15";
   ctx.lineWidth = 4.4;
   ctx.beginPath();
@@ -1544,8 +2132,57 @@ interface WeaponAnchors {
   barrelAngle: number;
 }
 
+/** Helper to draw an ornate 1648 wheellock pistol (`kolečková pistole`) at (wx, wy, ang). */
+function drawWheellockPistol(
+  ctx: CanvasRenderingContext2D,
+  wx: number,
+  wy: number,
+  ang: number,
+  isSilverInlaid = false,
+) {
+  ctx.save();
+  ctx.translate(wx + 10, wy + 2);
+  ctx.rotate(ang);
+
+  // Walnut pistol stock & pommel
+  ctx.fillStyle = isSilverInlaid ? "#4a2711" : "#5c3419";
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(-14, 7);
+  ctx.lineTo(-4, -3);
+  ctx.lineTo(44, -3);
+  ctx.lineTo(44, 4);
+  ctx.lineTo(4, 5);
+  ctx.lineTo(-7, 13);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Golden / silver pommel cap
+  ctx.fillStyle = isSilverInlaid ? "#facc15" : "#cbd5e1";
+  ctx.beginPath();
+  ctx.arc(-11, 10, 4.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Steel barrel
+  ctx.fillStyle = isSilverInlaid ? "#f8fafc" : "#cbd5e1";
+  ctx.fillRect(4, -7.2, 46, 5.8);
+  ctx.strokeRect(4, -7.2, 46, 5.8);
+
+  // Brass wheellock mechanism disk
+  ctx.fillStyle = "#facc15";
+  ctx.beginPath();
+  ctx.arc(14, -1.5, 4.6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.restore();
+}
+
 /**
- * Draws the primary 1648 Swedish weapon and returns exact torso-local grip points
+ * Draws the primary 1648 Prague Defender or Swedish weapon and returns exact torso-local grip points
  * for the back hand, front hand, pan flash origin, and muzzle blast origin.
  */
 function drawPrimaryWeapon(
@@ -1565,9 +2202,243 @@ function drawPrimaryWeapon(
     y: wy + lx * sin + ly * cos,
   });
 
+  // 1. FIELD MARSHAL COLLOREDO: Carved Walking Cane planted in ground + Silver Wheellock Pistol!
+  if (profile.primaryWeapon === "colloredo_cane_pistol") {
+    const limpCycle = pose.state === "march" ? Math.sin(pose.stridePhase) : 0;
+    const meleeSwing = pose.state === "melee" ? Math.sin(pose.torsoAngle * 3.2) : 0;
+    const caneTopX = -35 + limpCycle * 4 + meleeSwing * 14;
+    const caneTopY = -13 + Math.max(0, limpCycle) * 3 - Math.abs(meleeSwing) * 14;
+    const caneBottomX = -40 + limpCycle * 10 + meleeSwing * 28;
+    const caneBottomY = groundLocalY - 3 - Math.max(0, -limpCycle) * 5 - Math.abs(meleeSwing) * 12;
+
+    ctx.save();
+    // Carved walnut walking cane (`vycházková hůl`) supporting his Lützen-wounded leg
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 9.2;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(caneTopX, caneTopY);
+    ctx.lineTo(caneBottomX, caneBottomY);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#78441e";
+    ctx.lineWidth = 5.6;
+    ctx.beginPath();
+    ctx.moveTo(caneTopX, caneTopY);
+    ctx.lineTo(caneBottomX, caneBottomY);
+    ctx.stroke();
+
+    // Brass ferrule at bottom tip of cane
+    ctx.strokeStyle = "#facc15";
+    ctx.lineWidth = 5.2;
+    ctx.beginPath();
+    ctx.moveTo(caneBottomX, caneBottomY - 10);
+    ctx.lineTo(caneBottomX, caneBottomY);
+    ctx.stroke();
+
+    // Ornate golden Grand Prior knob handle at top of walking cane
+    ctx.fillStyle = "#facc15";
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.ellipse(caneTopX, caneTopY - 2, 9.2, 6.0, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#fef08a";
+    ctx.beginPath();
+    ctx.arc(caneTopX - 2.5, caneTopY - 3.5, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Silver-inlaid wheellock bedroom pistol extended forward in shooting hand (+X side)
+    const px = wx + 18;
+    const py = wy - 4;
+    const toPistol = (lx: number, ly: number): Vec2 => ({
+      x: px + lx * cos - ly * sin,
+      y: py + lx * sin + ly * cos,
+    });
+    drawWheellockPistol(ctx, px, py, ang, true);
+
+    return {
+      backHand: { x: caneTopX, y: caneTopY }, // Held by near/-X arm (`frontShoulder`)
+      frontHand: toPistol(6, 5), // Held by forward/+X arm (`backShoulder`)
+      panPos: toPistol(24, -3),
+      muzzlePos: toPistol(62, -5),
+      barrelAngle: ang,
+    };
+  }
+
+  // 2. FATHER JIŘÍ PLACHÝ: Raised Gilded Crucifix in near hand + Wheellock Pistol extended forward!
+  if (profile.primaryWeapon === "plachy_crucifix_pistol") {
+    const crossX = -42;
+    const crossY = -44 + Math.sin(pose.time * 2.8) * 2.2;
+    ctx.save();
+    ctx.translate(crossX, crossY);
+    ctx.rotate(-0.14 + pose.torsoAngle * 0.3);
+
+    // Radiant golden halo around crucifix
+    const glow = ctx.createRadialGradient(0, -16, 3, 0, -16, 32);
+    glow.addColorStop(0, "rgba(254, 240, 138, 0.58)");
+    glow.addColorStop(0.6, "rgba(250, 204, 21, 0.2)");
+    glow.addColorStop(1, "rgba(250, 204, 21, 0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(0, -16, 32, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Vertical & horizontal gilded cross beams
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 9.5;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(0, 14);
+    ctx.lineTo(0, -42);
+    ctx.moveTo(-18, -24);
+    ctx.lineTo(18, -24);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#facc15";
+    ctx.lineWidth = 5.8;
+    ctx.beginPath();
+    ctx.moveTo(0, 14);
+    ctx.lineTo(0, -42);
+    ctx.moveTo(-18, -24);
+    ctx.lineTo(18, -24);
+    ctx.stroke();
+
+    ctx.fillStyle = "#fef08a";
+    ctx.beginPath();
+    ctx.arc(0, -24, 3.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    const px = wx + 18;
+    const py = wy - 4;
+    const toPistol = (lx: number, ly: number): Vec2 => ({
+      x: px + lx * cos - ly * sin,
+      y: py + lx * sin + ly * cos,
+    });
+    drawWheellockPistol(ctx, px, py, ang, false);
+
+    return {
+      backHand: { x: crossX, y: crossY + 6 }, // Held by near/-X arm (`frontShoulder`)
+      frontHand: toPistol(6, 5), // Held by forward/+X arm (`backShoulder`)
+      panPos: toPistol(24, -3),
+      muzzlePos: toPistol(62, -5),
+      barrelAngle: ang,
+    };
+  }
+
+  // 3. HAVEL ŘEZÁČ (Old Town Butcher): Heavy Steel Butcher's Cleaver (`Řeznický sekáč`) + Wheellock Pistol!
+  if (profile.primaryWeapon === "havel_cleaver_pistol") {
+    const chop = pose.state === "melee" ? Math.sin(pose.torsoAngle * 3.8) : 0;
+    const cleaverX = -40 + chop * 16;
+    const cleaverY = -22 - chop * 14;
+    ctx.save();
+    ctx.translate(cleaverX, cleaverY);
+    ctx.rotate(-0.35 + Math.sin(pose.time * 3.0) * 0.05 + chop * 1.15);
+
+    // Hardwood cleaver handle
+    ctx.fillStyle = "#451a03";
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.roundRect(-4.5, -4, 9, 24, 3);
+    ctx.fill();
+    ctx.stroke();
+
+    // Broad rectangular steel butcher's cleaver blade with hanging hole & blood stain
+    const bladeGrad = ctx.createLinearGradient(-16, -46, 12, -4);
+    bladeGrad.addColorStop(0, "#f8fafc");
+    bladeGrad.addColorStop(0.6, "#cbd5e1");
+    bladeGrad.addColorStop(1, "#64748b");
+    ctx.fillStyle = bladeGrad;
+    ctx.beginPath();
+    ctx.moveTo(-4, -4);
+    ctx.lineTo(-18, -8);
+    ctx.lineTo(-20, -46);
+    ctx.lineTo(5, -44);
+    ctx.lineTo(4, -4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Hanging hole near top corner of cleaver
+    ctx.fillStyle = "#1e293b";
+    ctx.beginPath();
+    ctx.arc(-13, -39, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    const px = wx + 18;
+    const py = wy - 4;
+    const toPistol = (lx: number, ly: number): Vec2 => ({
+      x: px + lx * cos - ly * sin,
+      y: py + lx * sin + ly * cos,
+    });
+    drawWheellockPistol(ctx, px, py, ang, false);
+
+    return {
+      backHand: { x: cleaverX, y: cleaverY + 8 },
+      frontHand: toPistol(6, 5),
+      panPos: toPistol(24, -3),
+      muzzlePos: toPistol(62, -5),
+      barrelAngle: ang,
+    };
+  }
+
+  // 4. ONDŘEJ ŠTĚRBA & CLEMENTINUM STUDENT: Rope Knife / Scholar Rapier + Wheellock Pistol
+  if (
+    profile.primaryWeapon === "ondrej_knife_pistol" ||
+    profile.primaryWeapon === "student_pistol" ||
+    profile.primaryWeapon === "harrier_blade"
+  ) {
+    const px = wx + 18;
+    const py = wy - 4;
+    const toPistol = (lx: number, ly: number): Vec2 => ({
+      x: px + lx * cos - ly * sin,
+      y: py + lx * sin + ly * cos,
+    });
+    drawWheellockPistol(ctx, px, py, ang, false);
+
+    const slash = pose.state === "melee" ? Math.sin(pose.torsoAngle * 3.8) : 0;
+    const bladeX = -38 + slash * 18;
+    const bladeY = -18 - slash * 10;
+
+    if (profile.primaryWeapon !== "student_pistol") {
+      // Off-hand rope dagger / boarding blade
+      ctx.save();
+      ctx.translate(bladeX, bladeY);
+      ctx.rotate(-0.45 + Math.sin(pose.time * 3.2) * 0.06 + slash * 1.1);
+      ctx.fillStyle = "#e2e8f0";
+      ctx.strokeStyle = OUTLINE;
+      ctx.lineWidth = 2.6;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(10, -46);
+      ctx.lineTo(0, -55);
+      ctx.lineTo(-5, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    return {
+      backHand:
+        profile.primaryWeapon === "student_pistol"
+          ? { x: -29, y: -6 } // resting near hand on rapier hilt at left hip
+          : { x: bladeX + 2, y: bladeY + 4 },
+      frontHand: toPistol(6, 5),
+      panPos: toPistol(24, -3),
+      muzzlePos: toPistol(62, -5),
+      barrelAngle: ang,
+    };
+  }
+
+  // 5. ARTILLERY CONSTABLE: Wooden Rammer/Swab + Glowing Luntstock
   if (profile.primaryWeapon === "constable_luntstock") {
     ctx.save();
-    // Long wooden rammer/swab (`nabiják s vytěrákem`)
     ctx.strokeStyle = "#7c4a21";
     ctx.lineWidth = 6.2;
     ctx.lineCap = "round";
@@ -1583,7 +2454,6 @@ function drawPrimaryWeapon(
     ctx.fill();
     ctx.stroke();
 
-    // Luntstock (`doutnáková hůl`) held forward with burning orange matchcord!
     ctx.translate(wx, wy);
     ctx.rotate(ang - 0.52);
     ctx.strokeStyle = "#5c3415";
@@ -1592,7 +2462,6 @@ function drawPrimaryWeapon(
     ctx.moveTo(-26, 0);
     ctx.lineTo(68, 0);
     ctx.stroke();
-    // Brass crocodile jaws
     ctx.strokeStyle = "#facc15";
     ctx.lineWidth = 3.5;
     ctx.beginPath();
@@ -1600,7 +2469,6 @@ function drawPrimaryWeapon(
     ctx.lineTo(77, 0);
     ctx.lineTo(66, 6.5);
     ctx.stroke();
-    // Glowing coal ember + warm glow halo
     const coalPulse = 5.0 + Math.sin(pose.time * 12) * 1.4;
     const glow = ctx.createRadialGradient(77, -2, 1, 77, -2, coalPulse * 2.4);
     glow.addColorStop(0, "rgba(254, 240, 138, 0.95)");
@@ -1625,47 +2493,6 @@ function drawPrimaryWeapon(
       panPos: { x: wx + 74 * lc, y: wy + 74 * ls },
       muzzlePos: { x: wx + 79 * lc, y: wy + 79 * ls },
       barrelAngle: luntAng,
-    };
-  }
-
-  if (profile.primaryWeapon === "harrier_blade") {
-    ctx.save();
-    ctx.translate(wx + 8, wy + 2);
-    ctx.rotate(ang);
-    ctx.fillStyle = "#4b2c17";
-    ctx.strokeStyle = OUTLINE;
-    ctx.lineWidth = 2.8;
-    ctx.beginPath();
-    ctx.roundRect(-10, -4, 50, 10, 3);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = "#cbd5e1";
-    ctx.fillRect(10, -6.5, 36, 6);
-    ctx.strokeRect(10, -6.5, 36, 6);
-    ctx.restore();
-
-    ctx.save();
-    ctx.translate(-38, -18);
-    ctx.rotate(-0.45 + Math.sin(pose.time * 3.2) * 0.06);
-    ctx.fillStyle = "#cbd5e1";
-    ctx.strokeStyle = OUTLINE;
-    ctx.lineWidth = 2.8;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(11, -50);
-    ctx.lineTo(0, -58);
-    ctx.lineTo(-5, 0);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-
-    return {
-      backHand: { x: -36, y: -14 },
-      frontHand: toLocal(6, 2),
-      panPos: toLocal(18, -4),
-      muzzlePos: toLocal(48, -4),
-      barrelAngle: ang,
     };
   }
 
@@ -1743,10 +2570,10 @@ function drawPrimaryWeapon(
     ctx.restore();
   }
 
-  // Differentiate three distinct 1648 long-arm geometries:
-  // 1. Officer Wheellock Carbine: compact 74px barrel, brass wheellock disk
-  // 2. Modernized M1624 Lightened Swedish Musket (NO furketa!): sleek 88px barrel, lighter walnut stock
-  // 3. Older Heavy Matchlock WITH Furketa: longer 108px heavy barrel, heavier fish-tail buttstock + wooden furketa
+  // Long-arm firearms:
+  // 1. Wheellock Dragoon Carbine (`officer_carbine` — Jan Matěj & Odowalsky): compact 74px barrel, brass wheellock disk
+  // 2. Modernized M1624 Lightened Musket (`light_musket` — Václav z Michalovic & Swedish Brigades, NO furketa): 88px barrel
+  // 3. Older Heavy Matchlock WITH Furketa (`heavy_musket_furketa` — Bratr Bartoloměj & Belvedere veteran): 108px barrel + wooden furketa
   const isCarbine =
     profile.primaryWeapon === "officer_carbine" ||
     profile.primaryWeapon === "occultist_censer";
@@ -1755,7 +2582,6 @@ function drawPrimaryWeapon(
   const barrelThick = isHeavyFurketa ? 7.2 : 5.8;
   const stockBack = isCarbine ? -32 : isHeavyFurketa ? -42 : -36;
 
-  // Draw wooden Furketa cradling the forestock ONLY when `isHeavyFurketa === true`!
   if (isHeavyFurketa) {
     const cradlePos = toLocal(46, 3.5);
     drawFurketa(ctx, cradlePos.x, cradlePos.y, groundLocalY, pose.furketaPlant, pose.furketaAngle);
@@ -1765,7 +2591,6 @@ function drawPrimaryWeapon(
   ctx.translate(wx, wy);
   ctx.rotate(ang);
 
-  // Walnut musket stock (sleeker contoured cheek-stock on M1624 vs heavier fish-tail stock on old heavy musket)
   const stockGrad = ctx.createLinearGradient(stockBack, -2, barrelLen - 16, 12);
   stockGrad.addColorStop(0, "#704220");
   stockGrad.addColorStop(0.55, "#593317");
@@ -1784,14 +2609,12 @@ function drawPrimaryWeapon(
   ctx.lineWidth = 2.8;
   ctx.stroke();
 
-  // Trigger guard beneath wrist
   ctx.strokeStyle = "#cbd5e1";
   ctx.lineWidth = 1.8;
   ctx.beginPath();
   ctx.arc(-4, 7.5, 4.5, 0, Math.PI);
   ctx.stroke();
 
-  // Iron barrel with shifting metallic specular highlight
   const barGrad = ctx.createLinearGradient(0, -barrelThick - 1, barrelLen, 0);
   barGrad.addColorStop(0, "#475569");
   barGrad.addColorStop(
@@ -1805,12 +2628,10 @@ function drawPrimaryWeapon(
   ctx.lineWidth = 2.5;
   ctx.strokeRect(-12, -barrelThick - 1.2, barrelLen + 12, barrelThick);
 
-  // Brass barrel bands (plus brass muzzle band on modern M1624)
   ctx.fillStyle = "#facc15";
   ctx.fillRect(22, -barrelThick - 1.5, 4.4, barrelThick + 6.5);
   ctx.fillRect(barrelLen - 28, -barrelThick - 1.5, 4.4, barrelThick + 5.8);
 
-  // Wooden ramrod driven into barrel during second phase of reload!
   if (pose.state === "reload" && pose.reloadCycle >= 0.48) {
     const stroke = Math.sin(((pose.reloadCycle - 0.48) / 0.52) * Math.PI * 2);
     const ramOut = 16 + stroke * 12;
@@ -1823,7 +2644,6 @@ function drawPrimaryWeapon(
     ctx.stroke();
   }
 
-  // Lock mechanism (brass priming pan + dipping matchlock serpentine OR wheellock disk)
   if (isCarbine) {
     ctx.fillStyle = "#facc15";
     ctx.strokeStyle = OUTLINE;
@@ -1833,10 +2653,8 @@ function drawPrimaryWeapon(
     ctx.fill();
     ctx.stroke();
   } else {
-    // Brass priming pan
     ctx.fillStyle = "#facc15";
     ctx.fillRect(10, -5.5, 7.5, 4.4);
-    // Serpentine cock holding glowing matchcord, dipping sharply onto pan during fire!
     const dip = pose.fireSample.matchDip;
     const cockAngle = -0.55 + dip * 0.72;
     ctx.save();
@@ -1848,7 +2666,6 @@ function drawPrimaryWeapon(
     ctx.moveTo(0, 0);
     ctx.lineTo(10.5, -10.5);
     ctx.stroke();
-    // Glowing orange matchcord tip with subtle halo
     const coalR = 3.4 + Math.sin(pose.time * 14) * 0.8 + dip * 1.6;
     ctx.fillStyle = "rgba(249, 115, 22, 0.38)";
     ctx.beginPath();
@@ -1867,14 +2684,13 @@ function drawPrimaryWeapon(
 
   ctx.restore();
 
-  // During modern M1624 reload, back hand reaches forward to mouth/muzzle for paper cartridge/ramrod
   const backHandGrip: Vec2 =
     profile.primaryWeapon === "occultist_censer"
       ? { x: -44, y: -50 }
       : pose.state === "reload" && profile.usesPaperCartridges
         ? pose.reloadCycle < 0.48
-          ? { x: 14, y: -76 } // bringing white paper cartridge to teeth
-          : toLocal(barrelLen + 6, -4) // driving wooden ramrod down muzzle
+          ? { x: 14, y: -76 }
+          : toLocal(barrelLen + 6, -4)
         : toLocal(isHeavyFurketa ? 38 : 34, 4.5);
 
   return {
@@ -1904,7 +2720,6 @@ function drawBlackPowderVFX(
 
   ctx.save();
 
-  // 1. Dense White Black-Powder Smoke Cloud billowing upward & forward
   if (fs.smokeAlpha > 0.01) {
     const p = fs.smokeProgress;
     const isMisfire = pose.state === "misfire";
@@ -1940,7 +2755,6 @@ function drawBlackPowderVFX(
     }
   }
 
-  // 2. Priming Pan Flash (bright spark burst at the pan)
   if (fs.panFlash > 0.02) {
     const f = fs.panFlash;
     const { x, y } = anchors.panPos;
@@ -1965,7 +2779,6 @@ function drawBlackPowderVFX(
     }
   }
 
-  // 3. Main Barrel Muzzle Blast (+0.10s after pan ignition!)
   if (fs.muzzleFlash > 0.02) {
     const mf = fs.muzzleFlash;
     ctx.save();
@@ -2001,7 +2814,7 @@ function drawBlackPowderVFX(
 }
 
 /**
- * Renders one complete frame of a 1648 Swedish soldier onto the given 2D Canvas context
+ * Renders one complete frame of a 1648 Prague Defender or Swedish soldier onto the given 2D Canvas context
  * (`SWEDISH_CANVAS_W × SWEDISH_CANVAS_H`).
  * `facingSign`: `+1` aims/faces screen-right, `-1` mirrors cleanly to aim/face screen-left.
  */
@@ -2015,14 +2828,13 @@ export function drawSwedishSoldier2D(
 
   const isTallCrest =
     profile.primaryWeapon === "pike_and_musket" || profile.hasBackBanner;
-  const figScale = isTallCrest ? 1.32 : 1.48;
+  const figScale = (isTallCrest ? 1.32 : 1.48) * (profile.heightScale || 1.0);
 
-  // Shift pelvis slightly opposite facing direction so forward barrel, furketa & smoke have 228px clearance on EITHER side
   const basePelvisX = 210 - facingSign * 18 + pose.rootX * figScale * facingSign;
   const basePelvisY = (isTallCrest ? 276 : 262) + pose.rootY * figScale;
   const groundY = 408;
 
-  // Soft grounded baroque contact shadow directly beneath the soldier's boots
+  // Soft grounded baroque contact shadow directly beneath the soldier's boots/slippers
   ctx.save();
   ctx.fillStyle = "rgba(8, 7, 10, 0.36)";
   ctx.beginPath();
@@ -2038,7 +2850,7 @@ export function drawSwedishSoldier2D(
     ctx.rotate(pose.collapseWeight * 0.35);
   }
 
-  // --- LAYER 1: Back Cloak (`Kapp`) & Back Banner ---
+  // --- LAYER 1: Back Cloak (`Kapp` / `Plášť`) & Back Banner ---
   ctx.save();
   ctx.rotate(pose.torsoAngle);
   if (profile.hasBackBanner) {
@@ -2050,50 +2862,54 @@ export function drawSwedishSoldier2D(
   // --- LAYER 2: Back Leg (darkened for 3D depth) ---
   drawLeg(ctx, -16, 8, pose.backHip, pose.backKnee, profile, true);
 
-  // --- LAYER 3: Torso-Space Back IK Arm (reaches forestock / cartridge / offhand prop) ---
-  ctx.save();
-  ctx.rotate(pose.torsoAngle);
-
+  // --- LAYER 3: Torso-Space Back IK Arm (for two-handed muskets/carbines reaching forestock on +X side) ---
   const backShoulder: Vec2 = { x: 24, y: -59 - pose.chestLift * 0.4 };
   const frontShoulder: Vec2 = { x: -24, y: -59 - pose.chestLift * 0.4 };
 
-  const ang = pose.weaponAngle;
-  const cos = Math.cos(ang);
-  const sin = Math.sin(ang);
-  const isCarbine =
-    profile.primaryWeapon === "officer_carbine" ||
+  const isDualHandedOffhand =
+    profile.primaryWeapon === "colloredo_cane_pistol" ||
+    profile.primaryWeapon === "plachy_crucifix_pistol" ||
+    profile.primaryWeapon === "havel_cleaver_pistol" ||
+    profile.primaryWeapon === "ondrej_knife_pistol" ||
+    profile.primaryWeapon === "student_pistol" ||
+    profile.primaryWeapon === "harrier_blade" ||
+    profile.primaryWeapon === "constable_luntstock" ||
     profile.primaryWeapon === "occultist_censer";
-  const isHeavyFurketa = pose.hasFurketa && !isCarbine;
-  const barrelLen = isCarbine ? 74 : isHeavyFurketa ? 108 : 88;
-  const gripDist = isHeavyFurketa ? 38 : 34;
 
-  const preBackHand: Vec2 =
-    profile.primaryWeapon === "constable_luntstock"
-      ? { x: -32, y: -28 }
-      : profile.primaryWeapon === "harrier_blade"
-        ? { x: -36, y: -14 }
-        : profile.primaryWeapon === "occultist_censer"
-          ? { x: -44, y: -50 }
-          : pose.state === "reload" && profile.usesPaperCartridges
-            ? pose.reloadCycle < 0.48
-              ? { x: 14, y: -76 }
-              : {
-                  x: pose.weaponX + (barrelLen + 6) * cos - -4 * sin,
-                  y: pose.weaponY + (barrelLen + 6) * sin + -4 * cos,
-                }
-            : {
-                x: pose.weaponX + gripDist * cos - 4.5 * sin,
-                y: pose.weaponY + gripDist * sin + 4.5 * cos,
-              };
+  if (!isDualHandedOffhand) {
+    ctx.save();
+    ctx.rotate(pose.torsoAngle);
 
-  const backArmIK = solveTwoBoneIK(backShoulder, preBackHand, 34, 32, 1);
-  drawIKArm(ctx, backArmIK, profile, true);
-  ctx.restore();
+    const ang = pose.weaponAngle;
+    const cos = Math.cos(ang);
+    const sin = Math.sin(ang);
+    const isCarbine = profile.primaryWeapon === "officer_carbine";
+    const isHeavyFurketa = pose.hasFurketa && !isCarbine;
+    const barrelLen = isCarbine ? 74 : isHeavyFurketa ? 108 : 88;
+    const gripDist = isHeavyFurketa ? 38 : 34;
+
+    const preBackHand: Vec2 =
+      pose.state === "reload" && profile.usesPaperCartridges
+        ? pose.reloadCycle < 0.48
+          ? { x: 14, y: -76 }
+          : {
+              x: pose.weaponX + (barrelLen + 6) * cos - -4 * sin,
+              y: pose.weaponY + (barrelLen + 6) * sin + -4 * cos,
+            }
+        : {
+            x: pose.weaponX + gripDist * cos - 4.5 * sin,
+            y: pose.weaponY + gripDist * sin + 4.5 * cos,
+          };
+
+    const backArmIK = solveTwoBoneIK(backShoulder, preBackHand, 34, 32, 1);
+    drawIKArm(ctx, backArmIK, profile, true);
+    ctx.restore();
+  }
 
   // --- LAYER 4: Front Leg ---
   drawLeg(ctx, 16, 8, pose.frontHip, pose.frontKnee, profile, false);
 
-  // --- LAYER 5 & 6: Heroic Torso, Coat/Kolet, Cuirass/Apron, Patronkök / 12 Apostles, Sash, Collar ---
+  // --- LAYER 5 & 6: Torso (Nightshirt / Jesuit Cassock / Kabátec / Kolet), Armor, Insignia, Collar ---
   ctx.save();
   ctx.rotate(pose.torsoAngle);
 
@@ -2103,11 +2919,28 @@ export function drawSwedishSoldier2D(
   // --- LAYER 7: Head, Face, Beard & Headgear ON TOP of Forehead + Jointed Plume ---
   drawHeadAndHeadgear(ctx, profile, pose);
 
-  // --- LAYER 8: Primary Weapon (Light M1624 NO Furketa OR Heavy Musket + Furketa / Pike / Luntstock) & Front IK Arm ---
+  // --- LAYER 8: Primary Weapon & Uncrossed 2-Bone IK Arms ---
   const groundLocalY = (groundY - basePelvisY) / figScale;
   const anchors = drawPrimaryWeapon(ctx, profile, pose, groundLocalY);
-  const frontArmIK = solveTwoBoneIK(frontShoulder, anchors.frontHand, 34, 32, 1);
-  drawIKArm(ctx, frontArmIK, profile, false);
+
+  if (isDualHandedOffhand) {
+    // Forward/+X shoulder (`backShoulder`) holds the extended pistol / luntstock / carbine — zero torso crossing!
+    const forwardShootIK = solveTwoBoneIK(backShoulder, anchors.frontHand, 34, 32, 1);
+    drawIKArm(ctx, forwardShootIK, profile, false);
+
+    // Near/-X shoulder (`frontShoulder`) holds the cane / crucifix / cleaver / dagger / rapier / rammer / censer
+    const nearBendDir: 1 | -1 =
+      profile.primaryWeapon === "plachy_crucifix_pistol" ||
+      profile.primaryWeapon === "constable_luntstock" ||
+      profile.primaryWeapon === "occultist_censer"
+        ? -1
+        : 1;
+    const offhandIK = solveTwoBoneIK(frontShoulder, anchors.backHand, 34, 32, nearBendDir);
+    drawIKArm(ctx, offhandIK, profile, false);
+  } else {
+    const frontArmIK = solveTwoBoneIK(frontShoulder, anchors.frontHand, 34, 32, 1);
+    drawIKArm(ctx, frontArmIK, profile, false);
+  }
 
   // --- LAYER 9: Synchronized Black-Powder VFX (Pan Flash -> +0.10s Muzzle Blast -> White Smoke) ---
   drawBlackPowderVFX(ctx, anchors, pose);
@@ -2115,7 +2948,6 @@ export function drawSwedishSoldier2D(
   ctx.restore();
   ctx.restore();
 
-  // Subtle crimson damage flash tint when struck
   if (pose.hitFlash > 0.04) {
     ctx.save();
     ctx.globalCompositeOperation = "source-atop";
@@ -2132,8 +2964,8 @@ export function drawSwedishSoldier2D(
 const PORTRAIT_DATA_URI_CACHE = new Map<string, string>();
 
 /**
- * Renders a crisp 160x160 bust portrait directly from the 1648 Swedish 2D skeletal
- * renderer so HUD portraits match the live animated battlefield soldiers 1-to-1.
+ * Renders a crisp 160x160 bust portrait directly from the 1648 2D skeletal
+ * renderer so HUD portraits match the live animated battlefield figurines 1-to-1.
  */
 export function getSwedishPortraitDataUri(profile: SwedishTroopProfile): string | null {
   const cached = PORTRAIT_DATA_URI_CACHE.get(profile.id);
@@ -2150,7 +2982,7 @@ export function getSwedishPortraitDataUri(profile: SwedishTroopProfile): string 
     const hasFurketa = resolveUsesFurketa(profile);
     const rig = createSwedishRigState(profile.scratchSeed, hasFurketa);
     rig.pose.plumeSwing = 0.08;
-    rig.pose.specularShift = 0.18;
+    rig.pose.specularShift = 0.22;
     drawSwedishSoldier2D(fullCtx, profile, rig.pose, 1);
 
     const portrait = document.createElement("canvas");
@@ -2159,10 +2991,15 @@ export function getSwedishPortraitDataUri(profile: SwedishTroopProfile): string 
     const pCtx = portrait.getContext("2d");
     if (!pCtx) return null;
 
+    // Tight, heroic Baroque bust crop framing face, headgear, collar/gorget/Maltese cross cleanly
     const isTall =
-      profile.primaryWeapon === "pike_and_musket" || profile.hasBackBanner;
-    const cropY = isTall ? 56 : 36;
-    pCtx.drawImage(fullCanvas, 84, cropY, 214, 214, 0, 0, 160, 160);
+      profile.primaryWeapon === "pike_and_musket" ||
+      profile.hasBackBanner ||
+      profile.id === "plachy_jesuit";
+    const cropSize = isTall ? 174 : 164;
+    const cropX = Math.round(192 - cropSize * 0.5);
+    const cropY = isTall ? 42 : 48;
+    pCtx.drawImage(fullCanvas, cropX, cropY, cropSize, cropSize, 0, 0, 160, 160);
     const uri = portrait.toDataURL("image/png");
     PORTRAIT_DATA_URI_CACHE.set(profile.id, uri);
     return uri;

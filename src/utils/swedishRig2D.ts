@@ -1,34 +1,57 @@
 /**
- * Historical 1648 Swedish Army 2D Cut-out Skeletal Rig & Animation State Machine
+ * Historical 1648 Prague Defenders & Swedish Army 2D Cut-out Skeletal Rig & Animation State Machine
  * (/src/utils/swedishRig2D.ts).
  *
  * Pure TypeScript module (zero DOM / zero Three.js dependencies) powering:
- * - Authentic 1648 Königsmark / Karl Gustav Swedish brigade liveries & troop classes:
- *   * Modernized M1624 Lightened Musket WITHOUT furketa (fired offhand from shoulder,
- *     waist leather cartridge box `patronkök` with paper cartridges `papperspatroner`,
- *     or transitional bandolier) for Yellow Brigade, Blue Brigade, Green campaign veterans,
- *     and Mission 3 Carolean guards.
- *   * Older Heavy Matchlock WITH wooden furketa + full 12 Apostles bandolier for
- *     heavy parapet/siege marksmen (Belvedere marksman `enemy-sniper-roof`) or any
- *     unit carrying a `supportsRestFork` firearm.
- *   * Officer Buff Coat (`Kolet`) + blackened cuirass + `Zischägge` + yellow/blue sash,
- *     Red Brigade Assault Pikeman (`Morion` + cuirass + tassets + 5m pike),
- *     Artillery Constable (leather spark apron + tool satchel + rammer + glowing `luntstock`),
- *     and Mission 2 Harrier / Field Inquisitor.
- * - Hierarchical skeletal joint state machine with smooth angle lerping:
- *   idle, march, overwatch, fire (offhand M1624 shoulder-raise OR furketa plant ->
- *   cheek weld -> match dip -> pan flash -> +0.10s main muzzle blast -> recoil & climb ->
- *   white black-powder smoke), misfire, melee, reload (paper-cartridge bite/ram vs
- *   apostle powder pouring), hit, collapse.
- * - Analytical 2-bone 2D IK solver for two-handed musket grip.
- * - Damped secondary motion physics for swinging 12 Apostles powder flasks,
- *   coat-hem & heavy wool cloak (`kapp`) inertia, ostrich plume flutter, and
- *   shifting metallic specular highlights.
+ * 1. Authentic 1648 Prague Defenders (Bohemian/Imperial Militia, Jesuit Student Legion, & Grand Priory):
+ *    - `colloredo_marshal`: Field Marshal & Grand Prior Rudolf Count Colloredo-Wallsee caught in his sleep
+ *      in the Piano Nobile bedroom on 26 July 1648 — wearing a billowing white linen nightshirt
+ *      (`noční košile`) with lace collar & gold hem embroidery, scarlet Order of Malta ribbon &
+ *      8-pointed Maltese cross pendant, crimson velvet nightcap over silver hair curls, bare lower legs
+ *      in velvet slippers (`trepky`) with gold buckles, asymmetrical Lützen 1632 war-wound limp gait,
+ *      carved walking cane in his supporting hand, and silver wheellock pistol in his shooting hand.
+ *    - `jan_matej_valet`: Personal valet Jan Matěj — buff-leather coat (`kolet`) with hastily strapped
+ *      steel half-cuirass & gorget, crimson house cloak, cavalier hat with scarlet-gold plume,
+ *      wheellock dragoon carbine, and valet's heavy cleaver/tesák at hip.
+ *    - `vaclav_scribe`: Clementinum student & scribe Václav z Michalovic — dark indigo/black scholar coat
+ *      with gold academic buttons, white falling linen collar, crimson-lined student cloak, feathered
+ *      scholar slouch hat, captured lightened Swedish M1624 musket (NO furketa) & waist cartridge box.
+ *    - `bartolomej_armorer`: Maltese master armorer Brother Bartoloměj — heavy blackened three-quarter
+ *      plate cuirass & thigh tassets with white 8-pointed Maltese cross on breastplate, scarlet cloak,
+ *      plumed cavalier hat, full 12 Apostles bandolier, and older heavy matchlock musket WITH wooden furketa.
+ *    - `plachy_jesuit`: Legendary ~2m tall Jesuit Father Jiří Plachý (Ferus) — long black Jesuit cassock
+ *      (`sutana`) & billowing black mantle, steel gorget over chest, 4-ridged black Jesuit biretta (`biret`)
+ *      pulled low over brow, raised gilded crucifix in left hand, and wheellock pistol in right hand.
+ *    - `havel_butcher`: Old Town butcher guild fighter Havel Řezáč — russet-brown artisan tunic,
+ *      blood-stained linen butcher's apron, leather bracers, wide dark felt burgher hat, heavy steel
+ *      butcher's cleaver (`řeznický sekáč`) in off-hand, and wheellock pistol.
+ *    - `ondrej_thief`: Rooftop & rope scout Ondřej Štěrba — dark slate nocturnal cloak, coiled hemp
+ *      climbing rope slung diagonally across chest, low dark cavalier cap, rope dagger & wheellock pistol.
+ *    - `klementinum_student`: Clementinum Student Legionnaire (`Žák Klementina`) — black academic tunic
+ *      with gold trim & white collar, student hat with golden university ribbon & red-white Bohemian
+ *      cockade, rapier at hip, and wheellock pistol.
+ * 2. Authentic 1648 Königsmark / Karl Gustav Swedish Brigade Liveries & Troop Classes:
+ *    - Modernized M1624 Lightened Musket WITHOUT furketa (`yellow_brigade`, `blue_brigade`,
+ *      `green_veteran`, `m3_carolean`) vs. Older Heavy Matchlock WITH wooden furketa
+ *      (`belvedere_heavy_musketeer`), plus `odowalsky_officer`, `red_pikeman`, `artillery_constable`,
+ *      `m2_harrier`, and `m2_occultist`.
+ * 3. Hierarchical skeletal joint state machine with smooth angle lerping, asymmetric limping gait
+ *    for Count Colloredo, analytical 2-bone 2D IK arms, and damped secondary motion physics.
  */
 
 import type { ScenarioId, UnitArchetype } from "../core/types";
 
 export type SwedishProfileId =
+  // --- 1648 Prague Defenders (Pražané) ---
+  | "colloredo_marshal"
+  | "jan_matej_valet"
+  | "vaclav_scribe"
+  | "bartolomej_armorer"
+  | "plachy_jesuit"
+  | "havel_butcher"
+  | "ondrej_thief"
+  | "klementinum_student"
+  // --- 1648 Swedish Army (Švédové) ---
   | "odowalsky_officer"
   | "yellow_brigade"
   | "blue_brigade"
@@ -47,7 +70,11 @@ export type SwedishHeadgearKind =
   | "karpus"
   | "constable_cap"
   | "hood"
-  | "mitre";
+  | "mitre"
+  | "nightcap"
+  | "jesuit_biretta"
+  | "burgher_hat"
+  | "student_hat";
 
 export type SwedishWeaponKind =
   | "light_musket"
@@ -56,11 +83,24 @@ export type SwedishWeaponKind =
   | "officer_carbine"
   | "constable_luntstock"
   | "harrier_blade"
-  | "occultist_censer";
+  | "occultist_censer"
+  | "colloredo_cane_pistol"
+  | "plachy_crucifix_pistol"
+  | "havel_cleaver_pistol"
+  | "ondrej_knife_pistol"
+  | "student_pistol";
 
-export type SwedishFootwearKind = "skor" | "riding_boots";
-export type SwedishSidearmKind = "rapier" | "katzbalger" | "palash" | "dagger" | "none";
-export type SwedishBeardKind = "mustache_goatee" | "full_nordic" | "stubble" | "eyepatch";
+export type SwedishFootwearKind = "skor" | "riding_boots" | "night_slippers";
+export type SwedishSidearmKind = "rapier" | "katzbalger" | "palash" | "dagger" | "cleaver" | "none";
+export type SwedishBeardKind =
+  | "mustache_goatee"
+  | "full_nordic"
+  | "stubble"
+  | "eyepatch"
+  | "silver_marshal"
+  | "clean_youth";
+
+export type GarmentCutKind = "kabatec" | "nightshirt" | "jesuit_cassock";
 
 export interface SwedishSashStyle {
   primary: string;
@@ -70,8 +110,15 @@ export interface SwedishSashStyle {
 
 export interface SwedishTroopProfile {
   id: SwedishProfileId;
+  faction: "player" | "enemy";
   brigadeName: string;
-  /** Matte wool vadmal or ochre buff leather (kolet) palette */
+  /** Garment cut: standard mid-thigh kabátec/kolet, long flowing white nightshirt, or ankle-length Jesuit cassock */
+  garmentCut: GarmentCutKind;
+  /** Vertical stature multiplier (1.0 standard, 1.07 towering Father Jiří Plachý) */
+  heightScale: number;
+  /** Asymmetric Lützen 1632 war-wound limp gait & cane support (Marshal Colloredo) */
+  hasLimp: boolean;
+  /** Matte wool vadmal, linen nightshirt, Jesuit cloth, or ochre buff leather (kolet) palette */
   coatBase: string;
   coatLight: string;
   coatShadow: string;
@@ -83,27 +130,37 @@ export interface SwedishTroopProfile {
   hasFallingCollar: boolean;
   hasLaceTrim: boolean;
   shirtColor: string;
-  /** Knee-length Pluderhosen / Pumphosen, knitted stockings, footwear */
+  /** Knee-length Pluderhosen / Pumphosen, stockings (or bare legs in nightshirt), footwear */
   breechesColor: string;
   breechesShadow: string;
   stockingsColor: string;
   footwear: SwedishFootwearKind;
   bootColor: string;
-  /** Heavy circular rain cloak (kapp) */
+  /** Heavy circular cloak (kapp / plášť) */
   hasCloak: boolean;
   cloakColor: string;
   cloakShadow: string;
   cloakLining: string;
-  /** Chest armor / apron / equipment */
+  /** Chest armor / apron / special Prague defender insignia */
   hasCuirass: boolean;
   hasTassets: boolean;
+  /** Steel gorget (`nákrčník`) worn over cassock or coat */
+  hasGorget: boolean;
+  /** 8-pointed white Order of Malta cross on chest (Colloredo & Brother Bartoloměj) */
+  hasMalteseCross: boolean;
+  /** Blood-stained cream linen butcher's apron (Havel Řezáč) */
+  hasButcherApron: boolean;
+  /** Coiled hemp climbing rope slung diagonally across chest (Ondřej Štěrba) */
+  hasCoiledRope: boolean;
+  /** Wax-sealed imperial parchment scroll at waist (Colloredo / Scribe) */
+  hasParchmentScroll: boolean;
   /** Traditional 12 Apostles leather cross-belt with wooden/tin powder flasks */
   hasBandolier: boolean;
   apostleCount: number;
   apostleColor: string;
-  /** Modernized Swedish waist leather cartridge box (`patronkök`) with paper cartridges */
+  /** Waist leather cartridge box (`patronkök` / `patrontaška`) with paper cartridges */
   hasCartridgeBox: boolean;
-  /** True for modern M1624 troops reloading via paper cartridges instead of loose apostle flasks */
+  /** True for M1624 troops reloading via paper cartridges instead of loose apostle flasks */
   usesPaperCartridges: boolean;
   hasLeatherApron: boolean;
   hasToolSatchel: boolean;
@@ -127,10 +184,491 @@ export interface SwedishTroopProfile {
   scratchSeed: number;
 }
 
-const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
+const TROOP_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
+  // =========================================================================
+  // 1648 PRAGUE DEFENDERS (PRAŽANÉ — VELKOPŘEVORSTVÍ, MĚŠŤANÉ & KLEMENTINUM)
+  // =========================================================================
+
+  colloredo_marshal: {
+    id: "colloredo_marshal",
+    faction: "player",
+    brigadeName: "Polní maršál Rudolf hrabě Colloredo (V noční košili · Velkopřevor)",
+    garmentCut: "nightshirt",
+    heightScale: 1.0,
+    hasLimp: true,
+    // Billowing pleated white-cream linen nightshirt with gold hem trim
+    coatBase: "#f4f1ea",
+    coatLight: "#ffffff",
+    coatShadow: "#cbd5e1",
+    cuffColor: "#f8fafc",
+    liningColor: "#eab308",
+    buttonColor: "#facc15",
+    isBuffLeather: false,
+    hasFallingCollar: true,
+    hasLaceTrim: true,
+    shirtColor: "#ffffff",
+    // Under long nightshirt: bare lower calves & crimson velvet slippers (`trepky`) with gold buckles
+    breechesColor: "#f4f1ea",
+    breechesShadow: "#cbd5e1",
+    stockingsColor: "#f1c7a6",
+    footwear: "night_slippers",
+    bootColor: "#991b1b",
+    hasCloak: false,
+    cloakColor: "#7f1d1d",
+    cloakShadow: "#450a0a",
+    cloakLining: "#facc15",
+    hasCuirass: false,
+    hasTassets: false,
+    hasGorget: false,
+    hasMalteseCross: true,
+    hasButcherApron: false,
+    hasCoiledRope: false,
+    hasParchmentScroll: true,
+    hasBandolier: false,
+    apostleCount: 0,
+    apostleColor: "#6d4c2f",
+    hasCartridgeBox: false,
+    usesPaperCartridges: false,
+    hasLeatherApron: false,
+    hasToolSatchel: false,
+    // Scarlet Grand Prior ribbon of the Sovereign Military Order of Malta
+    sash: { primary: "#dc2626", secondary: "#991b1b", fringe: "#facc15" },
+    headgear: "nightcap",
+    hatColor: "#991b1b",
+    hatShadow: "#450a0a",
+    ribbonColor: "#facc15",
+    plumePrimary: null,
+    plumeSecondary: null,
+    skinTone: "#f3c9a6",
+    hairColor: "#f1f5f9",
+    beard: "silver_marshal",
+    primaryWeapon: "colloredo_cane_pistol",
+    sidearm: "none",
+    hasBackBanner: false,
+    mudIntensity: 0.22,
+    scratchSeed: 7,
+  },
+
+  jan_matej_valet: {
+    id: "jan_matej_valet",
+    faction: "player",
+    brigadeName: "Jan Matěj (Osobní komorník maršála · Kolečková karabina)",
+    garmentCut: "kabatec",
+    heightScale: 1.0,
+    hasLimp: false,
+    // Ochre buff leather coat (`kolet`) with hastily strapped half-cuirass & crimson house cloak
+    coatBase: "#c99b56",
+    coatLight: "#e5c488",
+    coatShadow: "#7c5827",
+    cuffColor: "#b91c1c",
+    liningColor: "#7f1d1d",
+    buttonColor: "#facc15",
+    isBuffLeather: true,
+    hasFallingCollar: true,
+    hasLaceTrim: true,
+    shirtColor: "#f8f4e8",
+    breechesColor: "#543822",
+    breechesShadow: "#2e1d10",
+    stockingsColor: "#991b1b",
+    footwear: "riding_boots",
+    bootColor: "#1f1510",
+    hasCloak: true,
+    cloakColor: "#991b1b",
+    cloakShadow: "#450a0a",
+    cloakLining: "#eab308",
+    hasCuirass: true,
+    hasTassets: false,
+    hasGorget: true,
+    hasMalteseCross: false,
+    hasButcherApron: false,
+    hasCoiledRope: false,
+    hasParchmentScroll: false,
+    hasBandolier: false,
+    apostleCount: 0,
+    apostleColor: "#6d4c2f",
+    hasCartridgeBox: true,
+    usesPaperCartridges: false,
+    hasLeatherApron: false,
+    hasToolSatchel: false,
+    sash: { primary: "#dc2626", secondary: "#facc15", fringe: "#fef08a" },
+    headgear: "slokhatt",
+    hatColor: "#261e1a",
+    hatShadow: "#120d0b",
+    ribbonColor: "#dc2626",
+    plumePrimary: "#dc2626",
+    plumeSecondary: "#facc15",
+    skinTone: "#eec29c",
+    hairColor: "#4a2e1b",
+    beard: "mustache_goatee",
+    primaryWeapon: "officer_carbine",
+    sidearm: "cleaver",
+    hasBackBanner: false,
+    mudIntensity: 0.48,
+    scratchSeed: 19,
+  },
+
+  vaclav_scribe: {
+    id: "vaclav_scribe",
+    faction: "player",
+    brigadeName: "Václav z Michalovic (Klementinský student & písař · M1624 bez furkety)",
+    garmentCut: "kabatec",
+    heightScale: 1.0,
+    hasLimp: false,
+    // Deep indigo-slate academic coat with gold embroidery & crimson-lined scholar cloak
+    coatBase: "#1e3252",
+    coatLight: "#2e4b78",
+    coatShadow: "#0d1729",
+    cuffColor: "#b91c1c",
+    liningColor: "#991b1b",
+    buttonColor: "#facc15",
+    isBuffLeather: false,
+    hasFallingCollar: true,
+    hasLaceTrim: false,
+    shirtColor: "#f8fafc",
+    breechesColor: "#17253d",
+    breechesShadow: "#0b1220",
+    stockingsColor: "#7f1d1d",
+    footwear: "skor",
+    bootColor: "#1c1512",
+    hasCloak: true,
+    cloakColor: "#17253d",
+    cloakShadow: "#090f1a",
+    cloakLining: "#b91c1c",
+    hasCuirass: false,
+    hasTassets: false,
+    hasGorget: false,
+    hasMalteseCross: false,
+    hasButcherApron: false,
+    hasCoiledRope: false,
+    hasParchmentScroll: true,
+    hasBandolier: false,
+    apostleCount: 0,
+    apostleColor: "#6c4829",
+    // Captured modern Swedish M1624 lightened musket WITHOUT furketa + waist cartridge box
+    hasCartridgeBox: true,
+    usesPaperCartridges: true,
+    hasLeatherApron: false,
+    hasToolSatchel: false,
+    sash: { primary: "#dc2626", secondary: "#f8fafc", fringe: "#facc15" },
+    headgear: "slokhatt",
+    hatColor: "#1c222d",
+    hatShadow: "#0b0e14",
+    ribbonColor: "#facc15",
+    plumePrimary: "#fef08a",
+    plumeSecondary: "#dc2626",
+    skinTone: "#f2c8a4",
+    hairColor: "#5c3b23",
+    beard: "clean_youth",
+    primaryWeapon: "light_musket",
+    sidearm: "rapier",
+    hasBackBanner: false,
+    mudIntensity: 0.46,
+    scratchSeed: 23,
+  },
+
+  bartolomej_armorer: {
+    id: "bartolomej_armorer",
+    faction: "player",
+    brigadeName: "Bratr Bartoloměj (Maltézský zbrojmistr · Těžká mušketa s furketou)",
+    garmentCut: "kabatec",
+    heightScale: 1.02,
+    hasLimp: false,
+    // Crimson Maltese military doublet under heavy three-quarter plate cuirass & tassets
+    coatBase: "#8f1d1d",
+    coatLight: "#b92b2b",
+    coatShadow: "#4c0d0d",
+    cuffColor: "#d97706",
+    liningColor: "#78350f",
+    buttonColor: "#facc15",
+    isBuffLeather: false,
+    hasFallingCollar: true,
+    hasLaceTrim: false,
+    shirtColor: "#f3eee2",
+    breechesColor: "#4a2c18",
+    breechesShadow: "#29170b",
+    stockingsColor: "#78350f",
+    footwear: "riding_boots",
+    bootColor: "#1c130e",
+    hasCloak: true,
+    cloakColor: "#7f1d1d",
+    cloakShadow: "#3b0707",
+    cloakLining: "#d4a73f",
+    hasCuirass: true,
+    hasTassets: true,
+    hasGorget: true,
+    hasMalteseCross: true,
+    hasButcherApron: false,
+    hasCoiledRope: false,
+    hasParchmentScroll: false,
+    hasBandolier: true,
+    apostleCount: 12,
+    apostleColor: "#634124",
+    hasCartridgeBox: false,
+    usesPaperCartridges: false,
+    hasLeatherApron: false,
+    hasToolSatchel: false,
+    sash: null,
+    headgear: "slokhatt",
+    hatColor: "#241d19",
+    hatShadow: "#100c0a",
+    ribbonColor: "#facc15",
+    plumePrimary: "#dc2626",
+    plumeSecondary: "#f8fafc",
+    skinTone: "#e6b790",
+    hairColor: "#523a28",
+    beard: "full_nordic",
+    primaryWeapon: "heavy_musket_furketa",
+    sidearm: "katzbalger",
+    hasBackBanner: false,
+    mudIntensity: 0.62,
+    scratchSeed: 29,
+  },
+
+  plachy_jesuit: {
+    id: "plachy_jesuit",
+    faction: "player",
+    brigadeName: "Páter Jiří Plachý S.J. (Velitel studentské legie Klementina)",
+    garmentCut: "jesuit_cassock",
+    // Historically renowned ~2-meter stature towering over Prague students
+    heightScale: 1.07,
+    hasLimp: false,
+    // Deep matte-black Jesuit cassock (`sutana`) & billowing black scholar mantle
+    coatBase: "#1c1c21",
+    coatLight: "#2e2e36",
+    coatShadow: "#0b0b0e",
+    cuffColor: "#27272a",
+    liningColor: "#18181b",
+    buttonColor: "#09090b",
+    isBuffLeather: false,
+    hasFallingCollar: true,
+    hasLaceTrim: false,
+    shirtColor: "#f8fafc",
+    breechesColor: "#141418",
+    breechesShadow: "#09090b",
+    stockingsColor: "#18181b",
+    footwear: "skor",
+    bootColor: "#12100e",
+    hasCloak: true,
+    cloakColor: "#18181c",
+    cloakShadow: "#08080a",
+    cloakLining: "#27272a",
+    hasCuirass: false,
+    hasTassets: false,
+    // Steel military gorget (`nákrčník`) worn over his black Jesuit cassock
+    hasGorget: true,
+    hasMalteseCross: false,
+    hasButcherApron: false,
+    hasCoiledRope: false,
+    hasParchmentScroll: false,
+    hasBandolier: false,
+    apostleCount: 0,
+    apostleColor: "#5c3b20",
+    hasCartridgeBox: true,
+    usesPaperCartridges: false,
+    hasLeatherApron: false,
+    hasToolSatchel: false,
+    sash: null,
+    headgear: "jesuit_biretta",
+    hatColor: "#18181c",
+    hatShadow: "#09090b",
+    ribbonColor: "#27272a",
+    plumePrimary: null,
+    plumeSecondary: null,
+    skinTone: "#ecc19c",
+    hairColor: "#3b281a",
+    beard: "mustache_goatee",
+    primaryWeapon: "plachy_crucifix_pistol",
+    sidearm: "rapier",
+    hasBackBanner: false,
+    mudIntensity: 0.56,
+    scratchSeed: 37,
+  },
+
+  havel_butcher: {
+    id: "havel_butcher",
+    faction: "player",
+    brigadeName: "Havel Řezáč (Staroměstský cech řezníků)",
+    garmentCut: "kabatec",
+    heightScale: 1.01,
+    hasLimp: false,
+    // Sturdy russet-brown artisan tunic with rolled sleeves & blood-stained linen butcher's apron
+    coatBase: "#753f2c",
+    coatLight: "#96543d",
+    coatShadow: "#422116",
+    cuffColor: "#dfd6c3",
+    liningColor: "#573022",
+    buttonColor: "#b48a46",
+    isBuffLeather: false,
+    hasFallingCollar: true,
+    hasLaceTrim: false,
+    shirtColor: "#e7decb",
+    breechesColor: "#4a372b",
+    breechesShadow: "#261c15",
+    stockingsColor: "#78716c",
+    footwear: "riding_boots",
+    bootColor: "#241913",
+    hasCloak: false,
+    cloakColor: "#3b2318",
+    cloakShadow: "#1c100a",
+    cloakLining: "#753f2c",
+    hasCuirass: false,
+    hasTassets: false,
+    hasGorget: false,
+    hasMalteseCross: false,
+    hasButcherApron: true,
+    hasCoiledRope: false,
+    hasParchmentScroll: false,
+    hasBandolier: false,
+    apostleCount: 0,
+    apostleColor: "#5c3b20",
+    hasCartridgeBox: true,
+    usesPaperCartridges: false,
+    hasLeatherApron: false,
+    hasToolSatchel: false,
+    sash: null,
+    headgear: "burgher_hat",
+    hatColor: "#382417",
+    hatShadow: "#1a1009",
+    ribbonColor: "#b91c1c",
+    plumePrimary: null,
+    plumeSecondary: null,
+    skinTone: "#eab993",
+    hairColor: "#3d2314",
+    beard: "stubble",
+    primaryWeapon: "havel_cleaver_pistol",
+    sidearm: "cleaver",
+    hasBackBanner: false,
+    mudIntensity: 0.76,
+    scratchSeed: 47,
+  },
+
+  ondrej_thief: {
+    id: "ondrej_thief",
+    faction: "player",
+    brigadeName: "Ondřej Štěrba (Lezec po střechách a lanech)",
+    garmentCut: "kabatec",
+    heightScale: 0.99,
+    hasLimp: false,
+    // Dark slate nocturnal jerkin & cloak with coiled hemp climbing rope across chest
+    coatBase: "#283548",
+    coatLight: "#3b4d66",
+    coatShadow: "#131a24",
+    cuffColor: "#475569",
+    liningColor: "#1e293b",
+    buttonColor: "#94a3b8",
+    isBuffLeather: false,
+    hasFallingCollar: false,
+    hasLaceTrim: false,
+    shirtColor: "#d6cfc2",
+    breechesColor: "#1f2733",
+    breechesShadow: "#0f131a",
+    stockingsColor: "#334155",
+    footwear: "skor",
+    bootColor: "#171412",
+    hasCloak: true,
+    cloakColor: "#1e293b",
+    cloakShadow: "#0b101a",
+    cloakLining: "#334155",
+    hasCuirass: false,
+    hasTassets: false,
+    hasGorget: false,
+    hasMalteseCross: false,
+    hasButcherApron: false,
+    hasCoiledRope: true,
+    hasParchmentScroll: false,
+    hasBandolier: false,
+    apostleCount: 0,
+    apostleColor: "#5c3b20",
+    hasCartridgeBox: true,
+    usesPaperCartridges: false,
+    hasLeatherApron: false,
+    hasToolSatchel: false,
+    sash: null,
+    headgear: "burgher_hat",
+    hatColor: "#1f2937",
+    hatShadow: "#0c1118",
+    ribbonColor: "#94a3b8",
+    plumePrimary: null,
+    plumeSecondary: null,
+    skinTone: "#e8bc97",
+    hairColor: "#2b211a",
+    beard: "stubble",
+    primaryWeapon: "ondrej_knife_pistol",
+    sidearm: "dagger",
+    hasBackBanner: false,
+    mudIntensity: 0.64,
+    scratchSeed: 53,
+  },
+
+  klementinum_student: {
+    id: "klementinum_student",
+    faction: "player",
+    brigadeName: "Žák Klementina (Studentská legie Pražské univerzity)",
+    garmentCut: "kabatec",
+    heightScale: 0.98,
+    hasLimp: false,
+    // Dark scholar coat with gold university trim, white falling collar & Bohemian red-white ribbon
+    coatBase: "#222938",
+    coatLight: "#343f54",
+    coatShadow: "#10141d",
+    cuffColor: "#b91c1c",
+    liningColor: "#7f1d1d",
+    buttonColor: "#facc15",
+    isBuffLeather: false,
+    hasFallingCollar: true,
+    hasLaceTrim: false,
+    shirtColor: "#f8fafc",
+    breechesColor: "#1a202c",
+    breechesShadow: "#0c0f17",
+    stockingsColor: "#7f1d1d",
+    footwear: "skor",
+    bootColor: "#1c1613",
+    hasCloak: true,
+    cloakColor: "#1a202c",
+    cloakShadow: "#0a0d14",
+    cloakLining: "#991b1b",
+    hasCuirass: false,
+    hasTassets: false,
+    hasGorget: false,
+    hasMalteseCross: false,
+    hasButcherApron: false,
+    hasCoiledRope: false,
+    hasParchmentScroll: false,
+    hasBandolier: false,
+    apostleCount: 0,
+    apostleColor: "#5c3b20",
+    hasCartridgeBox: true,
+    usesPaperCartridges: false,
+    hasLeatherApron: false,
+    hasToolSatchel: false,
+    sash: { primary: "#dc2626", secondary: "#f8fafc", fringe: "#facc15" },
+    headgear: "student_hat",
+    hatColor: "#1c1917",
+    hatShadow: "#09090b",
+    ribbonColor: "#facc15",
+    plumePrimary: "#dc2626",
+    plumeSecondary: "#f8fafc",
+    skinTone: "#f0c5a0",
+    hairColor: "#5c3c24",
+    beard: "clean_youth",
+    primaryWeapon: "student_pistol",
+    sidearm: "rapier",
+    hasBackBanner: false,
+    mudIntensity: 0.58,
+    scratchSeed: 61,
+  },
+
+  // =========================================================================
+  // 1648 SWEDISH ARMY (ŠVÉDOVÉ — KÖNIGSMARCK & KARL GUSTAV)
+  // =========================================================================
+
   odowalsky_officer: {
     id: "odowalsky_officer",
+    faction: "enemy",
     brigadeName: "Königsmarkův důstojník (Kolet & Šerpa)",
+    garmentCut: "kabatec",
+    heightScale: 1.0,
+    hasLimp: false,
     coatBase: "#c79a58",
     coatLight: "#e3c58b",
     coatShadow: "#7a5628",
@@ -152,6 +690,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
     cloakLining: "#d4a73f",
     hasCuirass: true,
     hasTassets: false,
+    hasGorget: false,
+    hasMalteseCross: false,
+    hasButcherApron: false,
+    hasCoiledRope: false,
+    hasParchmentScroll: false,
     hasBandolier: false,
     apostleCount: 0,
     apostleColor: "#6d4c2f",
@@ -178,8 +721,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
 
   yellow_brigade: {
     id: "yellow_brigade",
+    faction: "enemy",
     brigadeName: "Žlutá brigáda (Královská garda — M1624 bez furkety)",
-    // Elite Royal Guard: modernized lightened M1624 musket fired offhand + waist patronkök
+    garmentCut: "kabatec",
+    heightScale: 1.0,
+    hasLimp: false,
     coatBase: "#d8a528",
     coatLight: "#f4ce5e",
     coatShadow: "#875d10",
@@ -201,6 +747,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
     cloakLining: "#d8a528",
     hasCuirass: false,
     hasTassets: false,
+    hasGorget: false,
+    hasMalteseCross: false,
+    hasButcherApron: false,
+    hasCoiledRope: false,
+    hasParchmentScroll: false,
     hasBandolier: false,
     apostleCount: 0,
     apostleColor: "#6c4829",
@@ -227,8 +778,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
 
   blue_brigade: {
     id: "blue_brigade",
+    faction: "enemy",
     brigadeName: "Modrá brigáda (Mušketýr — M1624 bez furkety)",
-    // Transitional 1648 infantryman: lightened M1624 fired offhand, wearing campaign bandolier + cloak
+    garmentCut: "kabatec",
+    heightScale: 1.0,
+    hasLimp: false,
     coatBase: "#204ca6",
     coatLight: "#3b71d6",
     coatShadow: "#102657",
@@ -250,6 +804,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
     cloakLining: "#ca8a04",
     hasCuirass: false,
     hasTassets: false,
+    hasGorget: false,
+    hasMalteseCross: false,
+    hasButcherApron: false,
+    hasCoiledRope: false,
+    hasParchmentScroll: false,
     hasBandolier: true,
     apostleCount: 11,
     apostleColor: "#755132",
@@ -276,8 +835,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
 
   green_veteran: {
     id: "green_veteran",
+    faction: "enemy",
     brigadeName: "Zelená brigáda (Polní vadmal — M1624 bez furkety)",
-    // Undyed grey-brown campaign vadmal with Green Brigade cuffs & karpus, modern lightened musket
+    garmentCut: "kabatec",
+    heightScale: 1.0,
+    hasLimp: false,
     coatBase: "#70665a",
     coatLight: "#928778",
     coatShadow: "#3d372f",
@@ -299,6 +861,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
     cloakLining: "#7d7263",
     hasCuirass: false,
     hasTassets: false,
+    hasGorget: false,
+    hasMalteseCross: false,
+    hasButcherApron: false,
+    hasCoiledRope: false,
+    hasParchmentScroll: false,
     hasBandolier: false,
     apostleCount: 0,
     apostleColor: "#5f4127",
@@ -325,8 +892,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
 
   belvedere_heavy_musketeer: {
     id: "belvedere_heavy_musketeer",
+    faction: "enemy",
     brigadeName: "Zelená brigáda (Těžký mušketýr s furketou)",
-    // Seasoned parapet marksman retaining an older long-barrel heavy matchlock WITH furketa & 12 Apostles
+    garmentCut: "kabatec",
+    heightScale: 1.0,
+    hasLimp: false,
     coatBase: "#685f53",
     coatLight: "#8a7f71",
     coatShadow: "#39332b",
@@ -348,6 +918,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
     cloakLining: "#7d7263",
     hasCuirass: false,
     hasTassets: false,
+    hasGorget: false,
+    hasMalteseCross: false,
+    hasButcherApron: false,
+    hasCoiledRope: false,
+    hasParchmentScroll: false,
     hasBandolier: true,
     apostleCount: 12,
     apostleColor: "#634327",
@@ -374,7 +949,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
 
   red_pikeman: {
     id: "red_pikeman",
+    faction: "enemy",
     brigadeName: "Červená brigáda (Útočný pikenýr-mušketýr)",
+    garmentCut: "kabatec",
+    heightScale: 1.0,
+    hasLimp: false,
     coatBase: "#a12b2b",
     coatLight: "#c84444",
     coatShadow: "#591313",
@@ -396,6 +975,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
     cloakLining: "#eab308",
     hasCuirass: true,
     hasTassets: true,
+    hasGorget: false,
+    hasMalteseCross: false,
+    hasButcherApron: false,
+    hasCoiledRope: false,
+    hasParchmentScroll: false,
     hasBandolier: true,
     apostleCount: 11,
     apostleColor: "#6b4728",
@@ -422,7 +1006,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
 
   artillery_constable: {
     id: "artillery_constable",
+    faction: "enemy",
     brigadeName: "Švédský dělostřelec (Konstábl)",
+    garmentCut: "kabatec",
+    heightScale: 1.0,
+    hasLimp: false,
     coatBase: "#393e4a",
     coatLight: "#545b6b",
     coatShadow: "#1b1e24",
@@ -444,6 +1032,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
     cloakLining: "#57534e",
     hasCuirass: false,
     hasTassets: false,
+    hasGorget: false,
+    hasMalteseCross: false,
+    hasButcherApron: false,
+    hasCoiledRope: false,
+    hasParchmentScroll: false,
     hasBandolier: false,
     apostleCount: 0,
     apostleColor: "#5c3b20",
@@ -470,7 +1063,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
 
   m3_carolean: {
     id: "m3_carolean",
+    faction: "enemy",
     brigadeName: "Karolinský mušketýr (Prachová hlídka — M1624 bez furkety)",
+    garmentCut: "kabatec",
+    heightScale: 1.0,
+    hasLimp: false,
     coatBase: "#1e4596",
     coatLight: "#396ac9",
     coatShadow: "#0e204a",
@@ -492,6 +1089,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
     cloakLining: "#dc2626",
     hasCuirass: false,
     hasTassets: false,
+    hasGorget: false,
+    hasMalteseCross: false,
+    hasButcherApron: false,
+    hasCoiledRope: false,
+    hasParchmentScroll: false,
     hasBandolier: false,
     apostleCount: 0,
     apostleColor: "#6d4829",
@@ -518,7 +1120,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
 
   m2_harrier: {
     id: "m2_harrier",
+    faction: "enemy",
     brigadeName: "Švédský harcovník",
+    garmentCut: "kabatec",
+    heightScale: 1.0,
+    hasLimp: false,
     coatBase: "#343740",
     coatLight: "#4c505c",
     coatShadow: "#17191e",
@@ -540,6 +1146,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
     cloakLining: "#991b1b",
     hasCuirass: false,
     hasTassets: false,
+    hasGorget: false,
+    hasMalteseCross: false,
+    hasButcherApron: false,
+    hasCoiledRope: false,
+    hasParchmentScroll: false,
     hasBandolier: false,
     apostleCount: 0,
     apostleColor: "#5c3b20",
@@ -566,7 +1177,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
 
   m2_occultist: {
     id: "m2_occultist",
+    faction: "enemy",
     brigadeName: "Švédský polní inkvizitor",
+    garmentCut: "kabatec",
+    heightScale: 1.0,
+    hasLimp: false,
     coatBase: "#1e326e",
     coatLight: "#314fa8",
     coatShadow: "#0c1533",
@@ -588,6 +1203,11 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
     cloakLining: "#d4a73f",
     hasCuirass: true,
     hasTassets: true,
+    hasGorget: false,
+    hasMalteseCross: false,
+    hasButcherApron: false,
+    hasCoiledRope: false,
+    hasParchmentScroll: false,
     hasBandolier: false,
     apostleCount: 0,
     apostleColor: "#5c3b20",
@@ -614,9 +1234,12 @@ const SWEDISH_PROFILES: Record<SwedishProfileId, SwedishTroopProfile> = {
 };
 
 /**
- * Resolves a historically authentic 1648 Swedish uniform profile for any Swedish
- * enemy unit across Missions 1, 2, and 3. Returns `null` for Bohemian/Imperial
- * player units so they keep their own distinct baroque sprites.
+ * Resolves a historically authentic 1648 2D skeletal profile for ANY unit in the game:
+ * - Prague Defenders (Marshal Colloredo in his white nightshirt, valet Jan Matěj, student-scribe
+ *   Václav z Michalovic, Maltese armorer Brother Bartoloměj, towering Jesuit Father Jiří Plachý,
+ *   Old Town butcher Havel Řezáč, rooftop rope-scout Ondřej Štěrba, and Clementinum Student Legionnaires)
+ * - Swedish Attackers (Königsmark's officer Odowalsky, Yellow/Blue/Green/Red Brigades,
+ *   Belvedere heavy furketa marksman, Artillery Constable, Carolean powder guards, Harriers, & Inquisitor)
  */
 export function resolveSwedishProfile(
   archetype: UnitArchetype,
@@ -624,38 +1247,61 @@ export function resolveSwedishProfile(
   scenario?: ScenarioId,
   faction?: "player" | "enemy",
 ): SwedishTroopProfile | null {
-  if (faction === "player") return null;
-  if (unitId?.startsWith("player-")) return null;
+  // 1. Named 1648 Prague Defenders (Player Heroes & Militia)
+  if (unitId === "player-colloredo") return TROOP_PROFILES.colloredo_marshal;
+  if (unitId === "player-jan-matej") return TROOP_PROFILES.jan_matej_valet;
+  if (unitId === "player-vaclav-michalovic") return TROOP_PROFILES.vaclav_scribe;
+  if (unitId === "player-bartolomej") return TROOP_PROFILES.bartolomej_armorer;
+  if (unitId === "player-plachy") return TROOP_PROFILES.plachy_jesuit;
+  if (unitId === "player-havel") return TROOP_PROFILES.havel_butcher;
+  if (unitId === "player-ondrej") return TROOP_PROFILES.ondrej_thief;
+  if (unitId?.startsWith("player-zak")) return TROOP_PROFILES.klementinum_student;
 
-  if (unitId === "enemy-odowalsky") return SWEDISH_PROFILES.odowalsky_officer;
-  if (unitId === "enemy-musketeer") return SWEDISH_PROFILES.yellow_brigade;
-  if (unitId === "enemy-garden-musketeer") return SWEDISH_PROFILES.blue_brigade;
-  if (unitId === "enemy-sniper-roof") return SWEDISH_PROFILES.belvedere_heavy_musketeer;
-  if (unitId === "enemy-reinforcement-vanguard") return SWEDISH_PROFILES.red_pikeman;
-  if (unitId === "enemy-reinforcement-reserve") return SWEDISH_PROFILES.yellow_brigade;
-  if (unitId === "enemy-gunner") return SWEDISH_PROFILES.artillery_constable;
-  if (unitId?.startsWith("enemy-bearer-")) return SWEDISH_PROFILES.green_veteran;
-  if (unitId?.startsWith("enemy-harrier")) return SWEDISH_PROFILES.m2_harrier;
-  if (unitId === "enemy-occultist") return SWEDISH_PROFILES.m2_occultist;
+  if (faction === "player" || unitId?.startsWith("player-")) {
+    if (archetype === "commander") {
+      return scenario === "mission1"
+        ? TROOP_PROFILES.colloredo_marshal
+        : TROOP_PROFILES.plachy_jesuit;
+    }
+    if (archetype === "sniper") return TROOP_PROFILES.vaclav_scribe;
+    if (archetype === "trooper") return TROOP_PROFILES.klementinum_student;
+    return TROOP_PROFILES.jan_matej_valet;
+  }
+
+  // 2. Named 1648 Swedish Army Units
+  if (unitId === "enemy-odowalsky") return TROOP_PROFILES.odowalsky_officer;
+  if (unitId === "enemy-musketeer") return TROOP_PROFILES.yellow_brigade;
+  if (unitId === "enemy-garden-musketeer") return TROOP_PROFILES.blue_brigade;
+  if (unitId === "enemy-sniper-roof") return TROOP_PROFILES.belvedere_heavy_musketeer;
+  if (unitId === "enemy-reinforcement-vanguard") return TROOP_PROFILES.red_pikeman;
+  if (unitId === "enemy-reinforcement-reserve") return TROOP_PROFILES.yellow_brigade;
+  if (unitId === "enemy-gunner") return TROOP_PROFILES.artillery_constable;
+  if (unitId?.startsWith("enemy-bearer-")) return TROOP_PROFILES.green_veteran;
+  if (unitId?.startsWith("enemy-harrier")) return TROOP_PROFILES.m2_harrier;
+  if (unitId === "enemy-occultist") return TROOP_PROFILES.m2_occultist;
 
   if (scenario === "mission3" && unitId?.startsWith("enemy-")) {
     if (unitId === "enemy-sentry-2" || unitId === "enemy-relief-2") {
-      return SWEDISH_PROFILES.yellow_brigade;
+      return TROOP_PROFILES.yellow_brigade;
     }
-    return SWEDISH_PROFILES.m3_carolean;
+    return TROOP_PROFILES.m3_carolean;
   }
 
-  if (archetype === "trooper") return SWEDISH_PROFILES.blue_brigade;
-  if (archetype === "sectoid") return SWEDISH_PROFILES.m2_occultist;
-  if (faction === "enemy") return SWEDISH_PROFILES.blue_brigade;
+  // 3. Generic archetype fallbacks (when called without faction/unitId, e.g. portrait gallery)
+  if (archetype === "commander") return TROOP_PROFILES.colloredo_marshal;
+  if (archetype === "sniper") return TROOP_PROFILES.vaclav_scribe;
+  if (archetype === "ranger") return TROOP_PROFILES.jan_matej_valet;
+  if (archetype === "trooper") return TROOP_PROFILES.blue_brigade;
+  if (archetype === "sectoid") return TROOP_PROFILES.m2_occultist;
 
-  return null;
+  return TROOP_PROFILES.blue_brigade;
 }
 
 /**
- * Determines whether a Swedish unit physically carries & deploys a wooden furketa rest fork.
- * Modernized M1624 Swedish muskets (`light_musket`, `supportsRestFork: false`) do NOT use a furketa;
- * older heavy matchlocks (`heavy_musket_furketa`) or weapons with `supportsRestFork === true` do.
+ * Determines whether a unit physically carries & deploys a wooden furketa rest fork.
+ * Modernized M1624 muskets (`light_musket`, `supportsRestFork: false`) and pistols/carbines do NOT
+ * use a furketa; older heavy matchlocks (`heavy_musket_furketa` — e.g. Brother Bartoloměj and
+ * the Belvedere parapet marksman) or weapons with `supportsRestFork === true` do.
  */
 export function resolveUsesFurketa(
   profile: SwedishTroopProfile,
@@ -667,11 +1313,11 @@ export function resolveUsesFurketa(
 }
 
 export function getAllSwedishProfiles(): SwedishTroopProfile[] {
-  return Object.values(SWEDISH_PROFILES);
+  return Object.values(TROOP_PROFILES);
 }
 
 // ---------------------------------------------------------------------------
-// 2-Bone Analytical Inverse Kinematics (for two-handed musket/pike holding)
+// 2-Bone Analytical Inverse Kinematics (for two-handed musket/pike/cane holding)
 // ---------------------------------------------------------------------------
 
 export interface Vec2 {
@@ -748,8 +1394,10 @@ export interface SwedishAnimInput {
   isReloading: boolean;
   inCover: boolean;
   isDead: boolean;
-  /** True only for older heavy matchlocks braced on a wooden furketa; false for modern M1624 */
+  /** True only for older heavy matchlocks braced on a wooden furketa; false for M1624/carbines/pistols */
   hasFurketa?: boolean;
+  /** True for Field Marshal Colloredo (7 Lützen war wounds -> asymmetric limping stride & cane plant) */
+  hasLimp?: boolean;
   /** Seconds since last fire/melee lunge trigger, or null if inactive */
   fireElapsedSec: number | null;
   fireKind: "recoil" | "melee";
@@ -771,13 +1419,13 @@ export interface FireSequenceSample {
     | "pan_flash"
     | "muzzle_blast"
     | "recoil_smoke";
-  /** 0..1 furketa planted upright into ground (strictly 0 for modern M1624 without furketa) */
+  /** 0..1 furketa planted upright into ground (strictly 0 for modern M1624 / pistols without furketa) */
   furketaPlant: number;
-  /** 0..1 stock firmly seated into shoulder */
+  /** 0..1 stock / pistol raised into firing line */
   aimWeight: number;
-  /** Head leaning down toward musket sights (radians) */
+  /** Head leaning down toward sights (radians) */
   headLean: number;
-  /** Matchcord lowered onto priming pan (0..1) */
+  /** Matchcord or wheellock cock lowered onto priming pan (0..1) */
   matchDip: number;
   /** 0..1 bright flash at the priming pan */
   panFlash: number;
@@ -785,7 +1433,7 @@ export interface FireSequenceSample {
   muzzleFlash: number;
   /** 0..1 torso & weapon kickback recoil impulse */
   recoilKick: number;
-  /** Upward muzzle flip angle (radians) — pronounced on unsupported offhand M1624 shots */
+  /** Upward muzzle flip angle (radians) — pronounced on unsupported offhand M1624 & pistols */
   muzzleClimb: number;
   /** 0..1 expanding billowing white-grey black-powder smoke cloud */
   smokeProgress: number;
@@ -794,15 +1442,15 @@ export interface FireSequenceSample {
 }
 
 /**
- * Evaluates the authentic 17th-century matchlock firing drill in two distinct modes:
+ * Evaluates the authentic 17th-century black-powder firing drill in two distinct modes:
  *
- * A) Modernized M1624 Lightened Musket (`hasFurketa === false`, fired offhand):
- *    0.00–0.22s: Snappy offhand shoulder raise & cheek weld (`furketaPlant === 0`)
- *    0.22–0.32s: Matchcord dips -> priming pan flash
+ * A) Offhand Firearm (`hasFurketa === false` — M1624 lightened musket, wheellock carbine, or pistol):
+ *    0.00–0.22s: Snappy offhand raise & sight alignment (`furketaPlant === 0`)
+ *    0.22–0.32s: Serpentine / wheellock pyrite sparks -> priming pan flash
  *    0.32–0.52s (+0.10s delay): Main muzzle blast + brisk offhand muzzle climb & recoil
  *    0.32–1.56s: Billowing white black-powder smoke cloud & recovery
  *
- * B) Heavy Matchlock with Furketa (`hasFurketa === true`, braced on fork rest):
+ * B) Heavy Matchlock with Furketa (`hasFurketa === true` — Bratr Bartoloměj & Belvedere veteran):
  *    0.00–0.18s: Plant wooden furketa into soil (`furketaPlant: 0 -> 1`)
  *    0.18–0.34s: Cradle barrel in brass U-fork, shoulder stock & lean cheek to sights
  *    0.34–0.44s: Matchcord dips -> priming pan flash
@@ -835,43 +1483,36 @@ export function evaluateFireSequence(
     return u * u * (3 - 2 * u);
   };
 
-  // Timing shifts earlier by 0.12s when shooter doesn't have to plant a furketa first!
   const aimStart = hasFurketa ? 0.14 : 0.0;
   const panStart = hasFurketa ? 0.34 : 0.22;
-  const blastStart = panStart + 0.1; // Exact +0.10s flint/match pan-to-muzzle ignition delay!
+  const blastStart = panStart + 0.1; // Exact +0.10s pan-to-muzzle ignition delay!
   const blastEnd = blastStart + 0.2;
 
-  // 1. Furketa plant (strictly 0 for modern M1624 lightened muskets!)
   const furketaPlant = hasFurketa
     ? smooth(0.0, 0.18, elapsedSec) * (1 - smooth(1.28, 1.72, elapsedSec))
     : 0;
 
-  // 2. Shoulder stock & lean cheek onto sights
   const aimIn = smooth(aimStart, panStart, elapsedSec);
   const aimOut = 1 - smooth(hasFurketa ? 1.18 : 1.06, hasFurketa ? 1.65 : 1.52, elapsedSec);
   const aimWeight = aimIn * aimOut;
   const headLean = aimWeight * (hasFurketa ? 0.24 : 0.27);
 
-  // 3. Matchcord dips onto priming pan
   const matchDip =
     smooth(panStart - 0.06, panStart + 0.02, elapsedSec) *
     (1 - smooth(blastStart + 0.02, blastStart + 0.18, elapsedSec));
 
-  // 4. Priming pan flash
   let panFlash = 0;
   if (elapsedSec >= panStart && elapsedSec <= panStart + 0.14) {
     const u = (elapsedSec - panStart) / 0.14;
     panFlash = Math.sin(u * Math.PI);
   }
 
-  // 5. Main barrel muzzle blast exactly +0.10s after pan ignition (unless misfire!)
   let muzzleFlash = 0;
   if (!isMisfire && elapsedSec >= blastStart && elapsedSec <= blastEnd) {
     const u = (elapsedSec - blastStart) / (blastEnd - blastStart);
     muzzleFlash = Math.pow(Math.sin(u * Math.PI), 0.7);
   }
 
-  // 6. Full-torso recoil kick & offhand muzzle climb
   let recoilKick = 0;
   let muzzleClimb = 0;
   if (!isMisfire && elapsedSec >= blastStart && elapsedSec <= blastStart + 0.72) {
@@ -879,7 +1520,6 @@ export function evaluateFireSequence(
     const attack = smooth(0, 0.055, dtKick);
     const decay = Math.exp(-dtKick * (hasFurketa ? 4.4 : 4.9));
     recoilKick = attack * decay;
-    // Freehand M1624 climbs sharply upward without a rest fork; braced furketa stays flatter
     muzzleClimb = recoilKick * (hasFurketa ? 0.14 : 0.34);
   } else if (isMisfire && elapsedSec >= panStart + 0.04 && elapsedSec <= panStart + 0.5) {
     const dtFlinch = elapsedSec - (panStart + 0.04);
@@ -887,7 +1527,6 @@ export function evaluateFireSequence(
     muzzleClimb = recoilKick * 0.12;
   }
 
-  // 7. Dense white black-powder smoke cloud
   let smokeProgress = 0;
   let smokeAlpha = 0;
   const smokeStart = isMisfire ? panStart + 0.02 : blastStart;
@@ -1054,6 +1693,7 @@ export function stepSwedishRig(
   const t = p.time;
 
   const hasFurketa = Boolean(input.hasFurketa);
+  const hasLimp = Boolean(input.hasLimp);
   p.hasFurketa = hasFurketa;
 
   const state = resolveActionState(input);
@@ -1061,18 +1701,16 @@ export function stepSwedishRig(
 
   // Target joint pose for the active state
   let targetRootX = 0;
-  let targetRootY = input.inCover ? 7 : 0;
-  let targetTorso = input.inCover ? 0.08 : 0.025;
+  let targetRootY = input.inCover ? 7 : hasLimp ? 2.5 : 0;
+  let targetTorso = input.inCover ? 0.08 : hasLimp ? 0.095 : 0.025;
   let targetChest = Math.sin(t * 2.35 + rig.seed) * 2.2;
   let targetHeadAngle = Math.sin(t * 1.15 + rig.seed) * 0.04;
-  // Occasional slow guard look-around in idle
   const lookWave = Math.sin(t * 0.65 + rig.seed * 1.9);
   let targetHeadLookX = Math.abs(lookWave) > 0.7 ? Math.sign(lookWave) * 2.8 : 0;
-  let targetBackHip = -0.08;
-  let targetBackKnee = 0.09;
+  let targetBackHip = hasLimp ? -0.14 : -0.08;
+  let targetBackKnee = hasLimp ? 0.22 : 0.09;
   let targetFrontHip = 0.09;
   let targetFrontKnee = 0.07;
-  // Modern lightened musket held higher & closer at port-arms; heavy furketa musket rests slightly lower
   let targetWeaponX = hasFurketa ? 14 : 11;
   let targetWeaponY = hasFurketa ? -14 : -17;
   let targetWeaponAngle = hasFurketa ? -0.14 : -0.22;
@@ -1084,24 +1722,43 @@ export function stepSwedishRig(
   let externalImpulse = 0;
 
   if (state === "march") {
-    p.stridePhase += dt * 7.8;
+    p.stridePhase += dt * (hasLimp ? 6.2 : 7.8);
     const s = p.stridePhase;
     const strideSin = Math.sin(s);
     const strideCos = Math.cos(s);
-    // Biomechanical center-of-gravity bob: lowest on foot strike, highest at passing mid-stance
-    targetRootY = -Math.abs(strideCos) * 7.5 + 3.2;
-    targetTorso = 0.13 + Math.sin(s * 2) * 0.035;
-    targetChest = Math.sin(s * 2) * 1.6;
-    targetHeadAngle = -0.04 + Math.cos(s * 2) * 0.025;
-    targetHeadLookX = 1.6;
-    targetFrontHip = strideSin * 0.48;
-    targetFrontKnee = Math.max(0.05, -strideCos * 0.56 + 0.14);
-    targetBackHip = -strideSin * 0.48;
-    targetBackKnee = Math.max(0.05, strideCos * 0.56 + 0.14);
-    // Modern M1624 carried crisply at port-arms; heavy furketa musket sways lower with fork
-    targetWeaponX = (hasFurketa ? 11 : 9) - strideSin * 3.8;
-    targetWeaponY = (hasFurketa ? -16 : -20) + Math.abs(strideCos) * 2.4;
-    targetWeaponAngle = (hasFurketa ? -0.24 : -0.34) + strideSin * 0.075;
+
+    if (hasLimp) {
+      // Field Marshal Colloredo's asymmetric Lützen 1632 war-wound limp:
+      // Sound front leg steps forward while injured back leg drags stiffly; body dips onto his walking cane!
+      const caneDip = Math.max(0, strideSin);
+      targetRootY = caneDip * 9.5 - Math.abs(strideCos) * 3.0 + 2.5;
+      targetTorso = 0.16 + caneDip * 0.11;
+      targetChest = Math.sin(s) * 2.0;
+      targetHeadAngle = -0.03 + caneDip * 0.07;
+      targetHeadLookX = 1.8;
+      targetFrontHip = strideSin * 0.44 + 0.08;
+      targetFrontKnee = Math.max(0.06, -strideCos * 0.52 + 0.16);
+      // Injured back leg has restricted hip swing & stiffer knee bend
+      targetBackHip = -strideSin * 0.14 - 0.11;
+      targetBackKnee = 0.22 + Math.max(0, strideCos) * 0.12;
+      targetWeaponX = 11 - strideSin * 2.5;
+      targetWeaponY = -17 + caneDip * 3.2;
+      targetWeaponAngle = -0.18 + strideSin * 0.06;
+    } else {
+      // Standard biomechanical march stride
+      targetRootY = -Math.abs(strideCos) * 7.5 + 3.2;
+      targetTorso = 0.13 + Math.sin(s * 2) * 0.035;
+      targetChest = Math.sin(s * 2) * 1.6;
+      targetHeadAngle = -0.04 + Math.cos(s * 2) * 0.025;
+      targetHeadLookX = 1.6;
+      targetFrontHip = strideSin * 0.48;
+      targetFrontKnee = Math.max(0.05, -strideCos * 0.56 + 0.14);
+      targetBackHip = -strideSin * 0.48;
+      targetBackKnee = Math.max(0.05, strideCos * 0.56 + 0.14);
+      targetWeaponX = (hasFurketa ? 11 : 9) - strideSin * 3.8;
+      targetWeaponY = (hasFurketa ? -16 : -20) + Math.abs(strideCos) * 2.4;
+      targetWeaponAngle = (hasFurketa ? -0.24 : -0.34) + strideSin * 0.075;
+    }
     targetFurketaPlant = 0;
     targetFurketaAngle = 0.26 - strideSin * 0.12;
   } else if (state === "fire" || state === "misfire") {
@@ -1112,16 +1769,13 @@ export function stepSwedishRig(
 
     targetRootX = -recoil * (hasFurketa ? 11.5 : 9.2);
     targetRootY = (input.inCover ? 8 : 3) + aim * (hasFurketa ? 3.5 : 2.5) - recoil * 2.0;
-    // Lean into stock while aiming, then snap backward with full-torso black-powder recoil
     targetTorso = aim * (hasFurketa ? 0.16 : 0.19) - recoil * (hasFurketa ? 0.44 : 0.36);
     targetHeadAngle = fireSample.headLean - recoil * 0.22;
     targetHeadLookX = 3.0 * aim;
-    // Braced wide firing stance (offhand M1624 leans forward slightly more into front leg)
     targetBackHip = (hasFurketa ? -0.24 : -0.27) - recoil * 0.08;
     targetBackKnee = 0.18;
     targetFrontHip = hasFurketa ? 0.28 : 0.31;
     targetFrontKnee = hasFurketa ? 0.24 : 0.27;
-    // Offhand M1624 raises higher to cheek & climbs sharply on recoil; furketa musket stays anchored lower
     targetWeaponX = (hasFurketa ? 18 : 15) + aim * 7 - recoil * (hasFurketa ? 11 : 9.5);
     targetWeaponY = (hasFurketa ? -21 : -27) - aim * 6 - recoil * (hasFurketa ? 2.5 : 5.5);
     targetWeaponAngle = lerp(hasFurketa ? -0.14 : -0.22, -0.02, aim) - climb;
@@ -1145,9 +1799,6 @@ export function stepSwedishRig(
     targetWeaponY = -18 + slash * 8;
     targetWeaponAngle = -0.65 + slash * 1.15;
   } else if (state === "reload") {
-    // Distinct 1648 reload:
-    // - Modern M1624 (paper cartridges): faster rhythmic bite cartridge -> ram down barrel
-    // - Heavy furketa musket: tilt barrel beside planted furketa, pour powder from apostle
     const cycleRate = hasFurketa ? 3.8 : 4.8;
     p.reloadCycle = ((t * cycleRate * 0.25 + rig.seed * 0.1) % 1 + 1) % 1;
     const cycle = Math.sin(t * cycleRate + rig.seed);
@@ -1161,7 +1812,6 @@ export function stepSwedishRig(
     targetFurketaPlant = hasFurketa ? 0.55 : 0;
     targetFurketaAngle = 0.08;
   } else if (state === "overwatch") {
-    // Prepared volley stance: either braced offhand at shoulder OR resting on planted furketa
     targetRootY = input.inCover ? 8 : 3;
     targetTorso = (hasFurketa ? 0.12 : 0.15) + Math.sin(t * 2.1 + rig.seed) * 0.015;
     targetHeadAngle = hasFurketa ? 0.14 : 0.18;
@@ -1198,7 +1848,6 @@ export function stepSwedishRig(
     targetWeaponAngle = 0.55 * targetCollapse;
   }
 
-  // Smooth blend factor (snappy on fire/hit/melee, silky on idle/march/reload)
   const blendRate =
     state === "fire" || state === "misfire" || state === "hit" || state === "melee"
       ? 23
@@ -1231,7 +1880,6 @@ export function stepSwedishRig(
       : 0;
 
   // --- Secondary Motion Physics (Damped Harmonic Oscillators) ---
-  // Sudden stop from march -> coat hem & cloak whip forward from inertia!
   if (rig.prevState === "march" && state !== "march") {
     externalImpulse += 12;
   }
@@ -1242,7 +1890,6 @@ export function stepSwedishRig(
     (Math.sin(t * 2.6 + rig.seed) * 0.65 + Math.sin(t * 5.1 + rig.seed * 2.3) * 0.35) *
     wind;
 
-  // 1. 12 Apostles powder flasks swinging with stride lag & torso acceleration
   const apostleDrive =
     (state === "march" ? Math.sin(p.stridePhase - 0.65) * 9.5 : 0) -
     torsoAngularVel * 2.2 -
@@ -1251,7 +1898,6 @@ export function stepSwedishRig(
   p.apostleVel += (apostleDrive - p.apostleSwing * 28 - p.apostleVel * 5.2) * dt;
   p.apostleSwing = Math.max(-0.52, Math.min(0.52, p.apostleSwing + p.apostleVel * dt));
 
-  // 2. Lower wool coat hem (šosy kabátce) rippling during walk & whipping forward on stop/recoil
   const hemDrive =
     (state === "march" ? Math.sin(p.stridePhase - 0.9) * 7.5 : 0) +
     externalImpulse * 0.9 -
@@ -1260,7 +1906,6 @@ export function stepSwedishRig(
   p.coatHemVel += (hemDrive - p.coatHemSwing * 22 - p.coatHemVel * 4.4) * dt;
   p.coatHemSwing = Math.max(-0.55, Math.min(0.65, p.coatHemSwing + p.coatHemVel * dt));
 
-  // 3. Heavy circular wool cloak (kapp) billowing behind soldier
   const cloakDrive =
     (state === "march" ? -6.5 + Math.sin(p.stridePhase - 1.1) * 4.5 : 0) +
     externalImpulse * 1.15 +
@@ -1268,7 +1913,6 @@ export function stepSwedishRig(
   p.cloakVel += (cloakDrive - p.cloakSwing * 14 - p.cloakVel * 3.2) * dt;
   p.cloakSwing = Math.max(-0.75, Math.min(0.85, p.cloakSwing + p.cloakVel * dt));
 
-  // 4. Jointed ostrich plume & ribbons fluttering in wind + head inertia
   const plumeDrive =
     ambientWind * 6.5 -
     torsoAngularVel * 2.6 +
@@ -1276,7 +1920,6 @@ export function stepSwedishRig(
   p.plumeVel += (plumeDrive - p.plumeSwing * 26 - p.plumeVel * 4.0) * dt;
   p.plumeSwing = Math.max(-0.48, Math.min(0.48, p.plumeSwing + p.plumeVel * dt));
 
-  // 5. Shifting metallic specular sheen across cuirass, morion, zischägge & brass buckles
   p.specularShift = Math.max(
     -1,
     Math.min(1, p.torsoAngle * 2.4 + Math.sin(t * 1.8 + rig.seed) * 0.18),

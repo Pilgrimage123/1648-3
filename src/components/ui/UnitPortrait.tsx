@@ -43,7 +43,7 @@ export function UnitPortrait({
 }: UnitPortraitProps) {
   const locale = useLocale();
   const scenario = useGameStore((s) => s.scenario);
-  const portraitUri = getProceduralPortraitDataUri(archetype, unitId, scenario);
+  const portraitUri = getProceduralPortraitDataUri(archetype, unitId, scenario, faction);
 
   const resolvedTone =
     borderTone !== "auto"

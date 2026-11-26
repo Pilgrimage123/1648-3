@@ -615,8 +615,9 @@ export function getProceduralPortraitDataUri(
   archetype: UnitArchetype,
   unitId?: string,
   scenario?: ScenarioId,
+  faction?: "player" | "enemy",
 ): string {
-  const swedishProfile = resolveSwedishProfile(archetype, unitId, scenario);
+  const swedishProfile = resolveSwedishProfile(archetype, unitId, scenario, faction);
   if (swedishProfile) {
     const canvasPortrait = getSwedishPortraitDataUri(swedishProfile);
     if (canvasPortrait) return canvasPortrait;

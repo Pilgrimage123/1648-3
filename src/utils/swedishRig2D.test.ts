@@ -127,24 +127,123 @@ test("resolves distinct historically authentic 1648 Swedish profiles distinguish
   assert.ok(occultist);
   assert.equal(occultist.id, "m2_occultist");
 
-  // Bohemian / Imperial player units must NOT resolve to Swedish enemy rigs
-  assert.equal(
-    resolveSwedishProfile("ranger", "player-jan-matej", "mission1", "player"),
-    null,
-  );
-  assert.equal(
-    resolveSwedishProfile("commander", "player-colloredo", "mission1", "player"),
-    null,
-  );
-  assert.equal(
-    resolveSwedishProfile("trooper", "player-zak-1", "mission2", "player"),
-    null,
-  );
+  // Prague 1648 Defenders resolve to historically authentic 2D skeletal profiles:
+  // 1. Marshal Rudolf Count Colloredo: caught asleep in his white linen nightshirt (noční košile),
+  //    crimson velvet nightcap & slippers, Maltese Grand Prior cross, walking cane + wheellock pistol, and Lützen limp!
+  const colloredo = resolveSwedishProfile("commander", "player-colloredo", "mission1", "player");
+  assert.ok(colloredo);
+  assert.equal(colloredo.id, "colloredo_marshal");
+  assert.equal(colloredo.faction, "player");
+  assert.equal(colloredo.garmentCut, "nightshirt");
+  assert.equal(colloredo.headgear, "nightcap");
+  assert.equal(colloredo.footwear, "night_slippers");
+  assert.equal(colloredo.primaryWeapon, "colloredo_cane_pistol");
+  assert.equal(colloredo.hasMalteseCross, true);
+  assert.equal(colloredo.hasLimp, true);
+  assert.equal(colloredo.hasParchmentScroll, true);
+  assert.equal(resolveUsesFurketa(colloredo, false), false);
 
-  // Every Swedish profile carries 1648 campaign weathering
+  // 2. Jan Matěj (Valet): ochre buff-leather kolet, half-cuirass, gorget, dragoon carbine & valet cleaver
+  const janMatej = resolveSwedishProfile("ranger", "player-jan-matej", "mission1", "player");
+  assert.ok(janMatej);
+  assert.equal(janMatej.id, "jan_matej_valet");
+  assert.equal(janMatej.faction, "player");
+  assert.equal(janMatej.isBuffLeather, true);
+  assert.equal(janMatej.hasCuirass, true);
+  assert.equal(janMatej.hasGorget, true);
+  assert.equal(janMatej.primaryWeapon, "officer_carbine");
+  assert.equal(janMatej.sidearm, "cleaver");
+
+  // 3. Václav z Michalovic (Scribe & Student): academic coat, captured lightened Swedish M1624 WITHOUT furketa
+  const vaclav = resolveSwedishProfile("sniper", "player-vaclav-michalovic", "mission1", "player");
+  assert.ok(vaclav);
+  assert.equal(vaclav.id, "vaclav_scribe");
+  assert.equal(vaclav.primaryWeapon, "light_musket");
+  assert.equal(vaclav.hasCartridgeBox, true);
+  assert.equal(vaclav.hasParchmentScroll, true);
+  assert.equal(resolveUsesFurketa(vaclav, false), false);
+
+  // 4. Brother Bartoloměj (Maltese Master Armorer): 3/4 armor with Maltese cross & heavy matchlock WITH furketa
+  const bartolomej = resolveSwedishProfile("ranger", "player-bartolomej", "mission1", "player");
+  assert.ok(bartolomej);
+  assert.equal(bartolomej.id, "bartolomej_armorer");
+  assert.equal(bartolomej.hasCuirass, true);
+  assert.equal(bartolomej.hasTassets, true);
+  assert.equal(bartolomej.hasMalteseCross, true);
+  assert.equal(bartolomej.primaryWeapon, "heavy_musket_furketa");
+  assert.equal(resolveUsesFurketa(bartolomej, false), true);
+
+  // 5. Father Jiří Plachý S.J.: towering (~2m) Jesuit in black cassock (sutana), steel gorget, 4-ridged biretta, crucifix & pistol
+  const plachy = resolveSwedishProfile("commander", "player-plachy", "mission2", "player");
+  assert.ok(plachy);
+  assert.equal(plachy.id, "plachy_jesuit");
+  assert.equal(plachy.garmentCut, "jesuit_cassock");
+  assert.equal(plachy.headgear, "jesuit_biretta");
+  assert.equal(plachy.hasGorget, true);
+  assert.equal(plachy.primaryWeapon, "plachy_crucifix_pistol");
+  assert.ok((plachy.heightScale ?? 1) > 1.04);
+
+  // 6. Havel Řezáč (Old Town Butchers' Guild): blood-stained butcher's apron, burgher hat, cleaver & pistol
+  const havel = resolveSwedishProfile("ranger", "player-havel", "mission2", "player");
+  assert.ok(havel);
+  assert.equal(havel.id, "havel_butcher");
+  assert.equal(havel.hasButcherApron, true);
+  assert.equal(havel.headgear, "burgher_hat");
+  assert.equal(havel.primaryWeapon, "havel_cleaver_pistol");
+
+  // 7. Ondřej Štěrba (Nocturnal Rope Scout): coiled climbing rope across chest, dagger & pistol
+  const ondrej = resolveSwedishProfile("sniper", "player-ondrej", "mission2", "player");
+  assert.ok(ondrej);
+  assert.equal(ondrej.id, "ondrej_thief");
+  assert.equal(ondrej.hasCoiledRope, true);
+  assert.equal(ondrej.primaryWeapon, "ondrej_knife_pistol");
+
+  // 8. Žák Klementina (Student Legionnaire): academic coat, student hat with Bohemian cockade, rapier & pistol
+  const student = resolveSwedishProfile("trooper", "player-zak-1", "mission2", "player");
+  assert.ok(student);
+  assert.equal(student.id, "klementinum_student");
+  assert.equal(student.headgear, "student_hat");
+  assert.equal(student.primaryWeapon, "student_pistol");
+
+  // Every profile carries authentic 1648 weathering (Colloredo's indoor nightshirt has lighter dust than trench troops)
   for (const profile of getAllSwedishProfiles()) {
-    assert.ok(profile.mudIntensity > 0.4 && profile.mudIntensity <= 1);
+    assert.ok(profile.mudIntensity > 0.1 && profile.mudIntensity <= 1);
   }
+});
+
+test("Marshal Colloredo's Lützen 1632 war-wound limping gait (hasLimp = true) produces asymmetric front vs. back leg stride", () => {
+  const normalRig = createSwedishRigState(0, false);
+  const limpRig = createSwedishRigState(0, false);
+
+  let maxFrontNormal = 0;
+  let maxBackNormal = 0;
+  let maxFrontLimp = 0;
+  let maxBackLimp = 0;
+
+  for (let i = 0; i < 60; i++) {
+    const pNorm = stepSwedishRig(
+      normalRig,
+      baseInput({ isMoving: true, hasLimp: false }),
+      0.02,
+    );
+    const pLimp = stepSwedishRig(
+      limpRig,
+      baseInput({ isMoving: true, hasLimp: true }),
+      0.02,
+    );
+    maxFrontNormal = Math.max(maxFrontNormal, Math.abs(pNorm.frontHip));
+    maxBackNormal = Math.max(maxBackNormal, Math.abs(pNorm.backHip));
+    maxFrontLimp = Math.max(maxFrontLimp, Math.abs(pLimp.frontHip));
+    maxBackLimp = Math.max(maxBackLimp, Math.abs(pLimp.backHip));
+  }
+
+  // Normal soldier has symmetric front and back hip swing amplitude
+  assert.ok(Math.abs(maxFrontNormal - maxBackNormal) < 0.05);
+  // Colloredo's Lützen-injured back leg swings significantly less than his sound front leg
+  assert.ok(
+    maxBackLimp < maxFrontLimp * 0.65,
+    `Colloredo's injured back leg swing (${maxBackLimp}) should be stiffer than sound front leg (${maxFrontLimp})`,
+  );
 });
 
 test("2-bone IK solver produces finite elbow and hand positions across reachable and over-extended targets", () => {
@@ -157,6 +256,17 @@ test("2-bone IK solver produces finite elbow and hand positions across reachable
   const extended = solveTwoBoneIK({ x: -24, y: -59 }, { x: 240, y: -59 }, 34, 32, 1);
   assert.ok(Number.isFinite(extended.elbow.x) && Number.isFinite(extended.hand.x));
   assert.ok(Math.hypot(extended.hand.x - -24, extended.hand.y - -59) <= 66.01);
+
+  // Dual-hand Prague heroes: near/-X shoulder holds cane/crucifix on -X side, forward/+X shoulder holds pistol on +X side (zero crossing)
+  const colloredoCaneArm = solveTwoBoneIK({ x: -24, y: -59 }, { x: -35, y: -13 }, 34, 32, 1);
+  const colloredoPistolArm = solveTwoBoneIK({ x: 24, y: -59 }, { x: 36, y: -17 }, 34, 32, 1);
+  assert.ok(colloredoCaneArm.elbow.x < 0 && colloredoCaneArm.hand.x < 0);
+  assert.ok(colloredoPistolArm.elbow.x > 0 && colloredoPistolArm.hand.x > 0);
+
+  // Father Jiří Plachý holds his crucifix high on -X side with elbow bending downward (bendDir = -1)
+  const plachyCrucifixArm = solveTwoBoneIK({ x: -24, y: -59 }, { x: -42, y: -38 }, 34, 32, -1);
+  assert.ok(plachyCrucifixArm.elbow.y > plachyCrucifixArm.shoulder.y);
+  assert.ok(plachyCrucifixArm.hand.x < 0);
 });
 
 test("offhand M1624 firing drill (no furketa) skips furketa plant, fires faster with +0.10s pan delay, and has stronger muzzle climb than furketa-braced fire", () => {
