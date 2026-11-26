@@ -20,6 +20,19 @@ import type { ImpactObstacleKind, ProjectileVisual } from "../../store/useGameSt
 import { useGameStore } from "../../store/useGameStore";
 import { gridToWorld } from "./worldCoords";
 
+const SHARED_OCTA_1_0_GEO = new THREE.OctahedronGeometry(1, 0);
+const SHARED_DODECA_1_0_GEO = new THREE.DodecahedronGeometry(1, 0);
+const SHARED_DODECA_085_0_GEO = new THREE.DodecahedronGeometry(0.85, 0);
+const SHARED_DODECA_042_1_GEO = new THREE.DodecahedronGeometry(0.42, 1);
+const SHARED_DODECA_038_1_GEO = new THREE.DodecahedronGeometry(0.38, 1);
+const SHARED_DODECA_036_1_GEO = new THREE.DodecahedronGeometry(0.36, 1);
+const SHARED_DODECA_032_1_GEO = new THREE.DodecahedronGeometry(0.32, 1);
+const SHARED_DODECA_0085_0_GEO = new THREE.DodecahedronGeometry(0.085, 0);
+const SHARED_KEG_DEBRIS_BOX_GEO = new THREE.BoxGeometry(1.4, 0.5, 0.5);
+const SHARED_ARMOR_SPARK_BOX_GEO = new THREE.BoxGeometry(1.2, 0.35, 0.7);
+const SHARED_WOOD_SPLINTER_BOX_GEO = new THREE.BoxGeometry(1.8, 0.38, 0.42);
+const SHARED_SIGHT_SPHERE_GEO = new THREE.SphereGeometry(0.065, 8, 8);
+
 interface ParticleSeed {
   vx: number;
   vy: number;
@@ -186,8 +199,7 @@ function KegExplosionVFX({
       </mesh>
       <group ref={debrisGroupRef}>
         {debrisSeeds.map((_, i) => (
-          <mesh key={i}>
-            <boxGeometry args={[1.4, 0.5, 0.5]} />
+          <mesh key={i} geometry={SHARED_KEG_DEBRIS_BOX_GEO}>
             <meshBasicMaterial
               color={
                 i % 3 === 0 ? "#fde047" : i % 3 === 1 ? "#f97316" : "#78350f"
@@ -917,8 +929,7 @@ function ActiveProjectileVFX({ projectile }: { projectile: ProjectileVisual }) {
         {/* Flying Muzzle Sparks */}
         <group ref={muzzleSparksRef}>
           {muzzleSparkSeeds.map((_, i) => (
-            <mesh key={i}>
-              <octahedronGeometry args={[1, 0]} />
+            <mesh key={i} geometry={SHARED_OCTA_1_0_GEO}>
               <meshBasicMaterial
                 color={i % 2 === 0 ? "#fde047" : "#f97316"}
               />
@@ -929,8 +940,7 @@ function ActiveProjectileVFX({ projectile }: { projectile: ProjectileVisual }) {
         {/* Expanding Black Powder Smoke Puffs */}
         <group ref={muzzleSmokeRef}>
           {smokeSeeds.map((_, i) => (
-            <mesh key={i}>
-              <dodecahedronGeometry args={[0.38, 1]} />
+            <mesh key={i} geometry={SHARED_DODECA_038_1_GEO}>
               <meshBasicMaterial
                 color={projectile.misfired ? "#475569" : "#cbd5e1"}
                 transparent
@@ -993,8 +1003,7 @@ function ActiveProjectileVFX({ projectile }: { projectile: ProjectileVisual }) {
       {/* 2b. Shrapnel Burst Pellet Cloud */}
       <group ref={shrapnelGroupRef}>
         {shrapnelSeeds.map((_, i) => (
-          <mesh key={i}>
-            <dodecahedronGeometry args={[0.085, 0]} />
+          <mesh key={i} geometry={SHARED_DODECA_0085_0_GEO}>
             <meshBasicMaterial color={i % 2 === 0 ? "#fde047" : "#fb7185"} />
           </mesh>
         ))}
@@ -1030,8 +1039,7 @@ function ActiveProjectileVFX({ projectile }: { projectile: ProjectileVisual }) {
         {/* Impact Dust / Black Powder Smoke Puffs */}
         <group ref={impactSmokeRef} visible={false}>
           {impactSmokeSeeds.map((_, i) => (
-            <mesh key={i}>
-              <dodecahedronGeometry args={[0.32, 1]} />
+            <mesh key={i} geometry={SHARED_DODECA_032_1_GEO}>
               <meshBasicMaterial
                 color={isMissedShot ? obstaclePalette.dustColor : "#cbd5e1"}
                 transparent
@@ -1045,8 +1053,7 @@ function ActiveProjectileVFX({ projectile }: { projectile: ProjectileVisual }) {
         {/* Base Sparks (Grenade Embers / Flint Ricochet Sparks / Kinetic Hit Sparks) */}
         <group ref={impactGroupRef} visible={false}>
           {impactSparkSeeds.map((_, i) => (
-            <mesh key={i}>
-              <octahedronGeometry args={[1, 0]} />
+            <mesh key={i} geometry={SHARED_OCTA_1_0_GEO}>
               <meshBasicMaterial
                 color={
                   projectile.kind === "grenade"
@@ -1072,8 +1079,7 @@ function ActiveProjectileVFX({ projectile }: { projectile: ProjectileVisual }) {
         {bloodDropletSeeds.length > 0 && (
           <group ref={bloodDropletsRef} visible={false}>
             {bloodDropletSeeds.map((_, i) => (
-              <mesh key={i}>
-                <dodecahedronGeometry args={[1, 0]} />
+              <mesh key={i} geometry={SHARED_DODECA_1_0_GEO}>
                 <meshBasicMaterial
                   color={bloodColors[i % bloodColors.length]}
                 />
@@ -1086,8 +1092,7 @@ function ActiveProjectileVFX({ projectile }: { projectile: ProjectileVisual }) {
         {bloodMistSeeds.length > 0 && (
           <group ref={bloodMistRef} visible={false}>
             {bloodMistSeeds.map((_, i) => (
-              <mesh key={i}>
-                <dodecahedronGeometry args={[0.36, 1]} />
+              <mesh key={i} geometry={SHARED_DODECA_036_1_GEO}>
                 <meshBasicMaterial
                   color={i % 2 === 0 ? "#991b1b" : "#dc2626"}
                   transparent
@@ -1146,8 +1151,7 @@ function ActiveProjectileVFX({ projectile }: { projectile: ProjectileVisual }) {
         {armorSparkSeeds.length > 0 && (
           <group ref={armorSparksRef} visible={false}>
             {armorSparkSeeds.map((_, i) => (
-              <mesh key={i}>
-                <boxGeometry args={[1.2, 0.35, 0.7]} />
+              <mesh key={i} geometry={SHARED_ARMOR_SPARK_BOX_GEO}>
                 <meshBasicMaterial
                   color={
                     i % 3 === 0
@@ -1166,12 +1170,14 @@ function ActiveProjectileVFX({ projectile }: { projectile: ProjectileVisual }) {
         {obstacleDebrisSeeds.length > 0 && (
           <group ref={obstacleDebrisRef} visible={false}>
             {obstacleDebrisSeeds.map((_, i) => (
-              <mesh key={i}>
-                {projectile.impactObstacle === "palace_wood" ? (
-                  <boxGeometry args={[1.8, 0.38, 0.42]} />
-                ) : (
-                  <dodecahedronGeometry args={[0.85, 0]} />
-                )}
+              <mesh
+                key={i}
+                geometry={
+                  projectile.impactObstacle === "palace_wood"
+                    ? SHARED_WOOD_SPLINTER_BOX_GEO
+                    : SHARED_DODECA_085_0_GEO
+                }
+              >
                 <meshBasicMaterial
                   color={
                     obstaclePalette.chunkColors[
@@ -1188,8 +1194,7 @@ function ActiveProjectileVFX({ projectile }: { projectile: ProjectileVisual }) {
         {obstacleDustSeeds.length > 0 && (
           <group ref={obstacleDustRef} visible={false}>
             {obstacleDustSeeds.map((_, i) => (
-              <mesh key={i}>
-                <dodecahedronGeometry args={[0.42, 1]} />
+              <mesh key={i} geometry={SHARED_DODECA_042_1_GEO}>
                 <meshBasicMaterial
                   color={obstaclePalette.dustColor}
                   transparent
@@ -1317,8 +1322,7 @@ export function CombatLines3D() {
             gapSize={0.2}
           />
           {sightlineData.rayCells.map((pt, idx) => (
-            <mesh key={idx} position={pt}>
-              <sphereGeometry args={[0.065, 8, 8]} />
+            <mesh key={idx} position={pt} geometry={SHARED_SIGHT_SPHERE_GEO}>
               <meshBasicMaterial color={sightlineData.color} />
             </mesh>
           ))}

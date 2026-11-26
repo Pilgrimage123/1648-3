@@ -145,6 +145,11 @@ export function CombatAtmosphereField() {
       Math.max(24, (blastZones.length + combatIntensity) * 14),
     );
 
+    const detHash = (n: number) => {
+      const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
+      return x - Math.floor(x);
+    };
+
     for (let i = 0; i < count; i++) {
       const isEmber = i % 3 === 0;
       const seed = i * 1.618;
@@ -157,16 +162,21 @@ export function CombatAtmosphereField() {
       const rad = 0.5 + ((i * 7) % 24) * 0.18;
       const wx = ax + Math.cos(angle) * rad;
       const wz = az + Math.sin(angle) * rad;
-      const wy = ay + (isEmber ? 0.3 + Math.random() * 2.2 : 0.15 + Math.random() * 1.4);
+      const r0 = detHash(i * 7 + 1);
+      const r1 = detHash(i * 7 + 2);
+      const r2 = detHash(i * 7 + 3);
+      const r3 = detHash(i * 7 + 4);
+      const r4 = detHash(i * 7 + 5);
+      const wy = ay + (isEmber ? 0.3 + r0 * 2.2 : 0.15 + r0 * 1.4);
 
       list.push({
         wx,
         wy,
         wz,
-        vx: (Math.random() - 0.5) * (isEmber ? 0.4 : 0.25),
-        vy: isEmber ? 0.35 + Math.random() * 0.6 : -0.15 - Math.random() * 0.25,
-        vz: (Math.random() - 0.5) * (isEmber ? 0.4 : 0.25),
-        scale: isEmber ? 0.05 + Math.random() * 0.05 : 0.09 + Math.random() * 0.08,
+        vx: (r1 - 0.5) * (isEmber ? 0.4 : 0.25),
+        vy: isEmber ? 0.35 + r2 * 0.6 : -0.15 - r2 * 0.25,
+        vz: (r3 - 0.5) * (isEmber ? 0.4 : 0.25),
+        scale: isEmber ? 0.05 + r4 * 0.05 : 0.09 + r4 * 0.08,
         color: isEmber
           ? new THREE.Color(i % 2 === 0 ? "#f97316" : "#ea580c")
           : new THREE.Color("#d6d3d1"),
@@ -192,6 +202,7 @@ export function CombatAtmosphereField() {
 
   // Animační smyčka: rotace dýmu, vznášení jisker a Chiaroscuro vnitřní rozptyl
   useFrame(({ clock, camera }) => {
+    if (smokePuffs.length === 0 && debrisParticles.length === 0) return;
     const t = clock.getElapsedTime();
     const now = performance.now();
 

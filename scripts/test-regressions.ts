@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { addLightFlash } from "../src/store/storeUtils";
+import { addLightFlash, getSessionEpoch } from "../src/store/storeUtils";
 import { isFixtureDucked, retainFlashes } from "../src/components/canvas/diegeticLights";
 import { appendVictoryLog, resolveShotImpactMetadata } from "../src/store/combatResolution";
 import { evaluateVisibleTargets } from "../src/core/CombatSystem";
@@ -280,4 +280,123 @@ test("GrandPrioryPalaceDressing contains zero non-diegetic pointLight tags (ADR-
     "utf8",
   );
   assert.equal(src.includes("<pointLight"), false, "GrandPrioryPalaceDressing must not mount extra pointLights");
+});
+
+test("openBriefing cancels in-flight coroutines and clears transient motion state", () => {
+  const store = useGameStore.getState();
+  store.beginScenario("mission1");
+  const epochBefore = getSessionEpoch();
+  useGameStore.setState({
+    isBusy: true,
+    activeMovement: {
+      unitId: "player-vaclav-michalovic",
+      from: { x: 10, y: 0, z: 10 },
+      path: [{ x: 10, y: 0, z: 10 }, { x: 10, y: 0, z: 11 }],
+    },
+    activeProjectile: {
+      id: 999,
+      from: { x: 10, y: 0, z: 10 },
+      to: { x: 10, y: 0, z: 12 },
+      kind: "bullet",
+      createdAt: performance.now(),
+      durationMs: 1780,
+      hit: true,
+      critical: false,
+    },
+  });
+
+  useGameStore.getState().openBriefing();
+  const after = useGameStore.getState();
+  assert.ok(getSessionEpoch() > epochBefore, "openBriefing must bump session epoch");
+  assert.equal(after.briefingOpen, true);
+  assert.equal(after.isBusy, false);
+  assert.equal(after.activeMovement, null);
+  assert.equal(after.activeProjectile, null);
+});
+
+test("executeShoot collateral powder_keg blastZone and lightFlash fire at bullet arrival, not t=0", async () => {
+  const origRandom = Math.random;
+  Math.random = () => 0.25;
+  try {
+    const store = useGameStore.getState();
+    store.beginScenario("mission1");
+    useGameStore.getState().skipGuidedTutorial();
+    const grid = useGameStore.getState().grid;
+    const kegCoord = { x: 10, y: 0 as const, z: 11 };
+    const enemyCoord = { x: 11, y: 0 as const, z: 11 };
+    const shooterCoord = { x: 11, y: 0 as const, z: 12 };
+    const kegTile = grid.getTile(kegCoord);
+    assert.ok(kegTile, "Expected keg tile at (10,0,11)");
+    kegTile.obstacle = "powder_keg";
+    kegTile.cover = { N: "half", S: "half", E: "half", W: "half" };
+
+    const enemy = useGameStore.getState().units.find((u) => u.faction === "enemy" && u.alive);
+    const shooter = useGameStore.getState().units.find((u) => u.id === "player-vaclav-michalovic");
+    assert.ok(enemy && shooter, "Expected player-vaclav-michalovic and an enemy");
+
+    useGameStore.setState((s) => ({
+      briefingOpen: false,
+      weather: "clear",
+      blastZones: [],
+      lightFlashes: [],
+      units: s.units.map((u) =>
+        u.id === shooter.id
+          ? {
+              ...u,
+              pos: shooterCoord,
+              ap: 2,
+              firearmLoaded: true,
+              alive: true,
+              weapon: { ...u.weapon, damageMin: 6, damageMax: 6 },
+            }
+          : u.id === enemy.id
+            ? { ...u, pos: enemyCoord, hp: 20, maxHp: 20, alive: true }
+            : u,
+      ),
+    }));
+
+    useGameStore.getState().selectUnit(shooter.id);
+    useGameStore.getState().setActionMode("shoot");
+
+    const shotStartTs = performance.now();
+    useGameStore.getState().executeShoot(enemy.id);
+
+    const atLaunch = useGameStore.getState();
+    assert.equal(
+      atLaunch.lightFlashes.find((f) => f.kind === "blast"),
+      undefined,
+      "Collateral keg blast lightFlash must not fire at t=0",
+    );
+    assert.equal(
+      atLaunch.blastZones.find(
+        (z) => z.isExplosion && z.coord.x === kegCoord.x && z.coord.z === kegCoord.z,
+      ),
+      undefined,
+      "Collateral keg explosion blastZone must not appear at t=0",
+    );
+
+    await new Promise((r) => setTimeout(r, 30));
+    const after = useGameStore.getState();
+
+    const muzzleFlash = after.lightFlashes.find((f) => f.kind === "muzzle");
+    const blastFlash = after.lightFlashes.find((f) => f.kind === "blast");
+    assert.ok(muzzleFlash, "Expected shooter muzzle lightFlash");
+    assert.ok(blastFlash, "Expected collateral keg blast lightFlash after arrival");
+    assert.ok(
+      blastFlash.createdAt >= muzzleFlash.createdAt,
+      `Expected blast lightFlash at/after muzzle flash (${blastFlash.createdAt} >= ${muzzleFlash.createdAt})`,
+    );
+
+    const kegBlastZone = after.blastZones.find(
+      (z) => z.isExplosion && z.coord.x === kegCoord.x && z.coord.z === kegCoord.z,
+    );
+    assert.ok(kegBlastZone, "Expected collateral keg explosion blastZone after arrival");
+    assert.ok(
+      kegBlastZone.createdAt >= shotStartTs,
+      `Expected keg blastZone after shot launch`,
+    );
+  } finally {
+    useGameStore.getState().openBriefing();
+    Math.random = origRandom;
+  }
 });

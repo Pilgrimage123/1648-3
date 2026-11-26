@@ -466,20 +466,6 @@ export function createCombatActions(
               maxRadius: 4.2,
               isExplosion: false,
             },
-            ...(outcome.misfired
-              ? []
-              : [
-                  {
-                    id: nextFxId(),
-                    coord:
-                      willDetonateKegPos ??
-                      (outcome.hit ? target.pos : impactMeta.missImpactCoord),
-                    createdAt: nowTs,
-                    baseRadius: willDetonateKegPos ? 2.8 : 1.3,
-                    maxRadius: willDetonateKegPos ? 7.5 : 3.6,
-                    isExplosion: !!willDetonateKegPos,
-                  },
-                ]),
           ],
           units: s.units.map((u) =>
             u.id === attacker.id
@@ -522,25 +508,10 @@ export function createCombatActions(
             missImpactCoord: impactMeta.missImpactCoord,
             detonatedKegs: willDetonateKegPos ? [willDetonateKegPos] : undefined,
           },
-          lightFlashes: willDetonateKegPos
-            ? addLightFlash(
-                addLightFlash(
-                  s.lightFlashes,
-                  muzzleFlashDraft(attacker.pos, newFacing, outcome.misfired),
-                ),
-                {
-                  kind: "blast",
-                  coord: willDetonateKegPos,
-                  color: "#f97316",
-                  intensity: 14,
-                  radius: 12,
-                  durationMs: 550,
-                },
-              )
-            : addLightFlash(
-                s.lightFlashes,
-                muzzleFlashDraft(attacker.pos, newFacing, outcome.misfired),
-              ),
+          lightFlashes: addLightFlash(
+            s.lightFlashes,
+            muzzleFlashDraft(attacker.pos, newFacing, outcome.misfired),
+          ),
         }));
 
         deps.triggerUnitFx(attacker.id, {
@@ -562,6 +533,7 @@ export function createCombatActions(
           }
         }
         if (willDetonateKegPos) {
+          deps.noteMission3Noise("blast");
           playExplosionSound();
         }
 
@@ -720,9 +692,38 @@ export function createCombatActions(
             nextTutorialStep,
           );
 
+          const impactTs = performance.now();
+          const nextBlastZones = outcome.misfired
+            ? s.blastZones
+            : [
+                ...s.blastZones.slice(-18),
+                {
+                  id: nextFxId(),
+                  coord:
+                    willDetonateKegPos ??
+                    (outcome.hit ? target.pos : impactMeta.missImpactCoord),
+                  createdAt: impactTs,
+                  baseRadius: willDetonateKegPos ? 2.8 : 1.3,
+                  maxRadius: willDetonateKegPos ? 7.5 : 3.6,
+                  isExplosion: !!willDetonateKegPos,
+                },
+              ];
+          const nextLightFlashes = willDetonateKegPos
+            ? addLightFlash(s.lightFlashes, {
+                kind: "blast",
+                coord: willDetonateKegPos,
+                color: "#f97316",
+                intensity: 14,
+                radius: 12,
+                durationMs: 550,
+              })
+            : s.lightFlashes;
+
           return {
             gridVersion: s.gridVersion + (outcome.misfired && !bearerDrop.dropped ? 0 : 1),
             smokeVersion: s.smokeVersion + (kegDetonated ? 2 : 1),
+            blastZones: nextBlastZones,
+            lightFlashes: nextLightFlashes,
             m3: bearerDrop.m3,
             units: finalUnits,
             ...tutorialPatch,
@@ -1742,17 +1743,6 @@ export function createCombatActions(
         set((s) => ({
           isBusy: true,
           combatIntensity: s.combatIntensity + 3,
-          blastZones: [
-            ...s.blastZones.slice(-18),
-            {
-              id: nextFxId(),
-              coord: targetCoord,
-              createdAt: nowTs,
-              baseRadius: 2.6,
-              maxRadius: 7.2,
-              isExplosion: true,
-            },
-          ],
           units: s.units.map((u) =>
             u.id === attacker.id
               ? {
@@ -1892,6 +1882,17 @@ export function createCombatActions(
           return {
             gridVersion: s.gridVersion + 1,
             smokeVersion: s.smokeVersion + 1,
+            blastZones: [
+              ...s.blastZones.slice(-18),
+              {
+                id: nextFxId(),
+                coord: targetCoord,
+                createdAt: performance.now(),
+                baseRadius: 2.6,
+                maxRadius: 7.2,
+                isExplosion: true,
+              },
+            ],
             m3: bearerDrop.m3,
             units: updatedUnits,
             ...tutorialPatch,

@@ -397,8 +397,15 @@ export function createScenarioLifecycleActions(set: StoreSet, get: StoreGet) {
     },
 
     openBriefing: () => {
+      bumpSessionEpoch();
+      resetLiveMovementTelemetry();
       suspendAudio();
-      set({ briefingOpen: true });
+      set({
+        briefingOpen: true,
+        isBusy: false,
+        activeMovement: null,
+        activeProjectile: null,
+      });
     },
   };
 }

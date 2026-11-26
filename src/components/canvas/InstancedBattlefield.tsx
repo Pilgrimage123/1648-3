@@ -1343,6 +1343,11 @@ function BaroqueLivingDecor({
  *    a respektuje pravidlo 60-30-10 (bledě zlatý akcent #fef3c7 / #fde68a na temně břidlicovém podkladu).
  * 3. Čertovka v Misi 1: Noční hladina pod chladným měsíčním svitem a teplou září lucerny pramice.
  */
+const MAX_WATER_TILES = 320;
+const MAX_GROUND_FLOOR_TILES = 672;
+const MAX_UPPER_FLOOR_TILES = 512;
+const MAX_WATCHTOWER_TILES = 128;
+
 function DynamicWaterField({ waterTiles }: { waterTiles: TileData[] }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const grid = useGameStore((s) => s.grid);
@@ -1433,12 +1438,23 @@ function DynamicWaterField({ waterTiles }: { waterTiles: TileData[] }) {
     return edges;
   }, [waterTiles, grid, gridVersion]);
 
+  const waterEntries = useMemo(
+    () =>
+      waterTiles.map((tile) => {
+        const [wx, wy, wz] = gridToWorld(tile.coord);
+        return { tile, wx, wy, wz };
+      }),
+    [waterTiles],
+  );
+
   useEffect(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
 
-    waterTiles.forEach((tile, i) => {
-      const [wx, wy, wz] = gridToWorld(tile.coord);
+    const count = Math.min(waterEntries.length, MAX_WATER_TILES);
+    mesh.count = count;
+    for (let i = 0; i < count; i++) {
+      const { tile, wx, wy, wz } = waterEntries[i]!;
       _dummy.position.set(wx, wy - 0.18, wz);
       _dummy.rotation.set(0, 0, 0);
       _dummy.scale.set(1, 1, 1);
@@ -1450,15 +1466,15 @@ function DynamicWaterField({ waterTiles }: { waterTiles: TileData[] }) {
         0.5 + 0.5 * Math.sin(tile.coord.x * 0.55 + tile.coord.z * 0.45);
       tempCol.copy(baseCol).lerp(waveCol, spatialBlend);
       mesh.setColorAt(i, tempCol);
-    });
+    }
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    mesh.computeBoundingSphere();
-  }, [waterTiles, isMission2, baseCol, waveCol, tempCol]);
+    if (count > 0) mesh.computeBoundingSphere();
+  }, [waterEntries, isMission2, baseCol, waveCol, tempCol]);
 
   useFrame(({ clock, camera }, delta) => {
     const mesh = meshRef.current;
-    if (!mesh || waterTiles.length === 0) return;
+    if (!mesh || waterEntries.length === 0) return;
     const t = clock.getElapsedTime();
     const dt = Math.min(delta, 0.05);
     const rainRipples = weather === "rain" ? 1.35 : 1.0;
@@ -1471,11 +1487,11 @@ function DynamicWaterField({ waterTiles }: { waterTiles: TileData[] }) {
         (tex.waterRippleBump.offset.y + waterProfile.scrollSpeedZ * dt) % 1;
     }
 
+    const count = Math.min(waterEntries.length, MAX_WATER_TILES);
     if (isMission2) {
       // Vltava: Proud řeky na sever (-Z) + klidný ranní sluneční odlesk bez blikání dlaždic (ADR-0018)
-      for (let i = 0; i < waterTiles.length; i++) {
-        const tile = waterTiles[i]!;
-        const [wx, wy, wz] = gridToWorld(tile.coord);
+      for (let i = 0; i < count; i++) {
+        const { tile, wx, wy, wz } = waterEntries[i]!;
 
         const flowZ = t * 1.15 * rainRipples - tile.coord.z * 0.55;
         const crossX = tile.coord.x * 0.45;
@@ -1513,9 +1529,8 @@ function DynamicWaterField({ waterTiles }: { waterTiles: TileData[] }) {
       // Čertovka v Misi 1 & 3: Plynulá hluboká říční hladina s jemným odleskem měsíce a lucerny pramice
       const skiffAnchorX = scenario === "mission3" ? 4.92 : 3.55;
       const skiffAnchorZ = scenario === "mission3" ? 9.5 : 1.08;
-      for (let i = 0; i < waterTiles.length; i++) {
-        const tile = waterTiles[i]!;
-        const [wx, wy, wz] = gridToWorld(tile.coord);
+      for (let i = 0; i < count; i++) {
+        const { tile, wx, wy, wz } = waterEntries[i]!;
         const swell =
           0.5 +
           0.5 *
@@ -1566,9 +1581,9 @@ function DynamicWaterField({ waterTiles }: { waterTiles: TileData[] }) {
   return (
     <group>
       <instancedMesh
-        key={`water-mesh-${waterTiles.length}-${isMission2}`}
         ref={meshRef}
-        args={[undefined, undefined, waterTiles.length]}
+        args={[undefined, undefined, MAX_WATER_TILES]}
+        frustumCulled={false}
         receiveShadow
         raycast={() => null}
       >
@@ -2040,7 +2055,10 @@ export function InstancedBattlefield() {
   useEffect(() => {
     const mesh = groundMeshRef.current;
     if (!mesh) return;
-    groundFloorTiles.forEach((tile, i) => {
+    const count = Math.min(groundFloorTiles.length, MAX_GROUND_FLOOR_TILES);
+    mesh.count = count;
+    for (let i = 0; i < count; i++) {
+      const tile = groundFloorTiles[i]!;
       const [wx, wy, wz] = gridToWorld(tile.coord);
       const isWater = tile.surface === "water";
       _dummy.position.set(wx, wy + (isWater ? -0.36 : -0.08), wz);
@@ -2056,18 +2074,25 @@ export function InstancedBattlefield() {
       const fogVis = getTileVisibility(tile.coord, fogSnapshot, fogOfWarEnabled);
       assignFloorTileColor(tile, dim0, fogVis);
       mesh.setColorAt(i, _color);
-    });
+    }
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    mesh.computeBoundingSphere();
+    if (count > 0) mesh.computeBoundingSphere();
   }, [groundFloorTiles, grid, gridVersion, effectiveViewFloor, fogSnapshot, fogOfWarEnabled, scenario]);
 
   // Populate 1st Floor (y = 1: Piano Nobile & Garden Belvedere) InstancedMesh
   useEffect(() => {
     const mesh = upperMeshRef.current;
     if (!mesh) return;
+    const count = Math.min(upperFloorTiles.length, MAX_UPPER_FLOOR_TILES);
+    mesh.count = count;
+    if (count === 0) {
+      mesh.instanceMatrix.needsUpdate = true;
+      return;
+    }
     const dim1 = effectiveViewFloor > 1 ? 0.74 : 1.0;
-    upperFloorTiles.forEach((tile, i) => {
+    for (let i = 0; i < count; i++) {
+      const tile = upperFloorTiles[i]!;
       const [wx, wy, wz] = gridToWorld(tile.coord);
       _dummy.position.set(wx, wy - 0.08, wz);
       _dummy.rotation.set(0, 0, 0);
@@ -2078,17 +2103,24 @@ export function InstancedBattlefield() {
       const fogVis = getTileVisibility(tile.coord, fogSnapshot, fogOfWarEnabled);
       assignFloorTileColor(tile, dim1, fogVis);
       mesh.setColorAt(i, _color);
-    });
+    }
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    if (upperFloorTiles.length > 0) mesh.computeBoundingSphere();
+    mesh.computeBoundingSphere();
   }, [upperFloorTiles, gridVersion, effectiveViewFloor, fogSnapshot, fogOfWarEnabled, scenario]);
 
   // Populate 2nd Floor (y = 2: Maltese Watchtower) InstancedMesh
   useEffect(() => {
     const mesh = watchtowerMeshRef.current;
     if (!mesh) return;
-    watchtowerFloorTiles.forEach((tile, i) => {
+    const count = Math.min(watchtowerFloorTiles.length, MAX_WATCHTOWER_TILES);
+    mesh.count = count;
+    if (count === 0) {
+      mesh.instanceMatrix.needsUpdate = true;
+      return;
+    }
+    for (let i = 0; i < count; i++) {
+      const tile = watchtowerFloorTiles[i]!;
       const [wx, wy, wz] = gridToWorld(tile.coord);
       _dummy.position.set(wx, wy - 0.08, wz);
       _dummy.rotation.set(0, 0, 0);
@@ -2099,11 +2131,18 @@ export function InstancedBattlefield() {
       const fogVis = getTileVisibility(tile.coord, fogSnapshot, fogOfWarEnabled);
       assignFloorTileColor(tile, 1.0, fogVis);
       mesh.setColorAt(i, _color);
-    });
+    }
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    if (watchtowerFloorTiles.length > 0) mesh.computeBoundingSphere();
+    mesh.computeBoundingSphere();
   }, [watchtowerFloorTiles, gridVersion, fogSnapshot, fogOfWarEnabled, scenario]);
+
+  const selX = selectedUnit?.pos.x;
+  const selY = selectedUnit?.pos.y;
+  const selZ = selectedUnit?.pos.z;
+  const tgtX = selectedTargetUnit?.pos.x;
+  const tgtY = selectedTargetUnit?.pos.y;
+  const tgtZ = selectedTargetUnit?.pos.z;
 
   // Populate Obstacles InstancedMeshes across P0, P1, P2 with Chiaroscuro Fog of War shading
   useEffect(() => {
@@ -2168,17 +2207,24 @@ export function InstancedBattlefield() {
     const angle = Math.PI * 0.25 + cameraStep * (Math.PI * 0.5);
     const camDirX = Math.sin(angle);
     const camDirZ = Math.cos(angle);
+    const selPos =
+      selX !== undefined && selY !== undefined && selZ !== undefined
+        ? { x: selX, y: selY, z: selZ }
+        : undefined;
+    const tgtPos =
+      tgtX !== undefined && tgtY !== undefined && tgtZ !== undefined
+        ? { x: tgtX, y: tgtY, z: tgtZ }
+        : undefined;
     const focusCoord =
       activeProjectile?.to ??
-      selectedUnit?.pos ??
-      hoveredTile ?? { x: 10, y: 0, z: 18 };
+      selPos ?? { x: 10, y: 0, z: 18 };
 
     const shotFrom =
       activeProjectile?.from ??
-      (actionMode === "shoot" ? selectedUnit?.pos : undefined);
+      (actionMode === "shoot" ? selPos : undefined);
     const shotTo =
       activeProjectile?.to ??
-      (actionMode === "shoot" ? selectedTargetUnit?.pos : undefined);
+      (actionMode === "shoot" ? tgtPos : undefined);
     const missImpact =
       activeProjectile?.hit === false
         ? activeProjectile.missImpactCoord
@@ -2472,21 +2518,23 @@ export function InstancedBattlefield() {
     cameraStep,
     actionMode,
     activeProjectile,
-    selectedUnit?.pos,
-    selectedTargetUnit?.pos,
+    selX,
+    selY,
+    selZ,
+    tgtX,
+    tgtY,
+    tgtZ,
     effectiveViewFloor,
     scenario,
   ]);
 
-  // Populate Nocturnal Fog of War Shroud Veil & Chiaroscuro Torchlight Frontier Rim
+  // Populate Nocturnal Fog of War Shroud Veil
   useEffect(() => {
     const veilMesh = fogVeilMeshRef.current;
-    const rimMesh = frontierRimMeshRef.current;
-    if (!veilMesh || !rimMesh) return;
+    if (!veilMesh) return;
 
     if (!fogOfWarEnabled) {
       veilMesh.count = 0;
-      rimMesh.count = 0;
       return;
     }
 
@@ -2497,83 +2545,56 @@ export function InstancedBattlefield() {
     ];
 
     const veilCap = veilMesh.instanceMatrix.count;
-    const rimCap = rimMesh.instanceMatrix.count;
     let veilIdx = 0;
-    let rimIdx = 0;
 
     for (const tile of activeTiles) {
       // Never draw ground-level fog-of-war square tiles over recessed river/canal water
       if (tile.surface === "water") continue;
 
       const vis = getTileVisibility(tile.coord, fogSnapshot, fogOfWarEnabled);
-      const [wx, wy, wz] = gridToWorld(tile.coord);
+      if (vis !== "unexplored" && vis !== "shrouded") continue;
 
-      if (vis === "unexplored" || vis === "shrouded") {
-        // Uvnitř nasvíceného Velkopřevorského paláce (z >= 15) nezakrýváme prozkoumané sály ("shrouded")
-        // temně modrou mlžnou clonou, aby vynikla teplá záře lustrů, koberců a vybavení!
-        const isShroudedPalaceInterior =
-          vis === "shrouded" &&
-          scenario === "mission1" &&
-          tile.coord.z >= 15 &&
-          tile.coord.x >= 2 &&
-          tile.coord.x <= 21;
+      // Uvnitř nasvíceného Velkopřevorského paláce (z >= 15) nezakrýváme prozkoumané sály ("shrouded")
+      // temně modrou mlžnou clonou, aby vynikla teplá záře lustrů, koberců a vybavení!
+      const isShroudedPalaceInterior =
+        vis === "shrouded" &&
+        scenario === "mission1" &&
+        tile.coord.z >= 15 &&
+        tile.coord.x >= 2 &&
+        tile.coord.x <= 21;
 
-        // Nevykreslujeme mlžný závoj přímo na poli, které je v aktivní pohybové zóně (Blue/Yellow),
-        // aby taktická mřížka pohybu (Pillar 1) zůstala 100% křišťálově čitelná!
-        const isReachableOnViewFloor =
-          actionMode === "move" &&
-          tile.coord.y === effectiveViewFloor &&
-          reachableTiles.has(coordKey(tile.coord));
+      // Nevykreslujeme mlžný závoj přímo na poli, které je v aktivní pohybové zóně (Blue/Yellow),
+      // aby taktická mřížka pohybu (Pillar 1) zůstala 100% křišťálově čitelná!
+      const isReachableOnViewFloor =
+        actionMode === "move" &&
+        tile.coord.y === effectiveViewFloor &&
+        reachableTiles.has(coordKey(tile.coord));
 
-        if (!isShroudedPalaceInterior && (!isReachableOnViewFloor || vis === "unexplored") && veilIdx < veilCap) {
-          _dummy.position.set(
-            wx,
-            wy + (vis === "unexplored" ? 0.065 : 0.04),
-            wz,
-          );
-          _dummy.rotation.set(-Math.PI * 0.5, 0, 0);
-          const scale =
-            vis === "unexplored"
-              ? isReachableOnViewFloor
-                ? 0.42
-                : 0.98
-              : 0.88;
-          _dummy.scale.set(scale, scale, 1);
-          _dummy.updateMatrix();
-          veilMesh.setMatrixAt(veilIdx, _dummy.matrix);
+      if (!isShroudedPalaceInterior && (!isReachableOnViewFloor || vis === "unexplored") && veilIdx < veilCap) {
+        const [wx, wy, wz] = gridToWorld(tile.coord);
+        _dummy.position.set(
+          wx,
+          wy + (vis === "unexplored" ? 0.065 : 0.04),
+          wz,
+        );
+        _dummy.rotation.set(-Math.PI * 0.5, 0, 0);
+        const scale =
+          vis === "unexplored"
+            ? isReachableOnViewFloor
+              ? 0.42
+              : 0.98
+            : 0.88;
+        _dummy.scale.set(scale, scale, 1);
+        _dummy.updateMatrix();
+        veilMesh.setMatrixAt(veilIdx, _dummy.matrix);
 
-          if (vis === "unexplored") {
-            _color.setHex(0x050608);
-          } else {
-            _color.setHex(0x141312);
-          }
-          veilMesh.setColorAt(veilIdx, _color);
-          veilIdx++;
+        if (vis === "unexplored") {
+          _color.setHex(0x050608);
+        } else {
+          _color.setHex(0x141312);
         }
-      } else if (vis === "visible" && tile.coord.y === effectiveViewFloor && rimIdx < rimCap) {
-        // Zkontrolujeme, zda toto nasvícené pole sousedí s šerosvitem — pokud ano, vykreslíme jemný jantarový lem pochodně
-        const neighbors = [
-          { x: tile.coord.x + 1, y: tile.coord.y, z: tile.coord.z },
-          { x: tile.coord.x - 1, y: tile.coord.y, z: tile.coord.z },
-          { x: tile.coord.x, y: tile.coord.y, z: tile.coord.z + 1 },
-          { x: tile.coord.x, y: tile.coord.y, z: tile.coord.z - 1 },
-        ];
-        const bordersShadow = neighbors.some((nc) => {
-          const nt = grid.getTile(nc);
-          if (!nt || !nt.hasFloor || nt.surface === "water") return false;
-          return !fogSnapshot.visibleCoords.has(coordKey(nc));
-        });
-
-        if (bordersShadow) {
-          _dummy.position.set(wx, wy + 0.024, wz);
-          _dummy.rotation.set(-Math.PI * 0.5, 0, Math.PI * 0.25);
-          _dummy.scale.set(0.96, 0.96, 1);
-          _dummy.updateMatrix();
-          rimMesh.setMatrixAt(rimIdx, _dummy.matrix);
-          _color.setHex(0xd97706);
-          rimMesh.setColorAt(rimIdx, _color);
-          rimIdx++;
-        }
+        veilMesh.setColorAt(veilIdx, _color);
+        veilIdx++;
       }
     }
 
@@ -2581,6 +2602,68 @@ export function InstancedBattlefield() {
     veilMesh.instanceMatrix.needsUpdate = true;
     if (veilMesh.instanceColor) veilMesh.instanceColor.needsUpdate = true;
     if (veilIdx > 0) veilMesh.computeBoundingSphere();
+  }, [
+    groundFloorTiles,
+    upperFloorTiles,
+    watchtowerFloorTiles,
+    effectiveViewFloor,
+    fogSnapshot,
+    fogOfWarEnabled,
+    actionMode,
+    reachableTiles,
+    scenario,
+  ]);
+
+  // Populate Chiaroscuro Torchlight Frontier Rim (independent of actionMode / reachableTiles)
+  useEffect(() => {
+    const rimMesh = frontierRimMeshRef.current;
+    if (!rimMesh) return;
+
+    if (!fogOfWarEnabled) {
+      rimMesh.count = 0;
+      return;
+    }
+
+    const activeTiles = [
+      ...groundFloorTiles,
+      ...(effectiveViewFloor >= 1 ? upperFloorTiles : []),
+      ...(effectiveViewFloor >= 2 ? watchtowerFloorTiles : []),
+    ];
+
+    const rimCap = rimMesh.instanceMatrix.count;
+    let rimIdx = 0;
+
+    for (const tile of activeTiles) {
+      if (tile.surface === "water" || tile.coord.y !== effectiveViewFloor) continue;
+      if (rimIdx >= rimCap) break;
+
+      const vis = getTileVisibility(tile.coord, fogSnapshot, fogOfWarEnabled);
+      if (vis !== "visible") continue;
+
+      const neighbors = [
+        { x: tile.coord.x + 1, y: tile.coord.y, z: tile.coord.z },
+        { x: tile.coord.x - 1, y: tile.coord.y, z: tile.coord.z },
+        { x: tile.coord.x, y: tile.coord.y, z: tile.coord.z + 1 },
+        { x: tile.coord.x, y: tile.coord.y, z: tile.coord.z - 1 },
+      ];
+      const bordersShadow = neighbors.some((nc) => {
+        const nt = grid.getTile(nc);
+        if (!nt || !nt.hasFloor || nt.surface === "water") return false;
+        return !fogSnapshot.visibleCoords.has(coordKey(nc));
+      });
+
+      if (bordersShadow) {
+        const [wx, wy, wz] = gridToWorld(tile.coord);
+        _dummy.position.set(wx, wy + 0.024, wz);
+        _dummy.rotation.set(-Math.PI * 0.5, 0, Math.PI * 0.25);
+        _dummy.scale.set(0.96, 0.96, 1);
+        _dummy.updateMatrix();
+        rimMesh.setMatrixAt(rimIdx, _dummy.matrix);
+        _color.setHex(0xd97706);
+        rimMesh.setColorAt(rimIdx, _color);
+        rimIdx++;
+      }
+    }
 
     rimMesh.count = rimIdx;
     rimMesh.instanceMatrix.needsUpdate = true;
@@ -2593,10 +2676,7 @@ export function InstancedBattlefield() {
     effectiveViewFloor,
     fogSnapshot,
     fogOfWarEnabled,
-    actionMode,
-    reachableTiles,
     grid,
-    scenario,
   ]);
 
   // Populate Reachable Movement Zones — Filtered by `effectiveViewFloor` so upper/lower floors don't create double-grid clutter!
@@ -2910,9 +2990,9 @@ export function InstancedBattlefield() {
       <Mission3Marks />
       {/* 1. Ground Floor (y = 0) Calm Desaturated Tiles (60% Palette) */}
       <instancedMesh
-        key={`ground-floor-${groundFloorTiles.length}-${scenario}`}
         ref={groundMeshRef}
-        args={[undefined, undefined, Math.max(1, groundFloorTiles.length)]}
+        args={[undefined, undefined, MAX_GROUND_FLOOR_TILES]}
+        frustumCulled={false}
         receiveShadow
         onPointerMove={(e) => onFloorPointerMove(e, groundFloorTiles, 0)}
         onClick={(e) => onFloorClick(e, groundFloorTiles, 0)}
@@ -2930,9 +3010,9 @@ export function InstancedBattlefield() {
 
       {/* 2. 1st Floor (y = 1: Piano Nobile & Garden Belvedere) with Clean Cutaway */}
       <instancedMesh
-        key={`upper-floor-${upperFloorTiles.length}-${scenario}`}
         ref={upperMeshRef}
-        args={[undefined, undefined, Math.max(1, upperFloorTiles.length)]}
+        args={[undefined, undefined, MAX_UPPER_FLOOR_TILES]}
+        frustumCulled={false}
         castShadow={!upperCutaway}
         receiveShadow
         raycast={
@@ -2957,10 +3037,9 @@ export function InstancedBattlefield() {
 
       {/* 2b. 2nd Floor (y = 2: Maltese Watchtower) with Clean Cutaway */}
       <instancedMesh
-        key={`watchtower-floor-${watchtowerFloorTiles.length}-${scenario}`}
         ref={watchtowerMeshRef}
-        args={[undefined, undefined, Math.max(1, watchtowerFloorTiles.length)]}
-        count={watchtowerFloorTiles.length}
+        args={[undefined, undefined, MAX_WATCHTOWER_TILES]}
+        frustumCulled={false}
         castShadow={!watchtowerCutaway}
         receiveShadow
         raycast={

@@ -807,18 +807,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             maxRadius: 3.8,
             isExplosion: false,
           },
-          ...(outcome.misfired
-            ? []
-            : [
-                {
-                  id: nextFxId(),
-                  coord: outcome.hit ? ambushCoord : impactMeta.missImpactCoord,
-                  createdAt: nowTs,
-                  baseRadius: 1.2,
-                  maxRadius: 3.2,
-                  isExplosion: false,
-                },
-              ]),
         ],
         units: s.units.map((u) =>
           u.id === freshWatcher.id
@@ -922,6 +910,19 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
         return {
           gridVersion: s.gridVersion + (outcome.misfired ? 0 : 1),
+          blastZones: outcome.misfired
+            ? s.blastZones
+            : [
+                ...s.blastZones.slice(-18),
+                {
+                  id: nextFxId(),
+                  coord: outcome.hit ? ambushCoord : impactMeta.missImpactCoord,
+                  createdAt: performance.now(),
+                  baseRadius: 1.2,
+                  maxRadius: 3.2,
+                  isExplosion: false,
+                },
+              ],
           units: syncedUnits,
           combatLog: [
             ...s.combatLog,

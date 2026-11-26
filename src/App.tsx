@@ -167,7 +167,7 @@ export default function App() {
         }
         if (e.key === "4") {
           e.preventDefault();
-          state.setActionMode("grenade");
+          state.setActionMode(state.actionMode === "grenade" ? "move" : "grenade");
           return;
         }
         if (e.key === "5") {
@@ -218,7 +218,7 @@ export default function App() {
           state.executeMelee();
           return;
         }
-        if (state.actionMode !== "shoot" && state.actionMode !== "melee" && e.key === " ") {
+        if (state.actionMode === "move" && e.key === " ") {
           e.preventDefault();
           state.endTurn();
           return;

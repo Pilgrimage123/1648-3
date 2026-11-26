@@ -147,7 +147,6 @@ export function RainParticles() {
     const t = clock.getElapsedTime();
     const nowMs = performance.now();
 
-    const escape = getMission1EscapeTile(grid);
     const scenario = useGameStore.getState().scenario;
     const litTorches = fixturesForScenario(scenario).filter((fixture) => fixture.kind === "torch")
       .map((fixture) =>
@@ -159,14 +158,6 @@ export function RainParticles() {
         ),
       )
       .filter((state) => !state.snuffed && state.coord.y <= activeFloor);
-    const lantern = escape
-      ? evaluateLantern(
-          escape.coord,
-          weather,
-          grid.getTile(escape.coord)?.damageLevel ?? 0,
-          isFixtureDucked(escape.coord, nowMs, lightFlashes, blastZones),
-        )
-      : null;
     const cords = matchcordCandidates(
       units,
       fogOfWarEnabled,
@@ -174,42 +165,52 @@ export function RainParticles() {
       fogSnapshot.soundContacts,
       grid,
     );
-    const glintSources = [
-      ...litTorches.map((torch) => ({
-        position: torch.position,
-        exposed: torch.exposed && !torch.snuffed,
-      })),
-      ...(lantern
-        ? [
-            {
-              position: lantern.position,
-              exposed: !lantern.snuffed,
-            },
-          ]
-        : []),
-      ...cords
-        .filter((cord) => !cord.roofed)
-        .map((cord) => ({ position: cord.position, exposed: true })),
-      ...lightFlashes
-        .filter((flash) => nowMs - flash.createdAt < flash.durationMs)
-        .filter(
-          (flash) =>
-            !grid.isEnclosedRoofed(flash.coord.x, flash.coord.y, flash.coord.z),
-        )
-        .map((flash) => {
-          const [gx, gy, gz] = gridToWorld(flash.coord);
-          const origin = flash.world ?? {
-            x: gx,
-            y: gy + (flash.kind === "muzzle" ? 1.05 : 0.6),
-            z: gz,
-          };
-          return { position: origin, exposed: true };
-        }),
-    ];
 
     // 1. Update Outdoor Rain (strictly masked from enclosed palace & covered roofs)
     const rainMesh = rainMeshRef.current;
     if (rainMesh && weather === "rain") {
+      const escape = getMission1EscapeTile(grid);
+      const lantern = escape
+        ? evaluateLantern(
+            escape.coord,
+            weather,
+            grid.getTile(escape.coord)?.damageLevel ?? 0,
+            isFixtureDucked(escape.coord, nowMs, lightFlashes, blastZones),
+          )
+        : null;
+      const glintSources = [
+        ...litTorches.map((torch) => ({
+          position: torch.position,
+          exposed: torch.exposed && !torch.snuffed,
+        })),
+        ...(lantern
+          ? [
+              {
+                position: lantern.position,
+                exposed: !lantern.snuffed,
+              },
+            ]
+          : []),
+        ...cords
+          .filter((cord) => !cord.roofed)
+          .map((cord) => ({ position: cord.position, exposed: true })),
+        ...lightFlashes
+          .filter((flash) => nowMs - flash.createdAt < flash.durationMs)
+          .filter(
+            (flash) =>
+              !grid.isEnclosedRoofed(flash.coord.x, flash.coord.y, flash.coord.z),
+          )
+          .map((flash) => {
+            const [gx, gy, gz] = gridToWorld(flash.coord);
+            const origin = flash.world ?? {
+              x: gx,
+              y: gy + (flash.kind === "muzzle" ? 1.05 : 0.6),
+              z: gz,
+            };
+            return { position: origin, exposed: true };
+          }),
+      ];
+
       rainData.forEach((drop, i) => {
         drop.y -= drop.speed * dt;
         drop.x -= dt * 2.2;
@@ -257,62 +258,58 @@ export function RainParticles() {
           )
         : 0;
 
-      ashData.forEach((flake, i) => {
-        if (i >= activeAshCount || !hasCombatZones) {
-          dummy.position.set(0, -50, 0);
-          dummy.scale.setScalar(0);
+      ashMesh.count = activeAshCount;
+      if (activeAshCount > 0) {
+        for (let i = 0; i < activeAshCount; i++) {
+          const flake = ashData[i]!;
+          const zone = blastZones[flake.zoneSeed % blastZones.length]!;
+          const [zx, zy, zz] = gridToWorld(zone.coord);
+          const ageSec = Math.max(0, (nowMs - zone.createdAt) / 1000);
+          // Organic outward diffusion radius (in world meters): starts compact, expands smoothly over time
+          const currentRadius =
+            Math.min(zone.maxRadius, zone.baseRadius + ageSec * 0.42) * TILE_SIZE;
+          const indoor = grid.isEnclosedRoofed(
+            zone.coord.x,
+            zone.coord.y,
+            zone.coord.z,
+          );
+          // Indoors (inside the palace), air is calmer without outdoor wind; ceiling caps height
+          const windFactor = indoor ? 0.18 : 0.75;
+          const maxHeight = indoor ? zy + 2.1 : zy + 4.8;
+
+          // Respawn flake inside its assigned blast zone if uninitialized or settled on floor
+          const distSq = (flake.x - zx) ** 2 + (flake.z - zz) ** 2;
+          if (
+            flake.y < zy + 0.06 ||
+            flake.y > maxHeight + 0.5 ||
+            distSq > (currentRadius + 1.2) ** 2
+          ) {
+            const angle = Math.random() * Math.PI * 2;
+            const r = Math.sqrt(Math.random()) * currentRadius;
+            flake.x = zx + Math.cos(angle) * r;
+            flake.z = zz + Math.sin(angle) * r;
+            flake.y = zy + 0.35 + Math.random() * Math.min(2.2, maxHeight - zy);
+          } else {
+            flake.x +=
+              (flake.vx * windFactor +
+                Math.sin(t * 1.4 + flake.phase) * 0.16) *
+              dt;
+            flake.y +=
+              (flake.vy + Math.cos(t * 1.9 + flake.phase) * 0.08) * dt;
+            flake.z +=
+              (flake.vz * windFactor +
+                Math.cos(t * 1.2 + flake.phase) * 0.16) *
+              dt;
+          }
+
+          dummy.position.set(flake.x, flake.y, flake.z);
+          dummy.rotation.set(t * 1.4 + flake.phase, t * 1.1, flake.phase);
+          dummy.scale.setScalar(flake.scale);
           dummy.updateMatrix();
           ashMesh.setMatrixAt(i, dummy.matrix);
-          return;
         }
-
-        const zone = blastZones[flake.zoneSeed % blastZones.length]!;
-        const [zx, zy, zz] = gridToWorld(zone.coord);
-        const ageSec = Math.max(0, (nowMs - zone.createdAt) / 1000);
-        // Organic outward diffusion radius (in world meters): starts compact, expands smoothly over time
-        const currentRadius =
-          Math.min(zone.maxRadius, zone.baseRadius + ageSec * 0.42) * TILE_SIZE;
-        const indoor = grid.isEnclosedRoofed(
-          zone.coord.x,
-          zone.coord.y,
-          zone.coord.z,
-        );
-        // Indoors (inside the palace), air is calmer without outdoor wind; ceiling caps height
-        const windFactor = indoor ? 0.18 : 0.75;
-        const maxHeight = indoor ? zy + 2.1 : zy + 4.8;
-
-        // Respawn flake inside its assigned blast zone if uninitialized or settled on floor
-        const distSq = (flake.x - zx) ** 2 + (flake.z - zz) ** 2;
-        if (
-          flake.y < zy + 0.06 ||
-          flake.y > maxHeight + 0.5 ||
-          distSq > (currentRadius + 1.2) ** 2
-        ) {
-          const angle = Math.random() * Math.PI * 2;
-          const r = Math.sqrt(Math.random()) * currentRadius;
-          flake.x = zx + Math.cos(angle) * r;
-          flake.z = zz + Math.sin(angle) * r;
-          flake.y = zy + 0.35 + Math.random() * Math.min(2.2, maxHeight - zy);
-        } else {
-          flake.x +=
-            (flake.vx * windFactor +
-              Math.sin(t * 1.4 + flake.phase) * 0.16) *
-            dt;
-          flake.y +=
-            (flake.vy + Math.cos(t * 1.9 + flake.phase) * 0.08) * dt;
-          flake.z +=
-            (flake.vz * windFactor +
-              Math.cos(t * 1.2 + flake.phase) * 0.16) *
-            dt;
-        }
-
-        dummy.position.set(flake.x, flake.y, flake.z);
-        dummy.rotation.set(t * 1.4 + flake.phase, t * 1.1, flake.phase);
-        dummy.scale.setScalar(flake.scale);
-        dummy.updateMatrix();
-        ashMesh.setMatrixAt(i, dummy.matrix);
-      });
-      ashMesh.instanceMatrix.needsUpdate = true;
+        ashMesh.instanceMatrix.needsUpdate = true;
+      }
     }
 
     // 3. Embers rise from a cause: a torch, a burning matchcord, or a blast.
@@ -335,8 +332,18 @@ export function RainParticles() {
           : 0;
       const cordStart = TORCH_EMBER_COUNT;
       const combatStart = reserved;
+      const activeEmberLimit =
+        combatEmberCount > 0
+          ? combatStart + combatEmberCount
+          : cordEmberCount > 0
+            ? cordStart + cordEmberCount
+            : torchEmberCount;
 
-      emberData.forEach((ember, i) => {
+      emberMesh.count = activeEmberLimit;
+      if (activeEmberLimit === 0) return;
+
+      for (let i = 0; i < activeEmberLimit; i++) {
+        const ember = emberData[i]!;
         const isTorchEmber = i < torchEmberCount;
         const isCordEmber = i >= cordStart && i < cordStart + cordEmberCount;
         const isCombatEmber =
@@ -346,7 +353,7 @@ export function RainParticles() {
           dummy.scale.setScalar(0);
           dummy.updateMatrix();
           emberMesh.setMatrixAt(i, dummy.matrix);
-          return;
+          continue;
         }
 
         const rise = isTorchEmber && weather === "rain" ? 0.45 : 1;
@@ -405,7 +412,7 @@ export function RainParticles() {
         dummy.scale.setScalar(ember.scale * flicker * (isCordEmber ? 0.65 : 1));
         dummy.updateMatrix();
         emberMesh.setMatrixAt(i, dummy.matrix);
-      });
+      }
       emberMesh.instanceMatrix.needsUpdate = true;
     }
   });

@@ -948,20 +948,6 @@ export function createAiTurnRunner(
                     maxRadius: 4.0,
                     isExplosion: false,
                   },
-                  ...(outcome.misfired
-                    ? []
-                    : [
-                        {
-                          id: nextFxId(),
-                          coord: outcome.hit
-                            ? targetUnit.pos
-                            : impactMeta.missImpactCoord,
-                          createdAt: nowTs,
-                          baseRadius: 1.2,
-                          maxRadius: 3.4,
-                          isExplosion: false,
-                        },
-                      ]),
                 ],
                 units: s.units.map((u) =>
                   u.id === updatedEnemy.id
@@ -1077,17 +1063,34 @@ export function createAiTurnRunner(
                   );
                 }
 
+                const nextBlastZones = outcome.misfired
+                  ? s.blastZones
+                  : [
+                      ...s.blastZones.slice(-18),
+                      {
+                        id: nextFxId(),
+                        coord: outcome.hit
+                          ? targetUnit.pos
+                          : impactMeta.missImpactCoord,
+                        createdAt: performance.now(),
+                        baseRadius: 1.2,
+                        maxRadius: 3.4,
+                        isExplosion: false,
+                      },
+                    ];
+
                 const nextFog = computeFogOfWar(
                   s.grid,
                   syncedUnits,
                   s.weather,
                   s.fogSnapshot.exploredCoords,
-                  extractDynamicLights(s.blastZones),
+                  extractDynamicLights(nextBlastZones),
                   s.scenario,
                 );
 
                 return {
                   gridVersion: s.gridVersion + (outcome.misfired ? 0 : 1),
+                  blastZones: nextBlastZones,
                   units: syncedUnits,
                   fogSnapshot: nextFog,
                   combatLog: [

@@ -109,7 +109,7 @@ export function WorldHtml({
   className,
   eps = 0.001,
 }: WorldHtmlProps) {
-  const { gl, camera, scene, size } = useThree();
+  const { gl, camera, size } = useThree();
   const [el] = useState(() => document.createElement("div"));
   const rootRef = useRef<Root | null>(null);
   const groupRef = useRef<THREE.Group>(null);
