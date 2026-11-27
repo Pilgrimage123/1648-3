@@ -163,7 +163,7 @@ function meleeKindLabel(kind: MeleeWeaponStats["kind"]): string {
 }
 
 function surfaceLabel(surface: TileData["surface"], scenario?: ScenarioId): string {
-  if (surface === "water" && scenario === "mission2") {
+  if (surface === "water" && (scenario === "mission2" || scenario === "mission4")) {
     return text("inspect.surface.water.vltava");
   }
   return text(`inspect.surface.${surface}`);
@@ -183,6 +183,9 @@ function floorLabel(floor: FloorLevel, scenario?: ScenarioId): string {
   }
   if (scenario === "mission3" && (floor === 0 || floor === 1)) {
     return text(`inspect.floor.m3.${floor}`);
+  }
+  if (scenario === "mission4") {
+    return text(`inspect.floor.m4.${floor}`);
   }
   return text(`inspect.floor.${floor}`);
 }

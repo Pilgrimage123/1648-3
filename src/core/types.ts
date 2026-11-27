@@ -469,7 +469,7 @@ export interface FogOfWarSnapshot {
   unitSightRadii: Record<string, number>;
 }
 
-export type ScenarioId = "mission1" | "mission2" | "mission3";
+export type ScenarioId = "mission1" | "mission2" | "mission3" | "mission4";
 
 export type ActionMode = "move" | "shoot" | "grenade" | "melee" | "reload" | "lay";
 

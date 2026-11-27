@@ -22,6 +22,7 @@ import type {
   FirearmLockType,
   FloorLevel,
   GridCoord,
+  ScenarioId,
   UnitData,
   WeatherType,
 } from "./types";
@@ -47,6 +48,7 @@ export const MAX_MUZZLE_LIGHTS = 1;
  */
 export const MISSION1_MOON_POSITION: readonly [number, number, number] = [14, 28, 13];
 export const MISSION2_SUN_POSITION: readonly [number, number, number] = [22, 24, 8];
+export const MISSION4_SUN_POSITION: readonly [number, number, number] = [20, 22, 10];
 
 /** Ranní sluneční odlesk Vltavy (ADR-0018) */
 export const VLTAVA_SUN_SPECULAR_COLOR = "#fef3c7";
@@ -356,11 +358,63 @@ export const POWDER_YARD_FIXTURES: readonly FixtureDef[] = [
   },
 ];
 
+export const MILL_FIXTURES: readonly FixtureDef[] = [
+  {
+    id: "torch-sluice-west",
+    kind: "torch",
+    coord: { x: 10, y: 0, z: 10 },
+    offset: [-0.38, 1.65, -0.35],
+    color: TORCH_COLOR,
+    radius: 9,
+    intensity: 6.2,
+    exposed: true,
+  },
+  {
+    id: "torch-mill-quay",
+    kind: "torch",
+    coord: { x: 11, y: 0, z: 15 },
+    offset: [-0.38, 1.65, 0.35],
+    color: TORCH_COLOR,
+    radius: 9,
+    intensity: 5.8,
+    exposed: true,
+  },
+  {
+    id: "candelabrum-mill-stone",
+    kind: "candelabrum",
+    coord: { x: 14, y: 0, z: 11 },
+    offset: [0.35, 1.5, -0.35],
+    color: CANDELABRUM_COLOR,
+    radius: 7.5,
+    intensity: 4.2,
+  },
+  {
+    id: "candelabrum-mill-granary",
+    kind: "candelabrum",
+    coord: { x: 16, y: 1, z: 15 },
+    offset: [0.35, 1.6, 0.35],
+    color: CANDELABRUM_COLOR,
+    radius: 8.0,
+    intensity: 4.6,
+  },
+  {
+    id: "torch-tower-crown",
+    kind: "torch",
+    coord: { x: 16, y: 2, z: 14 },
+    offset: [-0.38, 1.65, -0.38],
+    color: TORCH_COLOR,
+    radius: 9.5,
+    intensity: 6.0,
+    exposed: true,
+  },
+];
+
 export function fixturesForScenario(
-  scenario: "mission1" | "mission2" | "mission3",
+  scenario: ScenarioId,
 ): readonly FixtureDef[] {
   if (scenario === "mission2") return BRIDGE_TORCHES;
   if (scenario === "mission3") return POWDER_YARD_FIXTURES;
+  if (scenario === "mission4") return MILL_FIXTURES;
   return FIXTURES;
 }
 

@@ -134,6 +134,35 @@ export function evalRoofParapetCover(
     return "none";
   }
 
+  if (kind === "mill") {
+    // Mission 4: Old Town Mills & Water Tower
+    if (c.y === 0) {
+      // Bank sluice & millrace wall parapets
+      if (c.x === 10 && c.z === 10 && (dir === "W" || dir === "N")) return "half";
+      if (c.x === 10 && (c.z === 9 || c.z === 11) && dir === "W") return "half";
+      if (c.x === 11 && c.z === 11 && dir === "W") return "half";
+      // Sandstone weir pier bank cover
+      if (c.x === 7 && c.z === 10 && (dir === "E" || dir === "S")) return "half";
+      if (c.x === 7 && c.z === 16 && (dir === "E" || dir === "N")) return "half";
+    }
+    if (c.y === 1) {
+      // Granary & tower hoist windows facing the Vltava millrace
+      if (c.x === 15 && c.z >= 13 && c.z <= 15 && dir === "W") return "half";
+      if (c.x === 16 && c.z === 14 && dir === "W") return "half";
+      if (c.z === 11 && c.x >= 13 && c.x <= 16 && dir === "N") return "half";
+    }
+    if (c.y === 2) {
+      // Water tower open roof parapet (x: 15..18, z: 14..17)
+      if (c.x >= 15 && c.x <= 18 && c.z >= 14 && c.z <= 17) {
+        if (c.x === 15 && dir === "W") return "half";
+        if (c.x === 18 && dir === "E") return "half";
+        if (c.z === 14 && dir === "N") return "half";
+        if (c.z === 17 && dir === "S") return "half";
+      }
+    }
+    return "none";
+  }
+
   if (kind === "bridge") {
     // Mission 2: Charles Bridge outer stone parapets (x: 1..9, z: 11 N & z: 16 S)
     if (c.y === 0 && c.x >= 1 && c.x <= 9) {
@@ -405,7 +434,13 @@ export class GridSystem {
     if (!tile) return;
     tile.obstacle = obstacle;
     tile.walkable = tile.hasFloor && obstacle === "none";
-    if (obstacle === "low_wall" && c.z < 15 && c.y === 0 && this.instanceRoofKind !== "powder-yard") {
+    if (
+      obstacle === "low_wall" &&
+      c.z < 15 &&
+      c.y === 0 &&
+      this.instanceRoofKind !== "powder-yard" &&
+      this.instanceRoofKind !== "mill"
+    ) {
       tile.surface = "rubble";
     }
     this.bakeCoverFromObstacles();
@@ -984,7 +1019,7 @@ export function createInitialGrid(): GridSystem {
   return grid;
 }
 
-export type RoofKind = "bridge" | "powder-yard";
+export type RoofKind = "bridge" | "powder-yard" | "mill";
 
 export function evalEnclosedRoofedCoord(
   mask: ((x: number, y: number, z: number) => boolean) | null,
@@ -1274,6 +1309,52 @@ export const WEAPON_CATALOG: Record<string, WeaponStats> = {
     overwatchMode: "full_360",
     isPistol: true,
   },
+  sipek_wheellock_pistol: {
+    id: "sipek_wheellock_pistol",
+    name: "Mlynářova kolečková pistole",
+    lockType: "wheellock",
+    minDamage: 5,
+    maxDamage: 7,
+    critBonusDamage: 3,
+    baseCritChance: 14,
+    baseAccuracy: 64,
+    falloffPerTile: 5,
+    pointBlankRange: 4,
+    optimalRange: 6,
+    maxRange: 13,
+    armorPierce: 1,
+    armorShred: 1,
+    baseMisfireChance: 3,
+    supportsRestFork: false,
+    fireApCost: 1,
+    reloadApCost: 2,
+    mobilityPenalty: 0,
+    overwatchMode: "full_360",
+    isPistol: true,
+  },
+  klara_apothecary_carbine: {
+    id: "klara_apothecary_carbine",
+    name: "Klářina přesná kolečková karabina",
+    lockType: "wheellock",
+    minDamage: 6,
+    maxDamage: 9,
+    critBonusDamage: 4,
+    critBonusMaxDamage: 5,
+    baseCritChance: 18,
+    baseAccuracy: 68,
+    falloffPerTile: 3,
+    pointBlankRange: 4,
+    optimalRange: 10,
+    maxRange: 18,
+    armorPierce: 2,
+    armorShred: 1,
+    baseMisfireChance: 3,
+    supportsRestFork: false,
+    fireApCost: 1,
+    reloadApCost: 2,
+    mobilityPenalty: 2,
+    overwatchMode: "full_360",
+  },
 };
 
 /**
@@ -1380,6 +1461,48 @@ export const MELEE_CATALOG: Record<string, MeleeWeaponStats> = {
     armorPierce: 0,
     armorShred: 0,
     description: "Lehká čepel bez kyrysu. Harcovník s ní nejezdí, běží.",
+  },
+  mill_pole_hook: {
+    id: "mill_pole_hook",
+    name: "Okované mlynářské bidlo",
+    kind: "polearm",
+    minDamage: 4,
+    maxDamage: 6,
+    critBonusDamage: 2,
+    baseCritChance: 14,
+    baseAccuracy: 86,
+    armorPierce: 1,
+    armorShred: 0,
+    description:
+      "Dlouhé jasanové bidlo s železným hákem k odhánění ker a hořících vorů; úder odhodí nepřítele o 1 pole.",
+  },
+  apothecary_knife: {
+    id: "apothecary_knife",
+    name: "Lékárnický nůž",
+    kind: "dagger",
+    minDamage: 3,
+    maxDamage: 5,
+    critBonusDamage: 2,
+    baseCritChance: 15,
+    baseAccuracy: 88,
+    armorPierce: 1,
+    armorShred: 0,
+    description: "Ostrý nůž na byliny a plátno k nutné sebeobraně zblízka.",
+  },
+  forge_hammer: {
+    id: "forge_hammer",
+    name: "Kovářské kladivo vodárny",
+    kind: "polearm",
+    minDamage: 6,
+    maxDamage: 8,
+    critBonusDamage: 3,
+    baseCritChance: 16,
+    baseAccuracy: 80,
+    armorPierce: 2,
+    armorShred: 2,
+    stunChance: 25,
+    description:
+      "Těžké kladivo vodárenského podkováře: drtí ocelový kyrys, otřese protivníkem a přesekne kotevní hák.",
   },
 };
 

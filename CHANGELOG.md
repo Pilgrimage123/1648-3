@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - 2026-11-26
+
+### Added
+- **Mise 4: Jez a mlýnice — Staroměstské mlýny a vodárenská věž (ADR-0025, `src/core/mission4.ts`, `OldTownMillDressing.tsx`)**:
+  - **Historická mise ze 12. srpna 1648 v ranní vltavské mlze (`weather: "fog"`)**: Tři noví obránci pražských stavů — staroměstský stárka mlynářů **Mistr Prokop Šípek** (VIP, kolečková pistole + okované bidlo s **Odhozením**, zrychlená obsluha stavidel), apatykářka **Klára z Lékárny u Zlatého orla** (přesná kolečková karabina bez doutnáku + **Octová rouška a obklad**) a vodárenský kovář **Matyáš „Hrom“ Kovář** (kyrys `Armor 3` odolný proti zadýmení, těžká mušketa s furketou, kovářské kladivo a sekání kotevních háků).
+  - **Dvě symetrické cesty k vítězství (`weir_flood` | `barge_sunk`)**: Hydrotechnické otevření obou stavidel (`SLUICE_WEST` v přízemí a `SLUICE_TOWER` v 1. patře) zaplaví mělký brod (`cobble` → `water`), bezpečně odsune obránce na břeh a smete švédský zápalný prám; alternativně lze z vodárenské věže či sýpky prostřelit oba prachové sudy přímo na plujícím pramu (`bargeKegsRemaining: 2 → 0`).
+  - **Fyzika moučného prachu a průvanové odvětrávání (`ADR-0011`)**: Výstřel doutnákovou zbraní v uzavřené a nevyvětrané mlýnici zapálí moučný prach (`millBurningTurns`), zatímco kolečkové zámky a otevření mlýnských vrat (`getOpenExteriorDoors()`) nebezpečí bezpečně odstraní.
+  - **3D barokní architektura a jednotky**: Mlýnská kola v náhonu, dřevěná vodárenská věž, plující hořící prám se sudy prachu, věrné 2D loutkové profily i 3D modely postav a kompletní sada testů `scripts/test-mission4.ts`.
+- **2D loutková kostra a historické uniformy roku 1648 (ADR-0023, `swedishRig2D.ts`, `swedishCanvasRenderer.ts`, `UnitVisual2D.tsx`, `UnitPortrait.tsx`)**:
+  - **Plná 2D skeletální kinematika pro Pražany i Švédy**: Všech 8 profilů obránců Prahy (`colloredo_marshal` v bílé noční košili, noční čapce a trepkách s lützenovským kulháním `hasLimp`, `jan_matej_valet` v koletu a polokyrysu, `vaclav_scribe` s ukořistěnou M1624, `bartolomej_armorer` v tříčtvrteční zbroji a těžké mušketě s furketou, ~2m vysoký `plachy_jesuit` v černé sutaně, nákrčníku a biretu s krucifixem, `havel_butcher` v řeznické zástěře, `ondrej_thief` se smotaným lanem, `klementinum_student` s českou kokardou) i 10 švédských brigádních a taktických profilů (`odowalsky_officer`, `yellow_brigade`, `blue_brigade`, `green_veteran`, `belvedere_heavy_musketeer`, `red_pikeman`, `artillery_constable`, `m3_carolean`, `m2_harrier`, `m2_occultist`).
+  - **Rozlišení moderní M1624 bez furkety a těžkých mušket s furketou (`resolveUsesFurketa`, `evaluateFireSequence`)**: Odlehčené švédské muškety s papírovými patronami (`patronkök`) střílejí přímo z ruky s rychlejším zamířením, +0,10s zpožděním zážehu na pánvičce a výraznějším zdvihem hlavně, zatímco těžké doutnákové muškety nejprve zapichují dřevěnou furketu.
+  - **Analytická 2-kostní inverzní kinematika (`solveTwoBoneIK`) a sekundární fyzika**: Nekřížící se přiřazení paží pro obouruční hrdiny (hůl/krucifix/sekáč v bližší ruce, pistole v přední ruce), pružinová fyzika apoštolů, šosů, plášťů a per (`apostleSwing`, `coatHemSwing`, `cloakSwing`, `plumeSwing`), kamerově orientované překlápění (`facingSign`), stín vrhající `THREE.CanvasTexture` a oříznuté bustové portréty v HUD (`getSwedishPortraitDataUri`).
+  - **Testovací pokrytí**: Sada `src/utils/swedishRig2D.test.ts`.
+- **Modulární rozklad storu, líný životní cyklus scény a regresní sada (ADR-0021, ADR-0022, ADR-0024, `scripts/test-regressions.ts`)**:
+  - **Rozklad `useGameStore.ts`**: Rozdělení na `storeTypes.ts`, `storeUtils.ts` (`sessionEpoch`, správa časovačů `activeTimers`), `combatResolution.ts`, `scenarioLifecycle.ts`, `combatActions.ts` a `aiTurnRunner.ts`.
+  - **Výchozí režim `2D_SPRITE` a perzistence (`preferredRenderMode`)**: Všechny 3 mise startují ve výchozím `2D_SPRITE` s líným načítáním `UnitVisual3D`, pozastaveným `<Canvas>` při návratu do briefingu (`openBriefing`) a pevným počtem slotů `<pointLight>` bez rekompilace shaderů.
+  - **Regresní testy (`scripts/test-regressions.ts`)**: 12 regresních testů pokrývajících epochy záblesků (`performance.now()`), hlášení Mise 3, průraz dýmem `klementinum_verdict`, stráže prachových sudů a vybití zbraně, synchronizaci tutoriálu při přebíjení, varianty porážky, výchozí `2D_SPRITE`, `getMission1EscapeTile`, nulová extra `<pointLight>` v `GrandPrioryPalaceDressing.tsx`, rušení korutin v `openBriefing` a časování vedlejší exploze sudů při dopadu střely.
+
+### Fixed
+- **Bezpečné odpojování 3D HTML štítků v React 19 (`WorldHtml.tsx`)**: Vlastní komponenta `WorldHtml` nahrazuje `<Html>` z `@react-three/drei`, připojuje DOM uzel v pasivním `useEffect` a odkládá `root.unmount()` mimo commit fázi R3F (`setTimeout(..., 0)`).
+- **Sdílené geometrie a synchronizace dopadu (`CombatLines3D.tsx`, `combatActions.ts`)**: Sdílené modulové geometrie částic snižují alokace a vedlejší výbuchy prachových sudů (`blastZones`, `lightFlashes`) se spouštějí přesně při dopadu střely místo `t = 0`.
+- **Konzistence dopadových metadat Mise 2/3 (`combatResolution.ts`)**: Zásahy mimo cíl na `z >= 15` v Misi 2 a 3 se již neklasifikují jako palácová štuka nebo dřevo.
+
 ## [Unreleased] - 2026-11-12
 
 ### Added

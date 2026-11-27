@@ -1,6 +1,6 @@
 # Praha 1648
 
-Turn-based tactical strategy set in Prague during the Swedish siege of 1648. The player commands through Jesuit Father Jiří Plachý and the Železná vigilie — an elite company drawn from Prague's estates, anchored at the Klementinum — across three historical nights and mornings: the palace escape of Field Marshal Colloredo (Mission 1), the defense of the Old Town Bridge Tower and Charles Bridge (Mission 2), and the night sortie against the Swedish powder yard on Malá Strana (Mission 3).
+Turn-based tactical strategy set in Prague during the Swedish siege of 1648. The player commands through Jesuit Father Jiří Plachý and the Železná vigilie — alongside Prague's guildsmen and defenders across four historical engagements: the palace escape of Field Marshal Colloredo (Mission 1), the defense of the Old Town Bridge Tower and Charles Bridge (Mission 2), the night sortie against the Swedish powder yard on Malá Strana (Mission 3), and the dawn defense of the Old Town Mills and water tower against an incendiary river barge (Mission 4).
 
 ## Language
 
@@ -130,6 +130,9 @@ Atmospheric combat diffusion where indoor and courtyard plaster dust, soot, and 
 **Furketa** (*Musket Rest / Fork*):
 A heavy wooden fork stand stabilizing heavy matchlock muskets for deliberate 2-AP aimed shots; shooting hurriedly after moving (**střelba od boku**) costs 1 AP at steep inaccuracy and leaves the shooter Otřesený.
 
+**Odlehčená mušketa M1624** (*Lightened Offhand Musket*):
+Modernized 1624 Swedish matchlock fired directly from the shoulder without a wooden **Furketa**, reloaded with paper cartridges from a waist *patronkök* and exhibiting faster sight alignment alongside sharper upward muzzle climb.
+
 **Fázové nabíjení** (*Segmented Reload*):
 Progressively charging complex 17th-century muzzle-loading firearms step by step across turns (2 AP for lighter Swedish muskets with paper cartridges, 4 AP for heavy imperial matchlocks), interrupted only if a soldier strikes with a musket butt while partially loaded.
 
@@ -177,7 +180,7 @@ The Jesuit college in Prague's Old Town serving as the spiritual and intellectua
 _Avoid_: Avenger, Strategic HQ
 
 **Mise** (*Mission*):
-One playable historical operation of the 1648 campaign (Mise 1: Útěk polního maršála, Mise 2: Mříž, Mise 3: Doutnák).
+One playable historical operation of the 1648 campaign (Mise 1: Útěk polního maršála, Mise 2: Mříž, Mise 3: Doutnák, Mise 4: Jez a mlýnice).
 _Avoid_: Stage, Level, Scenario (in player-facing speech)
 
 **Kronika tažení** (*Campaign Chronicle*):
@@ -264,6 +267,26 @@ The Swedish gunner traversing a falconet behind yard gabions once silence breaks
 **Vzplanutí dvora a Jizva kroniky** (*Cook-off & Chronicle Scar*):
 The catastrophic store detonation charring the powder yard while Father Plachý extracts to the skiff, recording whether zero deliveries muted the battery or 1–2 deliveries left a **jizva kroniky** (*chronicle scar*) at dawn.
 
+### Mission 4: Weir and Millhouse (ADR-0025)
+
+**Mise 4: Jez a mlýnice** (*Weir and Millhouse*):
+The foggy dawn defense of the Old Town Mills (*Staroměstské mlýny*) and wooden water tower on 12 August 1648 led by head miller Mistr Prokop Šípek, apothecary Klára z Lékárny u Zlatého orla, and water-tower smith Matyáš „Hrom“ Kovář.
+
+**Zápalný prám** (*Incendiary Fire-Barge*):
+A drifting Swedish barge loaded with pitch garlands and two volatile powder kegs descending the Vltava millrace (`bargeX: 4 → 14`) toward the mill waterwheels unless sunk by gunnery or swept aside by opening both sluices.
+
+**Stavidlo a Zaplavení brodu** (*Sluices & Weir Flood*):
+Operating both the riverbank sluice and the tower hoist chain to unleash the millrace surge, sweeping the fire-barge clear (`weir_flood` victory) while transforming shallow ford cobblestones (`x: 8..10, z: 12..16`) into impassable deep water and washing enemy forders westward.
+
+**Moučný prach a Odvětrání mlýnice** (*Flour Dust Ignition & Mill Venting*):
+Airborne flour inside the sealed Old Town millhouse that detonates when a **matchlock** firearm discharges indoors, igniting the mill unless wheellock weapons are used or at least one exterior mill door is opened for **Průvanové odvětrávání portálů**.
+
+**Kotevní hák a Říční ženisté** (*Anchor Grapples & River Sappers*):
+Grappling lines thrown from the mill bank by Swedish river sappers to accelerate the fire-barge (`+3` tiles per turn instead of `+2`), broken by steel or pole-hook strikes (**Odhození**).
+
+**Octová rouška a obklad** (*Apothecary Vinegar Compress*):
+Klára's medicinal field compress clearing **Zadýmení** and **Otřesený**, restoring four health points, and dispersing black-powder smoke around an adjacent or self-targeted defender.
+
 ### Presentation, Visuals & Camera
 
 **Kinematická akční kamera** (*Cinematic Action Cam*):
@@ -277,6 +300,9 @@ Floating minimal Baroque instruments comprising the **Tactical Action Ribbon**, 
 
 **Jazyk tvarů** (*Top-Down Class Silhouettes*):
 Strict silhouette differentiation across all five martial classes — ranger poles/valet cleavers, wide plumed sniper hats and capes, broad armored cuirassier pauldrons, sectoid censers and back-banners, and Marshal Colloredo's gilded command cuirass and crimson sash — with hats seated physically low across the brow.
+
+**Loutková 2D kostra a kinematika** (*2D Cut-Out Skeletal Rig*):
+Hierarchical 2D canvas skeletal animation (`swedishRig2D.ts` / `swedishCanvasRenderer.ts`) rendering all 18 Prague defender and Swedish troop profiles with analytical 2-bone IK arms, damped cloth/bandolier springs, Colloredo's asymmetric Lützen limp, camera-relative facing flips, and synchronized HUD bust portraits.
 
 **Pravidlo barev 60-30-10** (*60-30-10 Color Rule*):
 Scene color discipline keeping 60% calm desaturated ground and atmosphere, 30% secondary stone/timber architecture, and reserving 10% saturated royal gold, scarlet crimson, cobalt blue, and torch amber strictly for units, active cover, explosives, and objectives.
